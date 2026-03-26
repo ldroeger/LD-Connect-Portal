@@ -1,0 +1,38 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    expose:
+      - "3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+      - DATA_DIR=/data
+      - APP_URL=${APP_URL:-http://localhost}
+    volumes:
+      - app-data:/data
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  app-data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
