@@ -516,20 +516,10 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
     // Resolve Mieter-Name for items lent to address
     const tools = await Promise.all(result.recordset.map(async w => {
       let mieterName = ''
-
-      if (w.WZV_VerliehenAnADR) {
-        // Try to get address name from Powerbird
-        try {
-          const adr = await pbDb.query(
-            `SELECT TOP 1
-               LTRIM(RTRIM(ISNULL(a.Name1,''))) + ISNULL(' ' + LTRIM(RTRIM(a.Name2)),'') AS Name
-             FROM ELADR a WHERE a.RecNo = @id`,
-            { id: w.WZV_VerliehenAnADR }
-          )
-          if (adr.recordset[0]) mieterName = adr.recordset[0].Name
-        } catch(e) {}
-      } else if (w.VerliehAnMitarb) {
+      if (w.VerliehAnMitarb) {
         mieterName = w.VerliehAnMitarb
+      } else if (w.MitgenommenVon) {
+        mieterName = w.MitgenommenVon
       }
 
       // Determine status
