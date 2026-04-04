@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../utils/api.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import ToolsAlertBanner from '../components/ToolsAlertBanner.jsx'
 
 const fmtTime = d => { if (!d) return ''; const t = new Date(d); return `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}` }
 const fmtH = h => (h >= 0 ? '+' : '') + `${Math.round(h*100)/100}h`
@@ -16,7 +17,8 @@ function getTextColor(hex) {
 function StatCard({ icon, label, value, color, onClick, sub }) {
   return (
     <div onClick={onClick} style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', padding:'18px 16px', boxShadow:'var(--shadow)', cursor:onClick?'pointer':'default', transition:'transform 0.15s, box-shadow 0.15s', flex:1, minWidth:130 }}
-      onMouseEnter={e=>{ if(onClick){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 6px 16px rgba(0,0,0,0.12)' }}}
+      onMouseEnter={e=>
+      {user?.features?.tools !== false && <ToolsAlertBanner />}{ if(onClick){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 6px 16px rgba(0,0,0,0.12)' }}}
       onMouseLeave={e=>{ if(onClick){ e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='var(--shadow)' }}}>
       <div style={{ fontSize:'1.4rem', marginBottom:8 }}>{icon}</div>
       <div style={{ fontSize:'1.6rem', fontWeight:800, color:color||'var(--primary)', lineHeight:1 }}>{value}</div>

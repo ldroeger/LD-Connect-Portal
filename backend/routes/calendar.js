@@ -381,4 +381,64 @@ router.get('/tools', authMiddleware, async (req, res) => {
 })
 
 
+// GET /api/calendar/tools-alerts - Werkzeug-Reservierungen in den nächsten 2 Tagen
+router.get('/tools-alerts', authMiddleware, async (req, res) => {
+  try {
+    // Get tools assigned to this user
+    const toolsResult = await pbDb.query(
+      `SELECT
+         LTRIM(RTRIM(ISNULL(w.Intern_Nr,''))) AS InternNr,
+         LTRIM(RTRIM(ISNULL(w.WZV_WZNr,''))) AS WZNr,
+         LTRIM(RTRIM(ISNULL(w.Bezeichnung,''))) AS Bezeichnung
+       FROM ELWZV w
+       WHERE LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,''))) = @uid
+         AND (w.Verleih_RueckgabeAm IS NULL OR w.Verleih_RueckgabeAm >= GETDATE())`,
+      { uid: req.user.powerbird_id }
+    )
+
+    if (!toolsResult.recordset.length) return res.json({ alerts: [] })
+
+    // Check HWTER for upcoming reservations for these tools within 2 days
+    // Termin_ResourceArt = 'Werkzeuge', Termin_ResourceName matches Intern_Nr
+    const internNrs = toolsResult.recordset.map(w => w.InternNr).filter(Boolean)
+    if (!internNrs.length) return res.json({ alerts: [] })
+
+    const placeholders = internNrs.map((_, i) => `@nr${i}`).join(',')
+    const params = { uid: req.user.powerbird_id }
+    internNrs.forEach((nr, i) => params[`nr${i}`] = nr)
+
+    const alertsResult = await pbDb.query(
+      `SELECT
+         LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) AS ResourceName,
+         LTRIM(RTRIM(ISNULL(h.Termin_ResourceName_1,''))) AS ResourceName1,
+         CONVERT(varchar(19), h.Termin_Start, 120) AS TerminStart,
+         CONVERT(varchar(19), h.Termin_Ende, 120) AS TerminEnde,
+         LTRIM(RTRIM(ISNULL(h.Termin_Label,''))) AS Label
+       FROM HWTER h
+       WHERE h.Termin_ResourceArt = 'Werkzeuge'
+         AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName_1,''))) IN (${placeholders})
+         AND h.Termin_Start >= GETDATE()
+         AND h.Termin_Start <= DATEADD(day, 2, GETDATE())
+         AND ISNULL(h.Geloescht, 0) = 0
+       ORDER BY h.Termin_Start ASC`,
+      params
+    )
+
+    // Match alerts back to tool names
+    const alerts = alertsResult.recordset.map(h => {
+      const tool = toolsResult.recordset.find(w => w.InternNr === h.ResourceName1)
+      return {
+        bezeichnung: tool ? tool.Bezeichnung : h.ResourceName,
+        nr: tool ? tool.WZNr : h.ResourceName1,
+        start: h.TerminStart,
+        ende: h.TerminEnde,
+        label: h.Label,
+      }
+    })
+
+    res.json({ alerts })
+  } catch(e) { res.status(500).json({ error: e.message }) }
+})
+
+
 module.exports = router;
