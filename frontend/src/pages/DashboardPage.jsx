@@ -46,10 +46,15 @@ export default function DashboardPage() {
   const [saldo, setSaldo] = useState(null)
   const [urlaubStats, setUrlaubStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [toolAlerts, setToolAlerts] = useState([])
   const features = { calendar: true, vacation: true, hours: true, ...(user?.features || {}) }
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
+    // Werkzeug-Alerts
+    if (user?.features?.tools !== false) {
+      api.get('/calendar/tools-alerts').then(r => setToolAlerts(r.data.alerts || [])).catch(() => {})
+    }
     Promise.all([
       api.get(`/calendar/appointments?from=${today}&to=${today}`).catch(() => ({ data: { appointments: [] } })),
       api.get(`/calendar/hours?year=${new Date().getFullYear()}`).catch(() => null),
@@ -59,7 +64,6 @@ export default function DashboardPage() {
       setAppointments(apptRes.data.appointments || [])
       if (hoursRes) setSaldo(hoursRes.data.total_saldo)
       if (vacRes) setUrlaubStats(vacRes.data)
-      // Build label color map
       const map = {}
       labelsRes.data.labels?.forEach(l => map[l.name] = l.color)
       setLabels(map)

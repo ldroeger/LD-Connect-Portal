@@ -416,7 +416,10 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
          LTRIM(RTRIM(ISNULL(h.Termin_Label,''))) AS Label
        FROM HWTER h
        WHERE h.Termin_ResourceArt = 'Werkzeuge'
-         AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName_1,''))) IN (${placeholders})
+         AND (
+           LTRIM(RTRIM(ISNULL(h.Termin_ResourceName_1,''))) IN (${placeholders})
+           OR LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) IN (${placeholders})
+         )
          AND h.Termin_Start >= GETDATE()
          AND h.Termin_Start <= DATEADD(day, 2, GETDATE())
          AND ISNULL(h.Geloescht, 0) = 0
@@ -426,7 +429,7 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
 
     // Match alerts back to tool names
     const alerts = alertsResult.recordset.map(h => {
-      const tool = toolsResult.recordset.find(w => w.InternNr === h.ResourceName1)
+      const tool = toolsResult.recordset.find(w => w.InternNr === h.ResourceName1 || h.ResourceName.startsWith(w.InternNr))
       return {
         bezeichnung: tool ? tool.Bezeichnung : h.ResourceName,
         nr: tool ? tool.WZNr : h.ResourceName1,
