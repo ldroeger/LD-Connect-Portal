@@ -310,7 +310,7 @@ export function setLang(code) {
   try { localStorage.setItem('ld_lang', code) } catch(e) {}
 }
 
-export function tr(lang, key, vars) {
+export function translate(lang, key, vars) {
   const str = (translations[lang] || translations.de)[key] || translations.de[key] || key
   if (!vars) return str
   const keys = Object.keys(vars)

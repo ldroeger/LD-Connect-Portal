@@ -5,7 +5,7 @@ import { useBranding } from '../contexts/BrandingContext.jsx'
 import { useTheme } from '../contexts/ThemeContext.jsx'
 import LanguageSwitcher from './LanguageSwitcher.jsx'
 import { useLang } from '../contexts/LanguageContext.jsx'
-import { tr } from '../i18n/translations.js'
+import { translate } from '../i18n/translations.js'
 
 const navLink = (active) => ({
   display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8,
@@ -30,35 +30,35 @@ export default function Layout() {
   const NavItems = ({ onNavigate }) => (
     <>
       <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>
-          {tr(lang,'nav_overview')}
+          {translate(lang,'nav_overview')}
         </div>
-      <NavLink to="/" end style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🏠</span><span>{tr(lang,"nav_dashboard")}</span></NavLink>
-      {!!features.calendar && <NavLink to="/calendar" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📅</span><span>{tr(lang,"nav_calendar")}</span></NavLink>}
-      {!!features.vacation && <NavLink to="/vacation" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🌴</span><span>{tr(lang,"nav_vacation")}</span></NavLink>}
-      {features.hours    && <NavLink to="/hours" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⏱</span><span>{tr(lang,"nav_hours")}</span></NavLink>}
-      {(user?.features?.news_read !== false) && <NavLink to="/news" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📰</span><span>{tr(lang,"nav_news")}</span></NavLink>}
-      {(user?.features?.todos_read !== false) && <NavLink to="/todos" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>{tr(lang,"nav_todos")}</span></NavLink>}
-      {(user?.features?.tools !== false) && <NavLink to="/tools" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔧</span><span>{tr(lang,"nav_tools")}</span></NavLink>}
-      {(user?.features?.tools_search !== false) && <NavLink to="/tools-search" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔍</span><span>{tr(lang,"nav_tools_search")}</span></NavLink>}
+      <NavLink to="/" end style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🏠</span><span>{translate(lang,"nav_dashboard")}</span></NavLink>
+      {!!features.calendar && <NavLink to="/calendar" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📅</span><span>{translate(lang,"nav_calendar")}</span></NavLink>}
+      {!!features.vacation && <NavLink to="/vacation" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🌴</span><span>{translate(lang,"nav_vacation")}</span></NavLink>}
+      {features.hours    && <NavLink to="/hours" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⏱</span><span>{translate(lang,"nav_hours")}</span></NavLink>}
+      {(user?.features?.news_read !== false) && <NavLink to="/news" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📰</span><span>{translate(lang,"nav_news")}</span></NavLink>}
+      {(user?.features?.todos_read !== false) && <NavLink to="/todos" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>{translate(lang,"nav_todos")}</span></NavLink>}
+      {(user?.features?.tools !== false) && <NavLink to="/tools" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔧</span><span>{translate(lang,"nav_tools")}</span></NavLink>}
+      {(user?.features?.tools_search !== false) && <NavLink to="/tools-search" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔍</span><span>{translate(lang,"nav_tools_search")}</span></NavLink>}
 
       {canApprove && <>
         <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>
-          {tr(lang,'nav_approval')}
+          {translate(lang,'nav_approval')}
         </div>
-        <NavLink to="/vacation-approve" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>{tr(lang,"nav_vacation_approve")}</span></NavLink>
+        <NavLink to="/vacation-approve" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>{translate(lang,"nav_vacation_approve")}</span></NavLink>
       </>}
 
       {isAdmin && <>
         <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>
-          {tr(lang,'nav_admin')}
+          {translate(lang,'nav_admin')}
         </div>
-        <NavLink to="/admin" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⚙️</span><span>{tr(lang,"nav_settings")}</span></NavLink>
-        <NavLink to="/display-manage" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🖥</span><span>{tr(lang,"nav_display")}</span></NavLink>
+        <NavLink to="/admin" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⚙️</span><span>{translate(lang,"nav_settings")}</span></NavLink>
+        <NavLink to="/display-manage" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🖥</span><span>{translate(lang,"nav_display")}</span></NavLink>
       </>}
 
       <div style={{ borderTop:'1px solid var(--border)', marginTop:8, paddingTop:8 }}>
         <div style={{ ...navLink(false), cursor:'pointer' }} onClick={() => { logout(); navigate('/login') }}>
-          <span>🚪</span><span>{tr(lang,"nav_logout")}</span>
+          <span>🚪</span><span>{translate(lang,"nav_logout")}</span>
         </div>
       </div>
     </>
