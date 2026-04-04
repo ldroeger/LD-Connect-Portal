@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import api from '../utils/api.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { useLang } from '../contexts/LanguageContext.jsx'
+import { t } from '../i18n/translations.js'
 
 const card = { background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', padding:20, boxShadow:'var(--shadow)', marginBottom:12 }
 const inp = { width:'100%', padding:'9px 12px', borderRadius:8, border:'1px solid var(--border)', fontSize:'0.88rem', fontFamily:'var(--font)', outline:'none', boxSizing:'border-box', background:'var(--surface)', color:'var(--text)', marginBottom:12 }
@@ -9,6 +11,7 @@ const btn = (v='primary') => ({ padding:'8px 16px', borderRadius:8, border:v==='
 
 export default function TodosPage() {
   const { user } = useAuth()
+  const { lang } = useLang()
   const [todos, setTodos] = useState([])
   const [showArchive, setShowArchive] = useState(false)
   const [form, setForm] = useState({ title:'', description:'' })
