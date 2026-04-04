@@ -9,18 +9,19 @@ const btn = (v='primary') => ({ padding:'9px 18px', borderRadius:8, border:v==='
 const success = { background:'#ECFDF5', border:'1px solid #A7F3D0', color:'#059669', padding:'10px 14px', borderRadius:8, fontSize:'0.85rem', marginBottom:12 }
 const error = { background:'#FEF2F2', border:'1px solid #FECACA', color:'#DC2626', padding:'10px 14px', borderRadius:8, fontSize:'0.85rem', marginBottom:12 }
 
-const ROLE_LABEL = { admin:'Admin', vacation_approver:'Urlaub Gen.', user:'Benutzer' }
+const ROLE_LABEL = { admin:'Admin', vacation_approver:'Urlaub Gen.', user:'Benutzer', news_manager:'Benutzer' }
 const ROLE_COLOR = { admin:'var(--primary)', vacation_approver:'#6366F1', user:'var(--text-3)' }
 
 const FEATURES = [
-  { key:'feature_calendar',    label:'Kalender',           icon:'📅' },
-  { key:'feature_vacation',    label:'Urlaubsplanung',     icon:'🌴' },
-  { key:'feature_hours',       label:'Stundenkonto',       icon:'⏱' },
-  { key:'feature_news_read',   label:'News lesen',         icon:'📰' },
-  { key:'feature_news_write',  label:'News schreiben',     icon:'✏️' },
-  { key:'feature_todos_read',  label:'Aufgaben lesen',     icon:'✅' },
-  { key:'feature_todos_create',label:'Aufgaben erstellen', icon:'➕' },
-  { key:'feature_tools',       label:'Mein Werkzeug',      icon:'🔧' },
+  { key:'feature_calendar',      label:'Kalender',              icon:'📅' },
+  { key:'feature_vacation',      label:'Urlaubsplanung',        icon:'🌴' },
+  { key:'feature_hours',         label:'Stundenkonto',          icon:'⏱' },
+  { key:'feature_news_read',     label:'News lesen',            icon:'📰' },
+  { key:'feature_news_write',    label:'News schreiben',        icon:'✏️' },
+  { key:'feature_todos_read',    label:'Aufgaben lesen',        icon:'✅' },
+  { key:'feature_todos_create',  label:'Aufgaben erstellen',    icon:'➕' },
+  { key:'feature_tools',         label:'Mein Werkzeug',         icon:'🔧' },
+  { key:'feature_tools_search',  label:'Werkzeug suchen',       icon:'🔍' },
 ]
 
 function Toggle({ checked, onChange }) {
@@ -46,6 +47,7 @@ function EditModal({ user, onClose, onSaved }) {
     feature_todos_read:   user.feature_todos_read  !== 0,
     feature_todos_create: !!user.feature_todos_create,
     feature_tools: user.feature_tools !== 0,
+    feature_tools_search: user.feature_tools_search !== 0,
   })
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')

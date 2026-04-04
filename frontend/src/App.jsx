@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext.jsx'
 import { BrandingProvider } from './contexts/BrandingContext.jsx'
 import { ThemeProvider } from './contexts/ThemeContext.jsx'
 import api from './utils/api.js'
+import FeatureGate from './components/FeatureGate.jsx'
 
 import SetupWizard from './pages/SetupWizard.jsx'
 import LoginPage from './pages/LoginPage.jsx'
@@ -48,16 +49,16 @@ function AppRoutes() {
       {user ? (
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          {features.vacation && <Route path="/vacation" element={<VacationPage />} />}
-          {features.hours    && <Route path="/hours" element={<HoursPage />} />}
+          <Route path="/calendar" element={<FeatureGate feature="calendar"><CalendarPage /></FeatureGate>} />
+          {features.vacation && <Route path="/vacation" element={<FeatureGate feature="vacation"><VacationPage /></FeatureGate>} />}
+          {features.hours    && <Route path="/hours" element={<FeatureGate feature="hours"><HoursPage /></FeatureGate>} />}
           {canApprove && <Route path="/vacation-approve" element={<VacationApprovePage />} />}
           {user.role === 'admin' && <Route path="/admin/*" element={<AdminPage />} />}
           {user.role === 'admin' && <Route path="/display-manage" element={<DisplayManagePage />} />}
-          <Route path="/news" element={<NewsPage />} />
-          <Route path="/tools" element={<ToolsPage />} />
-              <Route path="/tools-search" element={<ToolsSearchPage />} />
-              <Route path="/todos" element={<TodosPage />} />
+          <Route path="/news" element={<FeatureGate feature="news_read"><NewsPage /></FeatureGate>} />
+          <Route path="/tools" element={<FeatureGate feature="tools"><ToolsPage /></FeatureGate>} />
+              <Route path="/tools-search" element={<FeatureGate feature="tools_search"><ToolsSearchPage /></FeatureGate>} />
+              <Route path="/todos" element={<FeatureGate feature="todos_read"><TodosPage /></FeatureGate>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Route>
       ) : (

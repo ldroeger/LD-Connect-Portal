@@ -18,6 +18,7 @@ function userPublic(u) {
       todos_read:   u.feature_todos_read  !== 0,
       todos_create: !!u.feature_todos_create,
       tools:        u.feature_tools !== 0,
+      tools_search: u.feature_tools_search !== 0,
       werkzeuge:    u.feature_werkzeuge !== 0,
     }
   };

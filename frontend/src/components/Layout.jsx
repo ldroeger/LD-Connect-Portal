@@ -35,7 +35,7 @@ export default function Layout() {
       {(user?.features?.news_read !== false) && <NavLink to="/news" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📰</span><span>News</span></NavLink>}
       {(user?.features?.todos_read !== false) && <NavLink to="/todos" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>Aufgaben</span></NavLink>}
       {(user?.features?.tools !== false) && <NavLink to="/tools" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔧</span><span>Mein Werkzeug</span></NavLink>}
-      {isAdmin && <NavLink to="/tools-search" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔍</span><span>Werkzeug suchen</span></NavLink>}
+      {(user?.features?.tools_search !== false) && <NavLink to="/tools-search" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔍</span><span>Werkzeug suchen</span></NavLink>}
 
       {canApprove && <>
         <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>

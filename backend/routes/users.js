@@ -7,7 +7,7 @@ const mailer = require('../utils/mailer');
 
 router.get('/', adminMiddleware, (_req, res) =>
   res.json({ users: localDb.db.prepare(
-    'SELECT id,email,name,powerbird_id,role,is_active,feature_calendar,feature_vacation,feature_hours,feature_news_read,feature_news_write,feature_todos_read,feature_todos_create,feature_tools,created_at FROM users ORDER BY name'
+    'SELECT id,email,name,powerbird_id,role,is_active,feature_calendar,feature_vacation,feature_hours,feature_news_read,feature_news_write,feature_todos_read,feature_todos_create,feature_tools,feature_tools_search,created_at FROM users ORDER BY name'
   ).all() })
 );
 
@@ -29,7 +29,7 @@ router.post('/', adminMiddleware, async (req, res) => {
 
 router.put('/:id', adminMiddleware, (req, res) => {
   try {
-    const { name, powerbird_id, role, is_active, feature_calendar, feature_vacation, feature_hours, feature_news_read, feature_news_write, feature_todos_read, feature_todos_create, feature_tools } = req.body;
+    const { name, powerbird_id, role, is_active, feature_calendar, feature_vacation, feature_hours, feature_news_read, feature_news_write, feature_todos_read, feature_todos_create, feature_tools, feature_tools_search } = req.body;
     localDb.db.prepare(`
       UPDATE users SET
         name = COALESCE(?, name),
