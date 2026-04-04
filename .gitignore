@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build output
+frontend/dist/
+app/dist/
+
+# Environment & secrets
+.env
+*.env
+google-services.json
+GoogleService-Info.plist
+
+# Docker volumes
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Expo
+app/.expo/
+app/ios/
+app/android/
+
+# IDE
+.vscode/
+.idea/

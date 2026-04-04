@@ -1,0 +1,4 @@
+# Für lokalen Betrieb ohne Domain (nur HTTP)
+:80 {
+    reverse_proxy frontend:80
+}

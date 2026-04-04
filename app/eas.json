@@ -1,0 +1,38 @@
+{
+  "cli": {
+    "version": ">= 8.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "android": {
+        "buildType": "apk",
+        "image": "ubuntu-22.04-jdk-17-ndk-r26b"
+      },
+      "ios": {
+        "image": "macos-sequoia-15.3-xcode-16.2",
+        "distribution": "internal",
+        "developmentClient": false
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "image": "macos-sequoia-15.3-xcode-16.2",
+        "distribution": "store"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6761149979",
+        "appleTeamId": "93G4Y7Z52U",
+        "language": "de-DE",
+        "sku": "ldconnect001"
+      }
+    }
+  }
+}

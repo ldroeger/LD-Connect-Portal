@@ -1,0 +1,136 @@
+:root {
+  --primary: #2563EB;
+  --primary-dark: #1D4ED8;
+  --primary-light: #EFF6FF;
+  --surface: #FFFFFF;
+  --surface-2: #F8FAFC;
+  --surface-3: #F1F5F9;
+  --border: #E2E8F0;
+  --text: #0F172A;
+  --text-2: #475569;
+  --text-3: #94A3B8;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.12);
+  --font: system-ui, -apple-system, sans-serif;
+  --input-bg: #FFFFFF;
+}
+
+[data-theme="dark"] {
+  --primary: #3B82F6;
+  --primary-dark: #2563EB;
+  --primary-light: #1a2d4a;
+  --surface: #1a2030;
+  --surface-2: #131720;
+  --surface-3: #222840;
+  --border: #2a3350;
+  --text: #e8eaf0;
+  --text-2: #8899bb;
+  --text-3: #4a5878;
+  --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.5);
+  --input-bg: #1e2540;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --error: #f87171;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--surface-2);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Force all inputs/selects to use theme colors */
+input, select, textarea {
+  background: var(--input-bg) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+/* Dark mode: white cards become dark */
+[data-theme="dark"] div[style*="background:white"],
+[data-theme="dark"] div[style*="background: white"] {
+  background: var(--surface) !important;
+}
+
+[data-theme="dark"] div[style*="background:'white'"] {
+  background: var(--surface) !important;
+}
+
+/* Calendar dark mode */
+  color: var(--text) !important; background: var(--surface) !important; border-color: var(--border) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Responsive helpers */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stats-grid-vacation { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-grid-vacation { grid-template-columns: repeat(2, 1fr) !important; }
+  .form-row { grid-template-columns: 1fr !important; }
+  .sidebar-desktop { display: none !important; }
+  /* Hide month view on mobile - show only week/day/agenda buttons */
+}
+@media (min-width: 769px) { .mobile-menu-btn { display: none !important; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Dark mode: fix all remaining hardcoded backgrounds */
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+  border-color: var(--border) !important;
+}
+
+/* Success/error message boxes */
+[data-theme="dark"] div[style*="background:#ECFDF5"],
+[data-theme="dark"] div[style*="background: #ECFDF5"] {
+  background: rgba(16,185,129,0.15) !important;
+  border-color: rgba(16,185,129,0.3) !important;
+}
+[data-theme="dark"] div[style*="background:#FEF2F2"],
+[data-theme="dark"] div[style*="background: #FEF2F2"] {
+  background: rgba(239,68,68,0.15) !important;
+  border-color: rgba(239,68,68,0.3) !important;
+}
+[data-theme="dark"] div[style*="background:#F8FAFC"],
+[data-theme="dark"] div[style*="background: #F8FAFC"] {
+  background: var(--surface-2) !important;
+}
+[data-theme="dark"] div[style*="background: var(--surface-2)"] {
+  border-color: var(--border) !important;
+}
+
+/* Ensure text is always readable in dark mode */
+[data-theme="dark"] strong,
+[data-theme="dark"] b {
+  color: var(--text);
+}
+
+/* Select options */
+[data-theme="dark"] select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+
+    overflow-y: scroll !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: calc(100vh - 300px) !important;
+    min-height: 400px !important;
+  }
+    overflow: hidden !important;
+  }
+}

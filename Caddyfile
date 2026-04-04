@@ -1,0 +1,22 @@
+# Ersetzen Sie "portal.droeger.eu" mit Ihrer Domain
+portal.droeger.eu {
+    reverse_proxy frontend:80
+    
+    # Automatisches HTTPS via Let's Encrypt
+    tls {
+        protocols tls1.2 tls1.3
+    }
+    
+    # Komprimierung
+    encode gzip
+    
+    # Sicherheits-Header
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        -Server
+    }
+}
+
+# HTTP → HTTPS Weiterleitung (automatisch durch Caddy)

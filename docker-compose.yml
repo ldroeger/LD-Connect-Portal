@@ -1,0 +1,35 @@
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    container_name: ld-portal-backend-1
+    environment:
+      - NODE_ENV=production
+      - DATA_DIR=/data
+      # WICHTIG: Ersetzen Sie dies mit einem zufälligen Secret!
+      # Generieren mit: openssl rand -hex 32
+      - JWT_SECRET=${JWT_SECRET:-bitte-aendern-openssl-rand-hex-32}
+    volumes:
+      - app-data:/data
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    container_name: ld-portal-frontend-1
+    ports:
+      - "80:80"
+      - "8081:81"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  app-data:
+    driver: local
