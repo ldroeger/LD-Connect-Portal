@@ -16,7 +16,7 @@ router.get('/settings', adminMiddleware, (req, res) => {
 router.put('/settings', adminMiddleware, (req, res) => {
   try {
     const allowed = ['calendar_range_days', 'app_url', 'display_ip', 'company_name', 'primary_color', 'logo_url',
-      'smb_user', 'smb_password', 'smb_mount',
+      'smb_user', 'smb_password', 'smb_mount', 'smb_domain',
       'db_host', 'db_port', 'db_name', 'db_user', 'db_encrypt', 'db_trust_cert',
       'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from'];
     
@@ -42,14 +42,16 @@ router.put('/settings', adminMiddleware, (req, res) => {
 
 // POST /api/admin/smb-mount - Save settings and test connection
 router.post('/smb-mount', adminMiddleware, (req, res) => {
-  const { server, user, password } = req.body
+  const { server, user, password, domain } = req.body
   if (server) localDb.setSetting('smb_server', server)
   if (user) localDb.setSetting('smb_user', user)
   if (password) localDb.setSetting('smb_password', password)
+  if (domain !== undefined) localDb.setSetting('smb_domain', domain)
 
   const smbServer = (server || localDb.getSetting('smb_server') || '').trim()
   const smbUser = (user || localDb.getSetting('smb_user') || '').trim()
   const smbPass = (password || localDb.getSetting('smb_password') || '').trim()
+  const smbDomain = (domain || localDb.getSetting('smb_domain') || 'WORKGROUP').trim()
 
   if (!smbServer || !smbUser || !smbPass) {
     return res.status(400).json({ error: 'Server-Pfad, Benutzer und Passwort erforderlich' })
@@ -99,7 +101,7 @@ router.get('/smb-status', adminMiddleware, (req, res) => {
   const server = localDb.getSetting('smb_server') || ''
   const user = localDb.getSetting('smb_user') || ''
   const mounted = !!(server && user)
-  res.json({ mounted, mount: 'SMB2', server })
+  res.json({ mounted, mount: 'SMB2', server, domain: localDb.getSetting('smb_domain') || 'WORKGROUP' })
 })
 
 module.exports = router;

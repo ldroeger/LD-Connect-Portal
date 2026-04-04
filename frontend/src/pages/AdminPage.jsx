@@ -512,7 +512,7 @@ function TermineTab() {
 }
 
 function SmbTab() {
-  const [form, setForm] = React.useState({ smb_user: '', smb_password: '', smb_mount: '/mnt/smb', smb_server: '' })
+  const [form, setForm] = React.useState({ smb_user: '', smb_password: '', smb_mount: '/mnt/smb', smb_server: '', smb_domain: 'WORKGROUP' })
   const [saving, setSaving] = React.useState(false)
   const [mounting, setMounting] = React.useState(false)
   const [status, setStatus] = React.useState(null)
@@ -528,6 +528,7 @@ function SmbTab() {
           smb_password: s.smb_password || '',
           smb_mount: s.smb_mount || '/mnt/smb',
           smb_server: s.smb_server || '',
+          smb_domain: s.smb_domain || 'WORKGROUP',
         }))
       }).catch(() => {})
       api.get('/admin/smb-status').then(r => setStatus(r.data)).catch(() => {})
@@ -552,7 +553,7 @@ function SmbTab() {
     import('../utils/api.js').then(({ default: api }) => {
       // First save settings
       api.put('/admin/settings', form).then(() => {
-        return api.post('/admin/smb-mount', { server: form.smb_server })
+        return api.post('/admin/smb-mount', { server: form.smb_server, user: form.smb_user, password: form.smb_password, domain: form.smb_domain })
       }).then(r => {
         setMsg(r.data.message || '✅ Erfolgreich gemountet')
         loadSettings()

@@ -10,6 +10,7 @@ router.get('/image', async (req, res) => {
     const smbUser = localDb.getSetting('smb_user') || ''
     const smbPass = localDb.getSetting('smb_password') || ''
     const smbServer = localDb.getSetting('smb_server') || ''
+    const smbDomain = localDb.getSetting('smb_domain') || 'WORKGROUP'
 
     if (!smbUser || !smbPass || !smbServer) {
       return res.status(503).json({ error: 'SMB nicht konfiguriert' })
@@ -22,7 +23,7 @@ router.get('/image', async (req, res) => {
     const share = parts[1] || ''
 
     // Get relative file path from full UNC path
-    // imgPath: \\192.168.13.20\Pictures\subfolder\file.jpg
+    // imgPath: \\192.168.13.20\Pictures\Powerbird\file.jpg
     const normalizedImg = imgPath.replace(/\\/g, '/')
     const imgParts = normalizedImg.replace(/^\/\//, '').split('/')
     const filePath = imgParts.slice(2).join('\\')
@@ -30,7 +31,7 @@ router.get('/image', async (req, res) => {
     const SMB2 = require('@marsaud/smb2')
     const smb2Client = new SMB2({
       share: '\\\\' + host + '\\' + share,
-      domain: '',
+      domain: smbDomain,
       username: smbUser,
       password: smbPass,
     })
