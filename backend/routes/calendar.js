@@ -476,12 +476,39 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
          LTRIM(RTRIM(ISNULL(w.WZV_Bilddatei,''))) AS Bilddatei,
          w.WZV_Status,
          -- Verleih an Mitarbeiter
-         LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))   AS VerliehAnMitarb,
-         LTRIM(RTRIM(ISNULL(w.MitgenommenVon,'')))      AS MitgenommenVon,
-         CONVERT(varchar(10), w.Verleih_AusgabeAm, 120) AS AusgabeAm,
+         LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))    AS VerliehAnMitarb,
+         LTRIM(RTRIM(ISNULL(w.MitgenommenVon,'')))       AS MitgenommenVon,
+         ISNULL(
+           (SELECT TOP 1
+              LTRIM(RTRIM(ISNULL(m.Adresse_Vorname,'')))
+              + CASE WHEN LTRIM(RTRIM(ISNULL(m.Adresse_Nachname,''))) != '' THEN ' ' + LTRIM(RTRIM(m.Adresse_Nachname)) ELSE '' END
+            FROM ELMIT m WHERE LTRIM(RTRIM(ISNULL(m.Mitarbeiter_Nr,''))) = LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))),
+           ''
+         ) AS MitarbName,
+         ISNULL(
+           (SELECT TOP 1
+              LTRIM(RTRIM(ISNULL(m.Adresse_Vorname,'')))
+              + CASE WHEN LTRIM(RTRIM(ISNULL(m.Adresse_Nachname,''))) != '' THEN ' ' + LTRIM(RTRIM(m.Adresse_Nachname)) ELSE '' END
+            FROM ELMIT m WHERE LTRIM(RTRIM(ISNULL(m.Mitarbeiter_Nr,''))) = LTRIM(RTRIM(ISNULL(w.MitgenommenVon,'')))),
+           ''
+         ) AS MitgenommenName,
+         CONVERT(varchar(10), w.Verleih_AusgabeAm, 120)  AS AusgabeAm,
          CONVERT(varchar(10), w.Verleih_RueckgabeAm, 120) AS RueckgabeAm,
-         -- Verleih an Adresse (Kunde/Lieferant)
+         -- Verleih an Adresse (Kunde/Lieferant) mit Name
          w.WZV_VerliehenAnADR,
+         ISNULL(
+           (SELECT TOP 1
+              LTRIM(RTRIM(ISNULL(k.Adresse_Name1,'')))
+              + CASE WHEN LTRIM(RTRIM(ISNULL(k.Adresse_Name2,''))) != '' THEN ' ' + LTRIM(RTRIM(k.Adresse_Name2)) ELSE '' END
+            FROM ELKUN k WHERE k.RecNo = w.WZV_VerliehenAnADR),
+           ISNULL(
+             (SELECT TOP 1
+                LTRIM(RTRIM(ISNULL(l.Lieferant_Name1,'')))
+                + CASE WHEN LTRIM(RTRIM(ISNULL(l.Lieferant_Name2,''))) != '' THEN ' ' + LTRIM(RTRIM(l.Lieferant_Name2)) ELSE '' END
+              FROM ELLIF l WHERE l.RecNo = w.WZV_VerliehenAnADR),
+             ''
+           )
+         ) AS AdrName,
          -- Nächste Reservierung aus HWTER
          (SELECT TOP 1 CONVERT(varchar(19), h.Termin_Start, 120)
           FROM HWTER h
@@ -516,9 +543,13 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
     const tools = await Promise.all(result.recordset.map(async w => {
       let mieterName = ''
       if (w.VerliehAnMitarb) {
-        mieterName = w.VerliehAnMitarb
+        const portalUser = localDb.db.prepare('SELECT name FROM users WHERE powerbird_id = ? AND is_active = 1').get(w.VerliehAnMitarb)
+        mieterName = portalUser ? portalUser.name : (w.MitarbName || w.VerliehAnMitarb)
       } else if (w.MitgenommenVon) {
-        mieterName = w.MitgenommenVon
+        const portalUser = localDb.db.prepare('SELECT name FROM users WHERE powerbird_id = ? AND is_active = 1').get(w.MitgenommenVon)
+        mieterName = portalUser ? portalUser.name : (w.MitgenommenName || w.MitgenommenVon)
+      } else if (w.AdrName) {
+        mieterName = w.AdrName
       }
 
       // Determine status
