@@ -15,7 +15,7 @@ export default function TodosPage() {
   const [msg, setMsg] = useState(''); const [err, setErr] = useState('')
 
   const canRead = user?.role === 'admin' || user?.role === 'news_manager' || user?.features?.todos_read !== false
-  const canManage = user?.role === 'admin' || user?.role === 'news_manager' || !!user?.features?.todos_create
+  const canManage = user?.role === 'admin' || !!user?.features?.todos_create
 
   if (!canRead) return (
     <div style={{ textAlign:'center', padding:'60px 20px', color:'var(--text-3)' }}>

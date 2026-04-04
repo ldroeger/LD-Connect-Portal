@@ -14,8 +14,8 @@ export default function NewsPage() {
   const [editing, setEditing] = useState(null)
   const [msg, setMsg] = useState(''); const [err, setErr] = useState('')
 
-  const canRead = user?.role === 'admin' || user?.role === 'news_manager' || user?.features?.news_read !== false
-  const canManage = user?.role === 'admin' || user?.role === 'news_manager' || !!user?.features?.news_write
+  const canRead = user?.features?.news_read !== false
+  const canManage = user?.role === 'admin' || !!user?.features?.news_write
 
   if (!canRead) return (
     <div style={{ textAlign:'center', padding:'60px 20px', color:'var(--text-3)' }}>

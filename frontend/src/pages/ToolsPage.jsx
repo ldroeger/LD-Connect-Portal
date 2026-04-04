@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import api from '../utils/api.js'
+import { useAuth } from '../contexts/AuthContext.jsx'
 
-function ToolCard({ t, onClick, showImage }) {
+function ToolCard({ t, onClick, showImage, canSeeVerleih }) {
   const imgUrl = t.bild ? `/api/tools/image?path=${encodeURIComponent(t.bild)}` : null
   return (
     <div onClick={() => onClick && onClick(t)}
@@ -20,7 +21,7 @@ function ToolCard({ t, onClick, showImage }) {
         <span style={{ background:'var(--primary-light)', color:'var(--primary)', padding:'2px 8px', borderRadius:6, fontSize:'0.75rem', fontWeight:700 }}>🔧 {t.nr || '–'}</span>
       </div>
       <div style={{ padding:'0 16px 12px', fontWeight:600, color:'var(--text)', fontSize:'0.95rem', flex:1 }}>{t.bezeichnung || '(ohne Bezeichnung)'}</div>
-      {(t.ausgabe || t.rueckgabe) && (
+      {canSeeVerleih && (t.ausgabe || t.rueckgabe) && (
         <div style={{ display:'flex', gap:24, padding:'8px 16px', borderTop:'1px solid var(--border)', fontSize:'0.78rem' }}>
           {t.ausgabe && <div><span style={{ color:'var(--text-3)' }}>Ausgabe: </span><span style={{ color:'var(--text-2)' }}>{t.ausgabe}</span></div>}
           {t.rueckgabe && <div><span style={{ color:'var(--text-3)' }}>Rückgabe: </span><span style={{ color:'var(--error)' }}>{t.rueckgabe}</span></div>}
@@ -30,7 +31,7 @@ function ToolCard({ t, onClick, showImage }) {
   )
 }
 
-function ToolPopup({ tool, onClose }) {
+function ToolPopup({ tool, onClose, canSeeVerleih }) {
   if (!tool) return null
   const imgUrl = tool.bild ? `/api/tools/image?path=${encodeURIComponent(tool.bild)}` : null
   return (
@@ -46,7 +47,7 @@ function ToolPopup({ tool, onClose }) {
           <span style={{ background:'var(--primary-light)', color:'var(--primary)', padding:'3px 10px', borderRadius:8, fontSize:'0.8rem', fontWeight:700 }}>🔧 {tool.nr || '–'}</span>
         </div>
         <h3 style={{ margin:'0 0 12px', color:'var(--text)', fontSize:'1.1rem' }}>{tool.bezeichnung}</h3>
-        {(tool.ausgabe || tool.rueckgabe) && (
+        {canSeeVerleih && (tool.ausgabe || tool.rueckgabe) && (
           <div style={{ display:'flex', gap:32, marginBottom:12, fontSize:'0.88rem' }}>
             {tool.ausgabe && <div><div style={{ color:'var(--text-3)', fontSize:'0.72rem', marginBottom:2 }}>Ausgabe</div>{tool.ausgabe}</div>}
             {tool.rueckgabe && <div><div style={{ color:'var(--text-3)', fontSize:'0.72rem', marginBottom:2 }}>Rückgabe</div><span style={{ color:'var(--error)' }}>{tool.rueckgabe}</span></div>}
@@ -64,6 +65,8 @@ export default function ToolsPage() {
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
+  const { user } = useAuth()
+  const canSeeVerleih = user?.features?.show_verleih !== false
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [sortBy, setSortBy] = useState('name') // name | ausgabe | rueckgabe
   const [filterStatus, setFilterStatus] = useState('all') // all | active | expiring
@@ -156,12 +159,12 @@ export default function ToolsPage() {
       ) : (
         <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap:16 }}>
           {displayed.map((t, i) => (
-            <ToolCard key={i} t={t} showImage={true} onClick={isMobile ? setSelected : null} />
+            <ToolCard key={i} t={t} showImage={true} onClick={isMobile ? setSelected : null} canSeeVerleih={canSeeVerleih} />
           ))}
         </div>
       )}
 
-      {isMobile && selected && <ToolPopup tool={selected} onClose={() => setSelected(null)} />}
+      {isMobile && selected && <ToolPopup tool={selected} onClose={() => setSelected(null)} canSeeVerleih={canSeeVerleih} />}
     </div>
   )
 }
