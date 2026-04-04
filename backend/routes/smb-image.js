@@ -1,9 +1,7 @@
 const router = require('express').Router()
-const { authMiddleware } = require('../middleware/auth')
 const localDb = require('../db/localDb')
 
 // GET /api/tools/image?path=\\server\share\file.jpg
-// Reads image directly via SMB2 protocol - no system mount needed
 router.get('/image', async (req, res) => {
   try {
     const imgPath = req.query.path
@@ -17,8 +15,7 @@ router.get('/image', async (req, res) => {
       return res.status(503).json({ error: 'SMB nicht konfiguriert' })
     }
 
-    // Parse server and share from stored server setting
-    // smbServer format: //192.168.13.20/Pictures or \\192.168.13.20\Pictures
+    // Parse host and share from stored server: //192.168.13.20/Pictures
     const normalized = smbServer.replace(/\\/g, '/').replace(/^\/\//, '')
     const parts = normalized.split('/')
     const host = parts[0]
@@ -28,16 +25,15 @@ router.get('/image', async (req, res) => {
     // imgPath: \\192.168.13.20\Pictures\subfolder\file.jpg
     const normalizedImg = imgPath.replace(/\\/g, '/')
     const imgParts = normalizedImg.replace(/^\/\//, '').split('/')
-    // imgParts[0]=server, imgParts[1]=share, rest=file path
     const filePath = imgParts.slice(2).join('\\')
 
-    const SMB2 = require('@marsaud/smb2')
+    const SMB2 = require('smb2')
     const smb2Client = new SMB2({
       share: `\\\\${host}\\${share}`,
       domain: '',
       username: smbUser,
       password: smbPass,
-      autoCloseTimeout: 5000,
+      autoCloseTimeout: 0,
     })
 
     smb2Client.readFile(filePath, (err, data) => {
@@ -46,15 +42,14 @@ router.get('/image', async (req, res) => {
         console.error('SMB read error:', err.message)
         return res.status(404).json({ error: 'Bild nicht gefunden', detail: err.message })
       }
-
       const ext = filePath.split('.').pop().toLowerCase()
       const mime = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' }[ext] || 'image/jpeg'
-
       res.setHeader('Content-Type', mime)
       res.setHeader('Cache-Control', 'public, max-age=3600')
       res.send(data)
     })
   } catch(e) {
+    console.error('SMB error:', e.message)
     res.status(500).json({ error: e.message })
   }
 })
