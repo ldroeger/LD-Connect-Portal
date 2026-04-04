@@ -19,6 +19,7 @@ import DisplayManagePage from './pages/DisplayManagePage.jsx'
 import NewsPage from './pages/NewsPage.jsx'
 import TodosPage from './pages/TodosPage.jsx'
 import ToolsPage from './pages/ToolsPage.jsx'
+import ToolsSearchPage from './pages/ToolsSearchPage.jsx'
 import Layout from './components/Layout.jsx'
 
 function AppRoutes() {
@@ -55,6 +56,7 @@ function AppRoutes() {
           {user.role === 'admin' && <Route path="/display-manage" element={<DisplayManagePage />} />}
           <Route path="/news" element={<NewsPage />} />
           <Route path="/tools" element={<ToolsPage />} />
+              <Route path="/tools-search" element={<ToolsSearchPage />} />
               <Route path="/todos" element={<TodosPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Route>

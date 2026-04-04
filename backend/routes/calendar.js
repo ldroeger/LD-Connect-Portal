@@ -458,4 +458,120 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
   }
 })
 
+// GET /api/calendar/tools-search?q=... - Werkzeug Volltext-Suche
+router.get('/tools-search', authMiddleware, async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim()
+    if (!q) return res.json({ tools: [] })
+
+    const result = await pbDb.query(
+      `SELECT TOP 50
+         w.RecNo,
+         LTRIM(RTRIM(ISNULL(w.LAN,'')))          AS LAN,
+         LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))     AS InternNr,
+         LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))   AS Bezeichnung,
+         LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))      AS WZNr,
+         LTRIM(RTRIM(ISNULL(w.WZV_WZNr_1,'')))    AS WZNr1,
+         LTRIM(RTRIM(ISNULL(w.WZV_Lagerort,'')))  AS Lagerort,
+         LTRIM(RTRIM(ISNULL(w.WZV_Zustand,'')))   AS Zustand,
+         LTRIM(RTRIM(ISNULL(w.WZV_Bilddatei,''))) AS Bilddatei,
+         w.WZV_Status,
+         -- Verleih an Mitarbeiter
+         LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))   AS VerliehAnMitarb,
+         LTRIM(RTRIM(ISNULL(w.MitgenommenVon,'')))      AS MitgenommenVon,
+         CONVERT(varchar(10), w.Verleih_AusgabeAm, 120) AS AusgabeAm,
+         CONVERT(varchar(10), w.Verleih_RueckgabeAm, 120) AS RueckgabeAm,
+         -- Verleih an Adresse (Kunde/Lieferant)
+         w.WZV_VerliehenAnADR,
+         -- Nächste Reservierung aus HWTER
+         (SELECT TOP 1 CONVERT(varchar(19), h.Termin_Start, 120)
+          FROM HWTER h
+          WHERE h.Termin_ResourceArt = 'Werkzeuge'
+            AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE w.Intern_Nr + '%'
+            AND h.Termin_Start >= GETDATE()
+            AND ISNULL(h.Geloescht,0) = 0
+          ORDER BY h.Termin_Start ASC) AS NaechsteReservierung,
+         -- Aktueller Termin (läuft gerade)
+         (SELECT TOP 1 LTRIM(RTRIM(ISNULL(h.Termin_Label,'')))
+          FROM HWTER h
+          WHERE h.Termin_ResourceArt = 'Werkzeuge'
+            AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE w.Intern_Nr + '%'
+            AND h.Termin_Start <= GETDATE()
+            AND h.Termin_Ende >= GETDATE()
+            AND ISNULL(h.Geloescht,0) = 0
+          ORDER BY h.Termin_Start ASC) AS AktuellerTerminLabel
+       FROM ELWZV w
+       WHERE (
+         LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))  LIKE '%' + @q + '%'
+         OR LTRIM(RTRIM(ISNULL(w.LAN,'')))        LIKE '%' + @q + '%'
+         OR LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))   LIKE '%' + @q + '%'
+         OR LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))   LIKE '%' + @q + '%'
+         OR LTRIM(RTRIM(ISNULL(w.SerienNummer,''))) LIKE '%' + @q + '%'
+         OR LTRIM(RTRIM(ISNULL(w.WZV_Lagerort,''))) LIKE '%' + @q + '%'
+       )
+       ORDER BY w.Bezeichnung ASC`,
+      { q }
+    )
+
+    // Resolve Mieter-Name for items lent to address
+    const tools = await Promise.all(result.recordset.map(async w => {
+      let mieterName = ''
+
+      if (w.WZV_VerliehenAnADR) {
+        // Try to get address name from Powerbird
+        try {
+          const adr = await pbDb.query(
+            `SELECT TOP 1
+               LTRIM(RTRIM(ISNULL(a.Name1,''))) + ISNULL(' ' + LTRIM(RTRIM(a.Name2)),'') AS Name
+             FROM ELADR a WHERE a.RecNo = @id`,
+            { id: w.WZV_VerliehenAnADR }
+          )
+          if (adr.recordset[0]) mieterName = adr.recordset[0].Name
+        } catch(e) {}
+      } else if (w.VerliehAnMitarb) {
+        mieterName = w.VerliehAnMitarb
+      }
+
+      // Determine status
+      const jetzt = new Date()
+      const ausgabe = w.AusgabeAm ? new Date(w.AusgabeAm) : null
+      const rueckgabe = w.RueckgabeAm ? new Date(w.RueckgabeAm) : null
+      const naechste = w.NaechsteReservierung ? new Date(w.NaechsteReservierung) : null
+      const diffDays = naechste ? (naechste - jetzt) / 864e5 : null
+
+      let status = 'lager' // grün
+      if (w.AktuellerTerminLabel !== null && w.AktuellerTerminLabel !== undefined) {
+        status = 'verliehen'
+      } else if (ausgabe && (!rueckgabe || rueckgabe >= jetzt) && w.VerliehAnMitarb) {
+        status = 'verliehen'
+      } else if (diffDays !== null && diffDays <= 2) {
+        status = 'reserviert'
+      }
+
+      return {
+        recno:        w.RecNo,
+        lan:          w.LAN,
+        internNr:     w.InternNr,
+        bezeichnung:  w.Bezeichnung,
+        nr:           w.WZNr,
+        lagerort:     w.Lagerort,
+        zustand:      w.Zustand,
+        bild:         w.Bilddatei || null,
+        status,
+        mieter:       mieterName,
+        ausgabe:      w.AusgabeAm,
+        rueckgabe:    w.RueckgabeAm,
+        naechsteRes:  w.NaechsteReservierung,
+        aktTermin:    w.AktuellerTerminLabel,
+      }
+    }))
+
+    res.json({ tools })
+  } catch(e) {
+    console.error('tools-search error:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+
 module.exports = router;
