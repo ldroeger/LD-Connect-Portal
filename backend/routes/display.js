@@ -72,8 +72,15 @@ try { localDb.db.exec("ALTER TABLE display_screens ADD COLUMN todo_archive_hours
 try { localDb.db.exec("ALTER TABLE display_screens ADD COLUMN scroll_speed INTEGER DEFAULT 30") } catch(e) {}
 try { localDb.db.exec("ALTER TABLE display_screens ADD COLUMN popup_auto_close INTEGER DEFAULT 30") } catch(e) {}
 
+function canManageNews(user) {
+  return user.role === 'admin' || !!user.feature_news_write;
+}
+function canManageTodos(user) {
+  return user.role === 'admin' || !!user.feature_todos_create;
+}
+// Legacy alias
 function canManageContent(user) {
-  return user.role === 'admin' || user.role === 'news_manager';
+  return canManageNews(user) || canManageTodos(user);
 }
 
 // ─── SCREENS ────────────────────────────────────────────────────────────────
@@ -208,7 +215,8 @@ router.get('/public/:token', async (req, res) => {
 
 // ─── NEWS ───────────────────────────────────────────────────────────────────
 
-router.get('/news', authMiddleware, (_req, res) => {
+router.get('/news', authMiddleware, (req, res) => {
+  if (!req.user || (req.user.role !== 'admin' && req.user.feature_news_read === 0)) return res.status(403).json({ error: 'Keine Berechtigung' })
   const news = localDb.db.prepare(
     'SELECT n.*, u.name as author_name FROM display_news n LEFT JOIN users u ON u.id=n.author_id ORDER BY n.created_at DESC'
   ).all()
@@ -216,7 +224,7 @@ router.get('/news', authMiddleware, (_req, res) => {
 })
 
 router.post('/news', authMiddleware, async (req, res) => {
-  if (!canManageContent(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
+  if (!canManageNews(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
   const { title, content } = req.body
   if (!title) return res.status(400).json({ error: 'Titel erforderlich' })
   const r = localDb.db.prepare('INSERT INTO display_news (title, content, author_id) VALUES (?,?,?)').run(title, content||'', req.user.id)
@@ -229,7 +237,7 @@ router.post('/news', authMiddleware, async (req, res) => {
 })
 
 router.put('/news/:id', authMiddleware, (req, res) => {
-  if (!canManageContent(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
+  if (!canManageNews(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
   const { title, content, is_active } = req.body
   localDb.db.prepare('UPDATE display_news SET title=COALESCE(?,title), content=COALESCE(?,content), is_active=COALESCE(?,is_active), updated_at=unixepoch() WHERE id=?')
     .run(title??null, content??null, is_active??null, req.params.id)
@@ -237,14 +245,15 @@ router.put('/news/:id', authMiddleware, (req, res) => {
 })
 
 router.delete('/news/:id', authMiddleware, (req, res) => {
-  if (!canManageContent(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
+  if (!canManageNews(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
   localDb.db.prepare('DELETE FROM display_news WHERE id=?').run(req.params.id)
   res.json({ success: true })
 })
 
 // ─── TODOS ──────────────────────────────────────────────────────────────────
 
-router.get('/todos', authMiddleware, (_req, res) => {
+router.get('/todos', authMiddleware, (req, res) => {
+  if (!req.user || (req.user.role !== 'admin' && req.user.feature_todos_read === 0)) return res.status(403).json({ error: 'Keine Berechtigung' })
   const todos = localDb.db.prepare(`
     SELECT t.*, u.name as author_name,
       (SELECT GROUP_CONCAT(us.name || '|' || datetime(tc.completed_at,'unixepoch','localtime') || '|' || tc.confirmed)
@@ -262,7 +271,7 @@ router.get('/todos', authMiddleware, (_req, res) => {
 })
 
 router.post('/todos', authMiddleware, async (req, res) => {
-  if (!canManageContent(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
+  if (!canManageTodos(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
   const { title, description } = req.body
   if (!title) return res.status(400).json({ error: 'Titel erforderlich' })
   const r = localDb.db.prepare('INSERT INTO display_todos (title, description, author_id) VALUES (?,?,?)').run(title, description||'', req.user.id)
@@ -275,7 +284,7 @@ router.post('/todos', authMiddleware, async (req, res) => {
 })
 
 router.put('/todos/:id', authMiddleware, (req, res) => {
-  if (!canManageContent(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
+  if (!canManageTodos(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
   const { title, description, is_active } = req.body
   localDb.db.prepare('UPDATE display_todos SET title=COALESCE(?,title), description=COALESCE(?,description), is_active=COALESCE(?,is_active), updated_at=unixepoch() WHERE id=?')
     .run(title??null, description??null, is_active??null, req.params.id)
@@ -283,7 +292,7 @@ router.put('/todos/:id', authMiddleware, (req, res) => {
 })
 
 router.delete('/todos/:id', authMiddleware, (req, res) => {
-  if (!canManageContent(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
+  if (!canManageTodos(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
   localDb.db.prepare('DELETE FROM display_todos WHERE id=?').run(req.params.id)
   res.json({ success: true })
 })
@@ -296,7 +305,7 @@ router.post('/todos/:id/complete', authMiddleware, (req, res) => {
 })
 
 router.post('/todos/:id/confirm', authMiddleware, (req, res) => {
-  if (!canManageContent(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
+  if (!canManageTodos(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
   localDb.db.prepare('UPDATE display_todos SET is_active=0, updated_at=unixepoch() WHERE id=?').run(req.params.id)
   localDb.db.prepare('UPDATE display_todo_completions SET confirmed=1, confirmed_by=?, confirmed_at=unixepoch() WHERE todo_id=?').run(req.user.id, req.params.id)
   res.json({ success: true })
