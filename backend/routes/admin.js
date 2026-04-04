@@ -71,7 +71,7 @@ router.post('/smb-mount', adminMiddleware, (req, res) => {
     const sharePath = '\\\\' + host + '\\' + share
     const smb2Client = new SMB2({
       share: sharePath,
-      domain: '',
+      domain: smbDomain,
       username: smbUser,
       password: smbPass,
     })
