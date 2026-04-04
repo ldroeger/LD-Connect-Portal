@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import api from '../utils/api.js'
-import ToolsAlertBanner from '../components/ToolsAlertBanner.jsx'
 
 function ToolCard({ t, onClick, showImage }) {
   const imgUrl = t.bild ? `/api/tools/image?path=${encodeURIComponent(t.bild)}` : null
@@ -95,6 +94,7 @@ export default function ToolsPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [alerts, setAlerts] = useState([])
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -103,6 +103,7 @@ export default function ToolsPage() {
   }, [])
 
   useEffect(() => {
+    api.get('/calendar/tools-alerts').then(r => setAlerts(r.data.alerts || [])).catch(() => {})
     api.get('/calendar/tools')
       .then(r => setTools(r.data.tools || []))
       .catch(e => console.error(e))
@@ -111,11 +112,36 @@ export default function ToolsPage() {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-      <ToolsAlertBanner />
-      <h2 style={{ marginBottom: 4 }}>🔧 Mein Werkzeug</h2>
+<h2 style={{ marginBottom: 4 }}>🔧 Mein Werkzeug</h2>
       <p style={{ color: 'var(--text-3)', marginBottom: 24, fontSize: '0.88rem' }}>
         {tools.length} Werkzeug{tools.length !== 1 ? 'e' : ''} zugewiesen
       </p>
+
+      {alerts.length > 0 && (
+        <div style={{ background:'var(--surface)', border:'1px solid #f59e0b', borderRadius:14, padding:16, marginBottom:20 }}>
+          <div style={{ fontWeight:700, fontSize:'0.95rem', marginBottom:10, color:'#92400e' }}>
+            🔧 Bitte folgendes Werkzeug zurückgeben
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {alerts.map((a, i) => {
+              const start = new Date(a.start)
+              const diffH = Math.round((start - new Date()) / 36e5)
+              const diffText = diffH < 24 ? `in ${diffH} Stunden` : `in ${Math.round(diffH/24)} Tag${Math.round(diffH/24) !== 1 ? 'en' : ''}`
+              return (
+                <div key={i} style={{ display:'flex', gap:0, borderRadius:8, overflow:'hidden', border:'1px solid #fcd34d' }}>
+                  <div style={{ width:4, background:'#f59e0b', flexShrink:0 }} />
+                  <div style={{ padding:'8px 12px', background:'#fffbeb', flex:1 }}>
+                    <div style={{ fontWeight:600, fontSize:'0.88rem', color:'#78350f' }}>{a.bezeichnung}</div>
+                    <div style={{ fontSize:'0.78rem', color:'#92400e', marginTop:2 }}>
+                      Wird {diffText} benötigt · {start.toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' })} {start.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' })} Uhr
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Lädt...</div>

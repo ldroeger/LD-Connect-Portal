@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../utils/api.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
-import ToolsAlertBanner from '../components/ToolsAlertBanner.jsx'
 
 const fmtTime = d => { if (!d) return ''; const t = new Date(d); return `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}` }
 const fmtH = h => (h >= 0 ? '+' : '') + `${Math.round(h*100)/100}h`
@@ -74,7 +73,6 @@ export default function DashboardPage() {
 
   return (
     <div style={{ maxWidth:1400 }}>
-      {user?.features?.tools !== false && <ToolsAlertBanner />}
       {/* Greeting */}
       <div style={{ marginBottom:24 }}>
         <h1 style={{ fontSize:'1.4rem', fontWeight:800 }}>
@@ -119,6 +117,34 @@ export default function DashboardPage() {
         )}
         {isAdmin && <NavCard icon="⚙️" title="Einstellungen" desc="Administration" onClick={() => navigate('/admin')} color="#64748B" />}
       </div>
+
+
+      {/* Werkzeug zurückgeben */}
+      {toolAlerts.length > 0 && (
+        <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid #f59e0b', padding:20, boxShadow:'var(--shadow)', marginBottom:20 }}>
+          <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+            🔧 Bitte folgendes Werkzeug zurückgeben
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {toolAlerts.map((a, i) => {
+              const start = new Date(a.start)
+              const diffH = Math.round((start - new Date()) / 36e5)
+              const diffText = diffH < 24 ? `in ${diffH} Stunden` : `in ${Math.round(diffH/24)} Tag${Math.round(diffH/24) !== 1 ? 'en' : ''}`
+              return (
+                <div key={i} style={{ display:'flex', gap:0, alignItems:'stretch', borderRadius:10, overflow:'hidden', border:'1px solid #fcd34d' }}>
+                  <div style={{ width:4, background:'#f59e0b', flexShrink:0 }} />
+                  <div style={{ flex:1, padding:'10px 14px', background:'#fffbeb' }}>
+                    <div style={{ fontWeight:600, fontSize:'0.9rem', color:'#78350f' }}>🔧 {a.bezeichnung}</div>
+                    <div style={{ fontSize:'0.78rem', color:'#92400e', marginTop:2 }}>
+                      Wird {diffText} benötigt · {new Date(a.start).toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' })} {new Date(a.start).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' })} Uhr
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Today's appointments */}
       {features.calendar && (
