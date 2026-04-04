@@ -387,9 +387,10 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
     // Get tools assigned to this user
     const toolsResult = await pbDb.query(
       `SELECT
-         LTRIM(RTRIM(ISNULL(w.Intern_Nr,''))) AS InternNr,
-         LTRIM(RTRIM(ISNULL(w.WZV_WZNr,''))) AS WZNr,
-         LTRIM(RTRIM(ISNULL(w.Bezeichnung,''))) AS Bezeichnung
+         LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))   AS InternNr,
+         LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))    AS WZNr,
+         LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))  AS Bezeichnung,
+         LTRIM(RTRIM(ISNULL(w.LAN,'')))          AS LAN
        FROM ELWZV w
        WHERE LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,''))) = @uid
          AND (w.Verleih_RueckgabeAm IS NULL OR w.Verleih_RueckgabeAm >= GETDATE())`,
@@ -398,28 +399,32 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
 
     if (!toolsResult.recordset.length) return res.json({ alerts: [] })
 
-    // Check HWTER for upcoming reservations for these tools within 2 days
-    // Termin_ResourceArt = 'Werkzeuge', Termin_ResourceName matches Intern_Nr
-    const internNrs = toolsResult.recordset.map(w => w.InternNr).filter(Boolean)
-    if (!internNrs.length) return res.json({ alerts: [] })
+    // Build list of ResourceName values: Intern_Nr + '-' + LAN = '100000-LSP500A'
+    // and ResourceName_1 values: Intern_Nr + LAN = '100000LSP500A'
+    const tools = toolsResult.recordset.filter(w => w.InternNr)
+    if (!tools.length) return res.json({ alerts: [] })
 
-    const placeholders = internNrs.map((_, i) => `@nr${i}`).join(',')
+    // Use LIKE conditions for each tool
+    const likeConditions = tools.map((_, i) =>
+      `LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE @nr${i}`
+    ).join(' OR ')
+
     const params = { uid: req.user.powerbird_id }
-    internNrs.forEach((nr, i) => params[`nr${i}`] = nr)
+    tools.forEach((w, i) => {
+      // Match '100000-LSP500A' - starts with InternNr
+      params[`nr${i}`] = w.InternNr + '%'
+    })
 
     const alertsResult = await pbDb.query(
       `SELECT
-         LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) AS ResourceName,
+         LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,'')))   AS ResourceName,
          LTRIM(RTRIM(ISNULL(h.Termin_ResourceName_1,''))) AS ResourceName1,
          CONVERT(varchar(19), h.Termin_Start, 120) AS TerminStart,
-         CONVERT(varchar(19), h.Termin_Ende, 120) AS TerminEnde,
-         LTRIM(RTRIM(ISNULL(h.Termin_Label,''))) AS Label
+         CONVERT(varchar(19), h.Termin_Ende, 120)  AS TerminEnde,
+         LTRIM(RTRIM(ISNULL(h.Termin_Label,'')))   AS Label
        FROM HWTER h
        WHERE h.Termin_ResourceArt = 'Werkzeuge'
-         AND (
-           LTRIM(RTRIM(ISNULL(h.Termin_ResourceName_1,''))) IN (${placeholders})
-           OR LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) IN (${placeholders})
-         )
+         AND (${likeConditions})
          AND h.Termin_Start >= GETDATE()
          AND h.Termin_Start <= DATEADD(day, 2, GETDATE())
          AND ISNULL(h.Geloescht, 0) = 0
@@ -427,21 +432,22 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
       params
     )
 
-    // Match alerts back to tool names
     const alerts = alertsResult.recordset.map(h => {
-      const tool = toolsResult.recordset.find(w => w.InternNr === h.ResourceName1 || h.ResourceName.startsWith(w.InternNr))
+      const tool = tools.find(w => h.ResourceName.startsWith(w.InternNr))
       return {
         bezeichnung: tool ? tool.Bezeichnung : h.ResourceName,
-        nr: tool ? tool.WZNr : h.ResourceName1,
-        start: h.TerminStart,
-        ende: h.TerminEnde,
-        label: h.Label,
+        nr:          tool ? tool.WZNr : h.ResourceName1,
+        start:       h.TerminStart,
+        ende:        h.TerminEnde,
+        label:       h.Label,
       }
     })
 
     res.json({ alerts })
-  } catch(e) { res.status(500).json({ error: e.message }) }
+  } catch(e) {
+    console.error('tools-alerts error:', e.message)
+    res.status(500).json({ error: e.message })
+  }
 })
-
 
 module.exports = router;
