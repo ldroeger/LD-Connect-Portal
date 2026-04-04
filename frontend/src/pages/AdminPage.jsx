@@ -588,7 +588,7 @@ function SmbTab() {
           background: status.mounted ? '#10b98120' : 'var(--surface-2)',
           color: status.mounted ? '#10b981' : 'var(--text-3)',
           border: `1px solid ${status.mounted ? '#10b981' : 'var(--border)'}` }}>
-          {status.mounted ? `✅ Gemountet: ${status.server || ''} → ${status.mount}` : '⚠️ SMB nicht gemountet'}
+          {status.mounted ? `✅ Verbunden: ${status.server || ''}` : '⚠️ SMB nicht konfiguriert'}
         </div>
       )}
 
@@ -607,8 +607,9 @@ function SmbTab() {
           <input style={inp} type="password" value={form.smb_password} onChange={e => setForm(f=>({...f,smb_password:e.target.value}))} placeholder="••••••••" />
         </div>
         <div>
-          <label style={lbl}>Mount-Pfad auf dem Server</label>
-          <input style={inp} value={form.smb_mount} onChange={e => setForm(f=>({...f,smb_mount:e.target.value}))} placeholder="/mnt/smb" />
+          <label style={lbl}>Domain</label>
+          <input style={inp} value={form.smb_domain} onChange={e => setForm(f=>({...f,smb_domain:e.target.value}))} placeholder="WORKGROUP" />
+          <div style={{ fontSize:'0.72rem', color:'var(--text-3)', marginTop:3 }}>Meist WORKGROUP für Heimnetzwerke</div>
         </div>
 
         {msg && <div style={{ fontWeight:600, color: msg.startsWith('✅') ? '#10b981' : 'var(--error)', fontSize:'0.88rem', whiteSpace:'pre-wrap' }}>{msg}</div>}
@@ -620,14 +621,9 @@ function SmbTab() {
           </button>
           <button onClick={mount} disabled={mounting || !form.smb_server}
             style={{ padding:'9px 18px', background:'var(--primary)', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}>
-            {mounting ? 'Verbinde...' : '🔌 Verbinden & Mounten'}
+            {mounting ? 'Verbinde...' : '🔌 Verbinden & Testen'}
           </button>
-          {status?.mounted && (
-            <button onClick={unmount}
-              style={{ padding:'9px 18px', background:'var(--error,#ef4444)', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}>
-              ⏏️ Aushängen
-            </button>
-          )}
+
         </div>
 
         <div style={{ background:'var(--surface-2)', borderRadius:8, padding:12, fontSize:'0.78rem', color:'var(--text-3)', lineHeight:1.7 }}>
