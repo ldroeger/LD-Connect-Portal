@@ -296,19 +296,29 @@ export const LANGUAGES = [
 ]
 
 export function detectLang() {
-  const stored = localStorage.getItem('ld_lang')
-  if (stored && translations[stored]) return stored
-  const lang = (navigator.language || navigator.languages?.[0] || 'de').split('-')[0].toLowerCase()
-  return translations[lang] ? lang : 'de'
+  try {
+    const stored = localStorage.getItem('ld_lang')
+    if (stored && translations[stored]) return stored
+  } catch(e) {}
+  try {
+    const lang = (navigator.language || navigator.languages?.[0] || 'de').split('-')[0].toLowerCase()
+    return translations[lang] ? lang : 'de'
+  } catch(e) { return 'de' }
 }
 
 export function setLang(code) {
-  localStorage.setItem('ld_lang', code)
+  try { localStorage.setItem('ld_lang', code) } catch(e) {}
 }
 
-export function t(lang, key, vars = {}) {
+export function t(lang, key, vars) {
   const str = (translations[lang] || translations.de)[key] || translations.de[key] || key
-  return str.replace(/\{(\w+)\}/g, (_, k) => vars[k] !== undefined ? vars[k] : '')
+  if (!vars) return str
+  const keys = Object.keys(vars)
+  if (!keys.length) return str
+  let result = str
+  keys.forEach(k => { result = result.split('{' + k + '}').join(String(vars[k])) })
+  return result
 }
+
 
 export default translations
