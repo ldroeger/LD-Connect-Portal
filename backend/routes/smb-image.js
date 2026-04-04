@@ -4,7 +4,7 @@ const localDb = require('../db/localDb')
 
 // GET /api/tools/image?path=\\server\share\file.jpg
 // Reads image directly via SMB2 protocol - no system mount needed
-router.get('/image', authMiddleware, async (req, res) => {
+router.get('/image', async (req, res) => {
   try {
     const imgPath = req.query.path
     if (!imgPath) return res.status(400).json({ error: 'Kein Pfad' })
