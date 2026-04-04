@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react'
 import api from '../utils/api.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useLang } from '../contexts/LanguageContext.jsx'
-import { translate } from '../i18n/translations.js'
 
 function ToolCard({ t, onClick, showImage, canSeeVerleih }) {
   const imgUrl = t.bild ? `/api/tools/image?path=${encodeURIComponent(t.bild)}` : null
@@ -56,7 +55,7 @@ function ToolPopup({ tool, onClose, canSeeVerleih }) {
           </div>
         )}
         {tool.info && <p style={{ color:'var(--text-3)', fontSize:'0.88rem', margin:'0 0 16px' }}>{tool.info}</p>}
-        <button onClick={onClose} style={{ width:'100%', padding:14, borderRadius:12, border:'none', background:'var(--surface-2)', color:'var(--text)', fontWeight:600, cursor:'pointer', fontSize:'1rem' }}>{translate(lang,'close')}</button>
+        <button onClick={onClose} style={{ width:'100%', padding:14, borderRadius:12, border:'none', background:'var(--surface-2)', color:'var(--text)', fontWeight:600, cursor:'pointer', fontSize:'1rem' }}>{tr('close')}</button>
       </div>
     </div>
   )
@@ -68,7 +67,7 @@ export default function ToolsPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const { user } = useAuth()
-  const { lang } = useLang()
+  const { lang, tr } = useLang()
   const canSeeVerleih = user?.features?.show_verleih !== false
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [sortBy, setSortBy] = useState('name') // name | ausgabe | rueckgabe
@@ -108,7 +107,7 @@ export default function ToolsPage() {
 
   return (
     <div style={{ maxWidth:1200, margin:'0 auto' }}>
-      <h2 style={{ marginBottom:4 }}>🔧 {translate(lang,'tools_title')}</h2>
+      <h2 style={{ marginBottom:4 }}>🔧 {tr('tools_title')}</h2>
       <p style={{ color:'var(--text-3)', marginBottom:16, fontSize:'0.88rem' }}>{tools.length} Werkzeug{tools.length !== 1 ? 'e' : ''} zugewiesen</p>
 
       {/* Rückgabe-Hinweis */}
@@ -140,7 +139,7 @@ export default function ToolsPage() {
       {!loading && tools.length > 0 && (
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16, flexWrap:'wrap', justifyContent:'space-between' }}>
           <div style={{ display:'flex', gap:6 }}>
-            {[['all',translate(lang,'tools_filter_all')], ['expiring',translate(lang,'tools_filter_expiring')]].map(([key, label]) => (
+            {[['all',tr('tools_filter_all')], ['expiring',tr('tools_filter_expiring')]].map(([key, label]) => (
               <button key={key} onClick={() => setFilterStatus(key)} style={{
                 padding:'5px 12px', borderRadius:20, border:'1px solid', cursor:'pointer', fontSize:'0.8rem', fontWeight:600,
                 background: filterStatus === key ? 'var(--primary-light)' : 'var(--surface-2)',

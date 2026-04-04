@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import api from "../utils/api.js"
 
 const fmtDate = d => d ? new Date(d).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '–'
-const STATUS_LABEL = { pending: translate(lang,'status_pending'), approved: translate(lang,'status_approved'), rejected: translate(lang,'status_rejected') }
+// STATUS_LABEL is now dynamic - use tr() inside component
 const STATUS_COLOR = { pending: '#F59E0B', approved: '#10B981', rejected: '#EF4444' }
 
 function workdays(f, t) {
