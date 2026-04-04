@@ -3,6 +3,9 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useBranding } from '../contexts/BrandingContext.jsx'
 import { useTheme } from '../contexts/ThemeContext.jsx'
+import LanguageSwitcher from './LanguageSwitcher.jsx'
+import { useLang } from '../contexts/LanguageContext.jsx'
+import { t } from '../i18n/translations.js'
 
 const navLink = (active) => ({
   display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8,
@@ -16,6 +19,7 @@ export default function Layout() {
   const { branding } = useBranding()
   const navigate = useNavigate()
   const { dark, toggle } = useTheme()
+  const { lang } = useLang()
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const initials = user?.name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '?'
@@ -26,35 +30,35 @@ export default function Layout() {
   const NavItems = ({ onNavigate }) => (
     <>
       <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>
-          Übersicht
+          {t(lang,'nav_overview')}
         </div>
-      <NavLink to="/" end style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🏠</span><span>Dashboard</span></NavLink>
-      {!!features.calendar && <NavLink to="/calendar" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📅</span><span>Kalender</span></NavLink>}
-      {!!features.vacation && <NavLink to="/vacation" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🌴</span><span>Urlaubsplanung</span></NavLink>}
-      {features.hours    && <NavLink to="/hours" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⏱</span><span>Stundenkonto</span></NavLink>}
-      {(user?.features?.news_read !== false) && <NavLink to="/news" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📰</span><span>News</span></NavLink>}
-      {(user?.features?.todos_read !== false) && <NavLink to="/todos" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>Aufgaben</span></NavLink>}
-      {(user?.features?.tools !== false) && <NavLink to="/tools" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔧</span><span>Mein Werkzeug</span></NavLink>}
-      {(user?.features?.tools_search !== false) && <NavLink to="/tools-search" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔍</span><span>Werkzeug suchen</span></NavLink>}
+      <NavLink to="/" end style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🏠</span><span>{t(lang,"nav_dashboard")}</span></NavLink>
+      {!!features.calendar && <NavLink to="/calendar" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📅</span><span>{t(lang,"nav_calendar")}</span></NavLink>}
+      {!!features.vacation && <NavLink to="/vacation" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🌴</span><span>{t(lang,"nav_vacation")}</span></NavLink>}
+      {features.hours    && <NavLink to="/hours" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⏱</span><span>{t(lang,"nav_hours")}</span></NavLink>}
+      {(user?.features?.news_read !== false) && <NavLink to="/news" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📰</span><span>{t(lang,"nav_news")}</span></NavLink>}
+      {(user?.features?.todos_read !== false) && <NavLink to="/todos" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>{t(lang,"nav_todos")}</span></NavLink>}
+      {(user?.features?.tools !== false) && <NavLink to="/tools" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔧</span><span>{t(lang,"nav_tools")}</span></NavLink>}
+      {(user?.features?.tools_search !== false) && <NavLink to="/tools-search" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔍</span><span>{t(lang,"nav_tools_search")}</span></NavLink>}
 
       {canApprove && <>
         <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>
-          Genehmigung
+          {t(lang,'nav_approval')}
         </div>
-        <NavLink to="/vacation-approve" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>Urlaubsanträge</span></NavLink>
+        <NavLink to="/vacation-approve" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>{t(lang,"nav_vacation_approve")}</span></NavLink>
       </>}
 
       {isAdmin && <>
         <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>
-          Administration
+          {t(lang,'nav_admin')}
         </div>
-        <NavLink to="/admin" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⚙️</span><span>Einstellungen</span></NavLink>
-        <NavLink to="/display-manage" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🖥</span><span>Mitarbeiterbildschirm</span></NavLink>
+        <NavLink to="/admin" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⚙️</span><span>{t(lang,"nav_settings")}</span></NavLink>
+        <NavLink to="/display-manage" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🖥</span><span>{t(lang,"nav_display")}</span></NavLink>
       </>}
 
       <div style={{ borderTop:'1px solid var(--border)', marginTop:8, paddingTop:8 }}>
         <div style={{ ...navLink(false), cursor:'pointer' }} onClick={() => { logout(); navigate('/login') }}>
-          <span>🚪</span><span>Abmelden</span>
+          <span>🚪</span><span>{t(lang,"nav_logout")}</span>
         </div>
       </div>
     </>
@@ -121,6 +125,7 @@ export default function Layout() {
             </div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <LanguageSwitcher />
             <button onClick={toggle} title={dark ? 'Hell' : 'Dunkel'}
               style={{ width:34, height:34, borderRadius:8, border:'1px solid var(--border)', background:'var(--surface-2)', cursor:'pointer', fontSize:'1rem', display:'flex', alignItems:'center', justifyContent:'center' }}>
               {dark ? '☀️' : '🌙'}

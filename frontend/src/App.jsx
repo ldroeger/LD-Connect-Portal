@@ -5,6 +5,7 @@ import { BrandingProvider } from './contexts/BrandingContext.jsx'
 import { ThemeProvider } from './contexts/ThemeContext.jsx'
 import api from './utils/api.js'
 import FeatureGate from './components/FeatureGate.jsx'
+import { LanguageProvider } from './contexts/LanguageContext.jsx'
 
 import SetupWizard from './pages/SetupWizard.jsx'
 import LoginPage from './pages/LoginPage.jsx'
@@ -79,6 +80,7 @@ function LoadingScreen() {
 
 export default function App() {
   return (
+    <LanguageProvider>
     <BrowserRouter>
       <ThemeProvider>
         <BrandingProvider>
@@ -88,5 +90,6 @@ export default function App() {
         </BrandingProvider>
       </ThemeProvider>
     </BrowserRouter>
+    </LanguageProvider>
   )
 }

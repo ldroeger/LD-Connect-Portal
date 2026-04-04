@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../utils/api.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { useLang } from '../contexts/LanguageContext.jsx'
+import { t } from '../i18n/translations.js'
 
 const fmtTime = d => { if (!d) return ''; const t = new Date(d); return `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}` }
 const fmtH = h => (h >= 0 ? '+' : '') + `${Math.round(h*100)/100}h`
@@ -40,6 +42,7 @@ function NavCard({ icon, title, desc, onClick, color }) {
 
 export default function DashboardPage() {
   const { user, isAdmin } = useAuth()
+  const { lang } = useLang()
   const navigate = useNavigate()
   const [appointments, setAppointments] = useState([])
   const [labels, setLabels] = useState({})
@@ -73,7 +76,7 @@ export default function DashboardPage() {
 
   const now = new Date()
   const hour = now.getHours()
-  const greeting = hour < 12 ? '🌅 Guten Morgen' : hour < 18 ? '☀️ Guten Tag' : '🌙 Guten Abend'
+  const greeting = hour < 12 ? t(lang,'dash_morning') : hour < 18 ? t(lang,'dash_day') : t(lang,'dash_evening')
 
   return (
     <div style={{ maxWidth:1400 }}>
@@ -127,7 +130,7 @@ export default function DashboardPage() {
       {toolAlerts.length > 0 && (
         <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid #f59e0b', padding:20, boxShadow:'var(--shadow)', marginBottom:20 }}>
           <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
-            🔧 Bitte folgendes Werkzeug zurückgeben
+            🔧 {t(lang,'dash_tools_return')}
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {toolAlerts.map((a, i) => {
