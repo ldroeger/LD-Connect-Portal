@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import api from "../utils/api.js"
 
 const fmtDate = d => d ? new Date(d).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '–'
-const STATUS_LABEL = { pending: t(lang,'status_pending'), approved: t(lang,'status_approved'), rejected: t(lang,'status_rejected') }
+const STATUS_LABEL = { pending: tr(lang,'status_pending'), approved: tr(lang,'status_approved'), rejected: tr(lang,'status_rejected') }
 const STATUS_COLOR = { pending: '#F59E0B', approved: '#10B981', rejected: '#EF4444' }
 
 function workdays(f, t) {

@@ -7,7 +7,7 @@ import api from '../utils/api.js'
 import ApptDetailPopup from '../components/ApptDetailPopup.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useLang } from '../contexts/LanguageContext.jsx'
-import { t } from '../i18n/translations.js'
+import { tr } from '../i18n/translations.js'
 
 import { useBranding } from '../contexts/BrandingContext.jsx'
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react"
 import api from "../utils/api.js"
 
 const fmtDate = d => d ? new Date(d).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '–'
-const STATUS_LABEL = { pending: t(lang,'status_pending'), approved: t(lang,'status_approved'), rejected: t(lang,'status_rejected') }
+const STATUS_LABEL = { pending: tr(lang,'status_pending'), approved: tr(lang,'status_approved'), rejected: tr(lang,'status_rejected') }
 const STATUS_COLOR = { pending: '#F59E0B', approved: '#10B981', rejected: '#EF4444' }
 
 const S = {
@@ -102,7 +102,7 @@ export default function VacationApprovePage() {
       {msg && <div style={{ ...S.success, marginBottom:16 }}>{msg}</div>}
 
       <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap' }}>
-        {[['pending',t(lang,'status_pending')],['approved',t(lang,'status_approved')],['rejected',t(lang,'status_rejected')],['all','Alle']].map(([val,label]) => (
+        {[['pending',tr(lang,'status_pending')],['approved',tr(lang,'status_approved')],['rejected',tr(lang,'status_rejected')],['all','Alle']].map(([val,label]) => (
           <button key={val} onClick={()=>setFilter(val)} style={{
             padding:'7px 16px', borderRadius:8, border:'1px solid var(--border)', cursor:'pointer', fontFamily:'var(--font)', fontSize:'0.85rem', fontWeight:filter===val?600:400,
             background: filter===val ? 'var(--primary)' : 'var(--surface)', color: filter===val ? 'white' : 'var(--text)',
