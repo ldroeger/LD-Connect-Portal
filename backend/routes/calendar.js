@@ -428,6 +428,14 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
          AND h.Termin_Start >= GETDATE()
          AND h.Termin_Start <= DATEADD(day, 2, GETDATE())
          AND ISNULL(h.Geloescht, 0) = 0
+         -- Nicht anzeigen wenn der Mitarbeiter selbst an dem Tag einen Termin hat
+         AND NOT EXISTS (
+           SELECT 1 FROM HWTER m
+           WHERE m.Termin_ResourceArt = 'Mitarbeiter'
+             AND LTRIM(RTRIM(ISNULL(m.Termin_ResourceName,''))) = @uid
+             AND CONVERT(date, m.Termin_Start) = CONVERT(date, h.Termin_Start)
+             AND ISNULL(m.Geloescht, 0) = 0
+         )
        ORDER BY h.Termin_Start ASC`,
       params
     )
