@@ -86,7 +86,13 @@ export default function ToolsPage() {
     let result = [...tools]
     const now = new Date()
     if (filterStatus === 'expiring') {
-      result = result.filter(t => t.rueckgabe && new Date(t.rueckgabe) <= new Date(now.getTime() + 7*864e5))
+      // Tools die eine Reservierung in den nächsten 7 Tagen haben
+      // Nutze die alerts-Liste für ≤2 Tage, oder rueckgabe für längere Zeiträume
+      const alertNrs = new Set(alerts.map(a => a.nr))
+      result = result.filter(t =>
+        alertNrs.has(t.nr) ||
+        (t.rueckgabe && new Date(t.rueckgabe) <= new Date(now.getTime() + 7*864e5))
+      )
     }
     result.sort((a, b) => {
       if (sortBy === 'name') return a.bezeichnung.localeCompare(b.bezeichnung, 'de')
