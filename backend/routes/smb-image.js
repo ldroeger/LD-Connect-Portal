@@ -15,34 +15,33 @@ router.get('/image', async (req, res) => {
       return res.status(503).json({ error: 'SMB nicht konfiguriert' })
     }
 
-    // Parse host and share from stored server: //192.168.13.20/Pictures
+    // Parse host and share: //192.168.13.20/Pictures
     const normalized = smbServer.replace(/\\/g, '/').replace(/^\/\//, '')
     const parts = normalized.split('/')
     const host = parts[0]
     const share = parts[1] || ''
 
-    // Get relative file path from the full UNC path
+    // Get relative file path from full UNC path
     // imgPath: \\192.168.13.20\Pictures\subfolder\file.jpg
     const normalizedImg = imgPath.replace(/\\/g, '/')
     const imgParts = normalizedImg.replace(/^\/\//, '').split('/')
     const filePath = imgParts.slice(2).join('\\')
 
-    const SMB2 = require('smb2')
+    const SMB2 = require('@marsaud/smb2')
     const smb2Client = new SMB2({
       share: `\\\\${host}\\${share}`,
       domain: '',
       username: smbUser,
       password: smbPass,
-      autoCloseTimeout: 0,
+      // autoCloseTimeout default (10000ms) - no manual close needed
     })
 
     smb2Client.readFile(filePath, (err, data) => {
-      smb2Client.close()
       if (err) {
         console.error('SMB read error:', err.message)
         return res.status(404).json({ error: 'Bild nicht gefunden', detail: err.message })
       }
-      const ext = filePath.split('.').pop().toLowerCase()
+      const ext = (filePath.split('.').pop() || '').toLowerCase()
       const mime = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' }[ext] || 'image/jpeg'
       res.setHeader('Content-Type', mime)
       res.setHeader('Cache-Control', 'public, max-age=3600')
