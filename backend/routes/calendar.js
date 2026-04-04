@@ -497,15 +497,19 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
          -- Verleih an Adresse (Kunde/Lieferant) mit Name
          w.WZV_VerliehenAnADR,
          ISNULL(
+           -- Try Kunde by KundenNr (numeric)
            (SELECT TOP 1
               LTRIM(RTRIM(ISNULL(k.Adresse_Name1,'')))
               + CASE WHEN LTRIM(RTRIM(ISNULL(k.Adresse_Name2,''))) != '' THEN ' ' + LTRIM(RTRIM(k.Adresse_Name2)) ELSE '' END
-            FROM ELKUN k WHERE k.RecNo = w.WZV_VerliehenAnADR),
+            FROM ELKUN k WHERE k.RecNo = w.WZV_VerliehenAnADR
+               OR LTRIM(RTRIM(k.Kunde_KundenNr)) = CONVERT(varchar, w.WZV_VerliehenAnADR)),
            ISNULL(
+             -- Try Lieferant by LiefNr (numeric)
              (SELECT TOP 1
                 LTRIM(RTRIM(ISNULL(l.Lieferant_Name1,'')))
                 + CASE WHEN LTRIM(RTRIM(ISNULL(l.Lieferant_Name2,''))) != '' THEN ' ' + LTRIM(RTRIM(l.Lieferant_Name2)) ELSE '' END
-              FROM ELLIF l WHERE l.RecNo = w.WZV_VerliehenAnADR),
+              FROM ELLIF l WHERE l.RecNo = w.WZV_VerliehenAnADR
+                 OR LTRIM(RTRIM(l.Lieferant_LiefNr)) = CONVERT(varchar, w.WZV_VerliehenAnADR)),
              ''
            )
          ) AS AdrName,
@@ -548,8 +552,8 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
       } else if (w.MitgenommenVon) {
         const portalUser = localDb.db.prepare('SELECT name FROM users WHERE powerbird_id = ? AND is_active = 1').get(w.MitgenommenVon)
         mieterName = portalUser ? portalUser.name : (w.MitgenommenName || w.MitgenommenVon)
-      } else if (w.AdrName) {
-        mieterName = w.AdrName
+      } else if (w.WZV_VerliehenAnADR) {
+        mieterName = w.AdrName || String(w.WZV_VerliehenAnADR)
       }
 
       // Determine status
@@ -562,7 +566,7 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
       let status = 'lager' // grün
       if (w.AktuellerTerminLabel !== null && w.AktuellerTerminLabel !== undefined) {
         status = 'verliehen'
-      } else if (ausgabe && (!rueckgabe || rueckgabe >= jetzt) && w.VerliehAnMitarb) {
+      } else if (ausgabe && (!rueckgabe || rueckgabe >= jetzt) && (w.VerliehAnMitarb || w.WZV_VerliehenAnADR)) {
         status = 'verliehen'
       } else if (diffDays !== null && diffDays <= 2) {
         status = 'reserviert'

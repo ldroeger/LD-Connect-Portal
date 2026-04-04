@@ -22,6 +22,7 @@ const FEATURES = [
   { key:'feature_todos_create',  label:'Aufgaben erstellen',    icon:'➕' },
   { key:'feature_tools',         label:'Mein Werkzeug',         icon:'🔧' },
   { key:'feature_tools_search',  label:'Werkzeug suchen',       icon:'🔍' },
+  { key:'feature_show_verleih',   label:'Verleih-Info sehen',    icon:'👁' },
 ]
 
 function Toggle({ checked, onChange }) {
@@ -48,6 +49,7 @@ function EditModal({ user, onClose, onSaved }) {
     feature_todos_create: !!user.feature_todos_create,
     feature_tools: user.feature_tools !== 0,
     feature_tools_search: user.feature_tools_search !== 0,
+    feature_show_verleih: user.feature_show_verleih !== 0,
   })
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')

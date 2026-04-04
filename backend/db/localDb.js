@@ -26,6 +26,7 @@ function initialize() {
       feature_todos_create INTEGER DEFAULT 0,
       feature_tools INTEGER DEFAULT 1,
       feature_tools_search INTEGER DEFAULT 1,
+      feature_show_verleih INTEGER DEFAULT 1,
       reset_token TEXT,
       reset_token_expires INTEGER,
       created_at INTEGER DEFAULT (unixepoch())
@@ -67,6 +68,7 @@ function initialize() {
     `UPDATE users SET feature_todos_read=1 WHERE feature_todos_read IS NULL`,
     `ALTER TABLE users ADD COLUMN feature_tools INTEGER DEFAULT 1`,
     `ALTER TABLE users ADD COLUMN feature_tools_search INTEGER DEFAULT 1`,
+    `ALTER TABLE users ADD COLUMN feature_show_verleih INTEGER DEFAULT 1`,
   ];
   migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 

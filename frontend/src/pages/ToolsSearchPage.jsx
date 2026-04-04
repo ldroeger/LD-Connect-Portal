@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import api from '../utils/api.js'
+import { useAuth } from '../contexts/AuthContext.jsx'
 
 const STATUS = {
   lager:     { label: 'Im Lager',   bg: '#dcfce7', border: '#86efac', text: '#15803d', dot: '#22c55e' },
@@ -37,14 +38,14 @@ function ToolRow({ t }) {
           <span style={{ fontSize:'0.72rem', color:'var(--text-3)', background:'var(--surface-2)', padding:'1px 7px', borderRadius:6, border:'1px solid var(--border)' }}>{t.nr || t.internNr}</span>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
-          <StatusBadge status={t.status} mieter={t.mieter} />
+          <StatusBadge status={t.status} mieter={canSeeVerleih ? t.mieter : null} />
           {t.lagerort && t.status === 'lager' && <span style={{ fontSize:'0.78rem', color:'var(--text-3)' }}>📍 {t.lagerort}</span>}
           {t.naechsteRes && t.status === 'reserviert' && (
             <span style={{ fontSize:'0.78rem', color:'#854d0e' }}>
               ab {new Date(t.naechsteRes).toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' })} {new Date(t.naechsteRes).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' })} Uhr
             </span>
           )}
-          {t.ausgabe && t.status === 'verliehen' && <span style={{ fontSize:'0.78rem', color:'var(--text-3)' }}>seit {t.ausgabe}</span>}
+          {t.ausgabe && t.status === 'verliehen' && canSeeVerleih && <span style={{ fontSize:'0.78rem', color:'var(--text-3)' }}>seit {t.ausgabe}</span>}
         </div>
       </div>
     </div>
@@ -52,6 +53,8 @@ function ToolRow({ t }) {
 }
 
 export default function ToolsSearchPage() {
+  const { user } = useAuth()
+  const canSeeVerleih = user?.features?.show_verleih !== false
   const [query, setQuery] = useState('')
   const [allTools, setAllTools] = useState([])
   const [loading, setLoading] = useState(true)
