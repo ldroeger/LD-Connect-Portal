@@ -13,13 +13,24 @@ Ein selbst gehostetes Mitarbeiterportal für **Powerbird ERP** (Hausmann Wynen).
 ### Mitarbeiter-Portal (Web)
 | Feature | Beschreibung |
 |---|---|
-| 🏠 **Dashboard** | Übersicht mit Terminen, Stundensaldo, Urlaubsstatus und Schnellnavigation |
-| 📅 **Kalender** | Termine direkt aus Powerbird mit originalen Terminfaben |
+| 🏠 **Dashboard** | Übersicht mit Terminen, Stundensaldo, Urlaubsstatus, Schnellnavigation und Werkzeug-Rückgabe-Hinweisen |
+| 📅 **Kalender** | Termine direkt aus Powerbird mit originalen Terminfarben |
 | 🌴 **Urlaubsplanung** | Urlaub beantragen, Status einsehen, automatische Genehmigung |
 | ⏱ **Stundenkonto** | Zeiterfassung, Monats- und Jahresübersicht mit KDI/Projektdetails |
 | 📰 **News** | Interne Neuigkeiten lesen und verwalten |
 | ✅ **Aufgaben** | Aufgaben einsehen, als erledigt markieren |
 | 📋 **Termindetails** | Kundenname, KDI-Nummer, Adresse, Telefon, E-Mail direkt im Popup |
+| 🔧 **Mein Werkzeug** | Zugewiesene Werkzeuge aus Powerbird (ELWZV) mit Bild, Ausgabe- und Rückgabedatum |
+| 🔍 **Werkzeug suchen** | Volltext-Suche über alle Werkzeuge mit Status (Lager/Reserviert/Verliehen) und Namensauflösung |
+
+### Werkzeugverwaltung
+| Feature | Beschreibung |
+|---|---|
+| 🖼 **Werkzeugbilder** | Bilder direkt aus dem Windows-Netzlaufwerk via SMB2-Protokoll |
+| ⚠️ **Rückgabe-Hinweis** | Automatischer Hinweis auf Dashboard und Werkzeug-Seite wenn Reservierung ≤ 2 Tage |
+| 🔴🟡🟢 **Status-Anzeige** | Im Lager (grün) / Reserviert (gelb) / Verliehen (rot) mit Mieter-Name |
+| 👤 **Namensauflösung** | Mieter-Name wird aufgelöst aus ELMIT (Mitarbeiter), ELKUN (Kunden) oder ELLIF (Lieferanten) |
+| 🔎 **Filter & Sortierung** | Nach Status filtern, nach Name/Nummer/Datum sortieren |
 
 ### Mitarbeiterbildschirm (Display)
 | Feature | Beschreibung |
@@ -36,10 +47,12 @@ Ein selbst gehostetes Mitarbeiterportal für **Powerbird ERP** (Hausmann Wynen).
 | Feature | Beschreibung |
 |---|---|
 | 👥 **Benutzerverwaltung** | Anlegen, Rollen, Feature-Flags pro Benutzer |
-| 🔒 **Feature-Flags** | Kalender, Urlaub, Stunden, News lesen/schreiben, Aufgaben lesen/erstellen |
+| 🔒 **Feature-Flags** | Alle Funktionen einzeln aktivierbar/deaktivierbar pro Benutzer |
+| 🚫 **Zugangssperre** | Gesperrte Funktionen zeigen Schloss-Anzeige statt leerer Seite |
 | 🎨 **Branding** | Logo, Primärfarbe, Firmenname, Favicon, Fallback-Terminfarben |
 | 🌙 **Dark Mode** | Hell/Dunkel-Umschaltung pro Benutzer |
 | 📅 **Termineinstellungen** | Wählbare Felder in der Detailansicht (Adresse, KDI, Telefon, E-Mail) |
+| 📁 **Netzlaufwerk (SMB)** | SMB2-Zugangsdaten für Werkzeugbilder direkt in der Web-UI konfigurierbar |
 | 📱 **Push-Benachrichtigungen** | Bei Urlaubsanträgen und Genehmigungen (iOS & Android) |
 
 ---
@@ -115,6 +128,10 @@ Danach unter **Einstellungen → Verbindung & SMTP**:
 - SMTP für E-Mail-Versand konfigurieren
 - **Lokale IP für Bildschirme** eintragen (damit der Öffnen-Button die richtige URL generiert)
 
+Unter **Einstellungen → Netzlaufwerk** (für Werkzeugbilder):
+- SMB-Server-Pfad, Domain, Benutzer und Passwort eintragen
+- **Verbinden & Testen** klicken — Bilder werden direkt via SMB2 geladen (kein OS-Mount nötig)
+
 ---
 
 ## 🗄️ Powerbird Datenbankzugriff
@@ -127,9 +144,12 @@ Die App benötigt **read-only** Zugriff auf folgende Tabellen:
 | `ELZEF` | Zeiterfassung |
 | `LOZKT` | Stundenkonto |
 | `LOURL` | Urlaubskonto |
-| `ELMIT` | Mitarbeiterstammdaten |
+| `ELMIT` | Mitarbeiterstammdaten (für Werkzeug-Mieter-Auflösung) |
 | `ELPRJ` | Projekte |
 | `ELKDI` | KDI (Kundendienst) — für Termindetails |
+| `ELWZV` | Werkzeugverwaltung |
+| `ELKUN` | Kundenstammdaten (für Werkzeug-Mieter-Auflösung) |
+| `ELLIF` | Lieferantenstammdaten (für Werkzeug-Mieter-Auflösung) |
 
 SQL Server Benutzer anlegen:
 ```sql
@@ -142,7 +162,36 @@ GRANT SELECT ON LOURL TO ld_connect;
 GRANT SELECT ON ELMIT TO ld_connect;
 GRANT SELECT ON ELPRJ TO ld_connect;
 GRANT SELECT ON ELKDI TO ld_connect;
+GRANT SELECT ON ELWZV TO ld_connect;
+GRANT SELECT ON ELKUN TO ld_connect;
+GRANT SELECT ON ELLIF TO ld_connect;
 ```
+
+---
+
+## 🔧 Werkzeugverwaltung
+
+### Mein Werkzeug
+Zeigt alle Werkzeuge aus ELWZV die dem eingeloggten Mitarbeiter zugewiesen sind (`Verleih_AnMitarb = Powerbird-ID`). Desktop: Kachel-Grid mit Bild. Mobil: Liste mit Popup.
+
+### Werkzeug suchen (Admin)
+Volltext-Suche über alle Werkzeuge im Bestand. Zeigt Status basierend auf:
+- **Im Lager** (grün): Nicht verliehen, keine Reservierung in ≤ 2 Tagen
+- **Reserviert** (gelb): Reservierung in HWTER innerhalb der nächsten 2 Tage
+- **Verliehen** (rot): Aktuell verliehen — an Mitarbeiter, Kunden oder Lieferanten
+
+Mieter-Name wird aufgelöst via:
+- `WZV_VerliehenAnADR = 2` → Mitarbeiter → ELMIT (Vorname + Nachname)
+- `WZV_VerliehenAnADR = 1` → Kunde → ELKUN (Name1 + Name2)
+- `WZV_VerliehenAnADR = 3` → Lieferant → ELLIF (Name1 + Name2)
+
+### Werkzeugbilder (SMB2)
+Bilder werden direkt per SMB2-Protokoll aus dem Windows-Netzlaufwerk geladen (`ELWZV.WZV_Bilddatei`). Kein OS-Mount erforderlich. Konfiguration unter **Einstellungen → Netzlaufwerk**.
+
+> **Hinweis:** Node.js 20 benötigt `NODE_OPTIONS=--openssl-legacy-provider` für die NTLM-Authentifizierung. Das Dockerfile setzt dies automatisch.
+
+### Rückgabe-Hinweis
+Wenn ein zugewiesenes Werkzeug eine HWTER-Reservierung (`Termin_ResourceArt = 'Werkzeuge'`) in den nächsten 2 Tagen hat und der Mitarbeiter selbst nicht an dem Tag einen eigenen Termin hat, erscheint ein Hinweis auf Dashboard und Werkzeug-Seite.
 
 ---
 
@@ -164,12 +213,6 @@ Bildschirme sind ausschließlich über **Port 8081** erreichbar — nicht über 
 - Schriftgröße, Uhrzeitgröße
 - Auto-Scroll Geschwindigkeit
 
-**Touch-Modus:**
-- Termin antippen → Detailpopup (Kunde, KDI, Adresse, Telefon, E-Mail)
-- Mitarbeiter antippen → Wochenkalender mit Zeitleiste
-- Aufgabe antippen → Mitarbeiter aus Liste auswählen → als erledigt markieren
-- Popups schließen automatisch nach einstellbarer Zeit
-
 ---
 
 ## 🏗️ Architektur
@@ -179,20 +222,21 @@ LD-Connect-Portal/
 ├── backend/              Node.js/Express API (Port 3001, intern)
 │   ├── routes/
 │   │   ├── auth.js       Authentifizierung & Session
-│   │   ├── calendar.js   Kalender, Stunden, Termindetails
+│   │   ├── calendar.js   Kalender, Stunden, Werkzeug-Endpoints
 │   │   ├── vacation.js   Urlaubsverwaltung
-│   │   ├── display.js    Mitarbeiterbildschirm
+│   │   ├── display.js    Mitarbeiterbildschirm, News, Aufgaben
 │   │   ├── users.js      Benutzerverwaltung
 │   │   ├── branding.js   Branding-Einstellungen
 │   │   ├── push.js       Push-Benachrichtigungen
-│   │   └── admin.js      Admin-Einstellungen
+│   │   ├── admin.js      Admin-Einstellungen, SMB-Verbindungstest
+│   │   └── smb-image.js  Werkzeugbilder via SMB2
 │   └── db/
 │       ├── localDb.js    SQLite (Benutzer, Einstellungen, News, Aufgaben)
 │       └── powerbirdDb.js MSSQL (Powerbird, read-only)
 ├── frontend/             React + Vite (Port 80 / 8081)
 │   └── src/
-│       ├── pages/        Dashboard, Kalender, Urlaub, Stunden, Admin...
-│       ├── components/   Layout, ApptDetailPopup
+│       ├── pages/        Dashboard, Kalender, Urlaub, Stunden, Werkzeug, Admin...
+│       ├── components/   Layout, FeatureGate, ApptDetailPopup
 │       └── contexts/     Auth, Branding, Theme
 ├── app/                  React Native (Expo) — iOS & Android
 └── docker-compose.yml
@@ -206,13 +250,24 @@ LD-Connect-Portal/
 |---|---|
 | `user` | Normaler Mitarbeiter |
 | `vacation_approver` | Kann Urlaubsanträge genehmigen/ablehnen |
-| `news_manager` | Kann News und Aufgaben verwalten |
 | `admin` | Voller Zugriff auf alle Funktionen |
 
-**Feature-Flags pro Benutzer:**
-- 📅 Kalender · 🌴 Urlaubsplanung · ⏱ Stundenkonto
-- 📰 News lesen · ✏️ News schreiben
-- ✅ Aufgaben lesen · ➕ Aufgaben erstellen
+**Feature-Flags pro Benutzer** (im Admin-Popup konfigurierbar):
+
+| Flag | Beschreibung |
+|---|---|
+| 📅 Kalender | Zugriff auf Kalender-Seite |
+| 🌴 Urlaubsplanung | Urlaub beantragen und einsehen |
+| ⏱ Stundenkonto | Zeiterfassung einsehen |
+| 📰 News lesen | News-Seite sichtbar |
+| ✏️ News schreiben | News erstellen und bearbeiten |
+| ✅ Aufgaben lesen | Aufgaben-Seite sichtbar |
+| ➕ Aufgaben erstellen | Aufgaben anlegen und verwalten |
+| 🔧 Mein Werkzeug | Zugewiesene Werkzeuge einsehen |
+| 🔍 Werkzeug suchen | Volltext-Suche über alle Werkzeuge |
+| 👁 Verleih-Info sehen | An wen und seit wann ein Werkzeug verliehen ist |
+
+> Gesperrte Seiten zeigen eine Schloss-Anzeige wenn der User die URL direkt aufruft.
 
 ---
 
@@ -236,11 +291,6 @@ EAS_NO_VCS=1 eas build --platform android --profile preview
 EAS_NO_VCS=1 eas build --platform ios --profile production
 EAS_NO_VCS=1 eas submit --platform ios
 ```
-
-**Firebase für Android Push:**
-1. [Firebase Console](https://console.firebase.google.com) → Projekt erstellen
-2. Android-App mit Package `de.ldconnect.portal` hinzufügen
-3. `google-services.json` in `app/` kopieren
 
 ---
 
