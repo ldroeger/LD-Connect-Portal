@@ -43,7 +43,9 @@ router.put('/:id', adminMiddleware, (req, res) => {
         feature_news_write = COALESCE(?, feature_news_write),
         feature_todos_read = COALESCE(?, feature_todos_read),
         feature_todos_create = COALESCE(?, feature_todos_create),
-        feature_tools = COALESCE(?, feature_tools)
+        feature_tools = COALESCE(?, feature_tools),
+        feature_tools_search = COALESCE(?, feature_tools_search),
+        feature_show_verleih = COALESCE(?, feature_show_verleih)
       WHERE id = ?
     `).run(
       name ?? null,
@@ -58,6 +60,8 @@ router.put('/:id', adminMiddleware, (req, res) => {
       feature_todos_read !== undefined ? (feature_todos_read ? 1 : 0) : null,
       feature_todos_create !== undefined ? (feature_todos_create ? 1 : 0) : null,
       feature_tools !== undefined ? (feature_tools ? 1 : 0) : null,
+      feature_tools_search !== undefined ? (feature_tools_search ? 1 : 0) : null,
+      feature_show_verleih !== undefined ? (feature_show_verleih ? 1 : 0) : null,
       req.params.id
     );
     res.json({ success: true });
