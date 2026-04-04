@@ -19,7 +19,7 @@ function StatusBadge({ status, mieter }) {
   )
 }
 
-function ToolRow({ t }) {
+function ToolRow({ t, canSeeVerleih }) {
   const imgUrl = t.bild ? `/api/tools/image?path=${encodeURIComponent(t.bild)}` : null
   return (
     <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, overflow:'hidden', display:'flex', alignItems:'stretch' }}>
@@ -151,7 +151,7 @@ export default function ToolsSearchPage() {
         </div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          {displayed.map((t, i) => <ToolRow key={i} t={t} />)}
+          {displayed.map((t, i) => <ToolRow key={i} t={t} canSeeVerleih={canSeeVerleih} />)}
         </div>
       )}
     </div>

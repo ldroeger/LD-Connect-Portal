@@ -494,25 +494,22 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
          ) AS MitgenommenName,
          CONVERT(varchar(10), w.Verleih_AusgabeAm, 120)  AS AusgabeAm,
          CONVERT(varchar(10), w.Verleih_RueckgabeAm, 120) AS RueckgabeAm,
-         -- Verleih an Adresse (Kunde/Lieferant) mit Name
-         w.WZV_VerliehenAnADR,
-         ISNULL(
-           -- Try Kunde by KundenNr (numeric)
-           (SELECT TOP 1
-              LTRIM(RTRIM(ISNULL(k.Adresse_Name1,'')))
-              + CASE WHEN LTRIM(RTRIM(ISNULL(k.Adresse_Name2,''))) != '' THEN ' ' + LTRIM(RTRIM(k.Adresse_Name2)) ELSE '' END
-            FROM ELKUN k WHERE k.RecNo = w.WZV_VerliehenAnADR
-               OR LTRIM(RTRIM(k.Kunde_KundenNr)) = CONVERT(varchar, w.WZV_VerliehenAnADR)),
-           ISNULL(
-             -- Try Lieferant by LiefNr (numeric)
-             (SELECT TOP 1
-                LTRIM(RTRIM(ISNULL(l.Lieferant_Name1,'')))
-                + CASE WHEN LTRIM(RTRIM(ISNULL(l.Lieferant_Name2,''))) != '' THEN ' ' + LTRIM(RTRIM(l.Lieferant_Name2)) ELSE '' END
-              FROM ELLIF l WHERE l.RecNo = w.WZV_VerliehenAnADR
-                 OR LTRIM(RTRIM(l.Lieferant_LiefNr)) = CONVERT(varchar, w.WZV_VerliehenAnADR)),
-             ''
-           )
-         ) AS AdrName,
+         -- Verleih Typ: 1=Kunde, 2=Mitarbeiter, 3=Lieferant
+         w.WZV_VerliehenAnADR AS VerleihTyp,
+         -- Kundenname wenn Typ=1
+         CASE WHEN w.WZV_VerliehenAnADR = 1 THEN
+           ISNULL((SELECT TOP 1
+             LTRIM(RTRIM(ISNULL(k.Adresse_Name1,'')))
+             + CASE WHEN LTRIM(RTRIM(ISNULL(k.Adresse_Name2,''))) != '' THEN ' ' + LTRIM(RTRIM(k.Adresse_Name2)) ELSE '' END
+           FROM ELKUN k WHERE LTRIM(RTRIM(k.Kunde_KundenNr)) = LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))), '')
+         ELSE '' END AS KundenName,
+         -- Lieferantenname wenn Typ=3
+         CASE WHEN w.WZV_VerliehenAnADR = 3 THEN
+           ISNULL((SELECT TOP 1
+             LTRIM(RTRIM(ISNULL(l.Lieferant_Name1,'')))
+             + CASE WHEN LTRIM(RTRIM(ISNULL(l.Lieferant_Name2,''))) != '' THEN ' ' + LTRIM(RTRIM(l.Lieferant_Name2)) ELSE '' END
+           FROM ELLIF l WHERE LTRIM(RTRIM(l.Lieferant_LiefNr)) = LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))), '')
+         ELSE '' END AS LiefName,
          -- Nächste Reservierung aus HWTER
          (SELECT TOP 1 CONVERT(varchar(19), h.Termin_Start, 120)
           FROM HWTER h
@@ -546,14 +543,24 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
     // Resolve Mieter-Name for items lent to address
     const tools = await Promise.all(result.recordset.map(async w => {
       let mieterName = ''
-      if (w.VerliehAnMitarb) {
+      const verleihTyp = w.VerleihTyp
+      if (verleihTyp === 2 && w.VerliehAnMitarb) {
+        // Mitarbeiter
+        const portalUser = localDb.db.prepare('SELECT name FROM users WHERE powerbird_id = ? AND is_active = 1').get(w.VerliehAnMitarb)
+        mieterName = portalUser ? portalUser.name : (w.MitarbName || w.VerliehAnMitarb)
+      } else if (verleihTyp === 1) {
+        // Kunde
+        mieterName = w.KundenName || w.VerliehAnMitarb
+      } else if (verleihTyp === 3) {
+        // Lieferant
+        mieterName = w.LiefName || w.VerliehAnMitarb
+      } else if (w.VerliehAnMitarb && !verleihTyp) {
+        // Fallback: Mitarbeiter ohne Typ
         const portalUser = localDb.db.prepare('SELECT name FROM users WHERE powerbird_id = ? AND is_active = 1').get(w.VerliehAnMitarb)
         mieterName = portalUser ? portalUser.name : (w.MitarbName || w.VerliehAnMitarb)
       } else if (w.MitgenommenVon) {
         const portalUser = localDb.db.prepare('SELECT name FROM users WHERE powerbird_id = ? AND is_active = 1').get(w.MitgenommenVon)
         mieterName = portalUser ? portalUser.name : (w.MitgenommenName || w.MitgenommenVon)
-      } else if (w.WZV_VerliehenAnADR) {
-        mieterName = w.AdrName || String(w.WZV_VerliehenAnADR)
       }
 
       // Determine status
@@ -566,7 +573,7 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
       let status = 'lager' // grün
       if (w.AktuellerTerminLabel !== null && w.AktuellerTerminLabel !== undefined) {
         status = 'verliehen'
-      } else if (ausgabe && (!rueckgabe || rueckgabe >= jetzt) && (w.VerliehAnMitarb || w.WZV_VerliehenAnADR)) {
+      } else if (ausgabe && (!rueckgabe || rueckgabe >= jetzt) && (w.VerliehAnMitarb || w.VerleihTyp)) {
         status = 'verliehen'
       } else if (diffDays !== null && diffDays <= 2) {
         status = 'reserviert'
