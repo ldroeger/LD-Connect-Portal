@@ -29,11 +29,10 @@ router.get('/image', async (req, res) => {
 
     const SMB2 = require('@marsaud/smb2')
     const smb2Client = new SMB2({
-      share: `\\\\${host}\\${share}`,
+      share: '\\\\' + host + '\\' + share,
       domain: '',
       username: smbUser,
       password: smbPass,
-      // autoCloseTimeout default (10000ms) - no manual close needed
     })
 
     smb2Client.readFile(filePath, (err, data) => {
