@@ -11,8 +11,9 @@ const STATUS = {
 }
 
 function StatusBadge({ status, mieter }) {
+  const { lang } = useLang()
   const s = STATUS[status] || STATUS.lager
-  const label = status === 'verliehen' && mieter ? t(lang,'status_verliehen_an').replace('{name}',mieter) : t(lang,'status_'+status)
+  const label = status === 'verliehen' && mieter ? t(lang,'status_verliehen_an').replace('{name}',mieter) : (t(lang,'status_'+status) || s.label)
   return (
     <span style={{ display:'inline-flex', alignItems:'center', gap:6, background:s.bg, border:`1px solid ${s.border}`, color:s.text, borderRadius:20, padding:'3px 10px', fontSize:'0.78rem', fontWeight:700 }}>
       <span style={{ width:7, height:7, borderRadius:'50%', background:s.dot, flexShrink:0 }} />
@@ -21,14 +22,15 @@ function StatusBadge({ status, mieter }) {
   )
 }
 
-function ToolRow({ t, canSeeVerleih }) {
-  const imgUrl = t.bild ? `/api/tools/image?path=${encodeURIComponent(t.bild)}` : null
+function ToolRow({ tool, canSeeVerleih }) {
+  const { lang } = useLang()
+  const imgUrl = tool.bild ? `/api/tools/image?path=${encodeURIComponent(tool.bild)}` : null
   return (
     <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, overflow:'hidden', display:'flex', alignItems:'stretch' }}>
-      <div style={{ width:4, flexShrink:0, background:STATUS[t.status]?.dot || '#22c55e' }} />
+      <div style={{ width:4, flexShrink:0, background:STATUS[tool.status]?.dot || '#22c55e' }} />
       {imgUrl ? (
         <div style={{ width:80, height:80, flexShrink:0, background:'var(--surface-2)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
-          <img src={imgUrl} alt={t.bezeichnung} style={{ width:'100%', height:'100%', objectFit:'contain' }}
+          <img src={imgUrl} alt={tool.bezeichnung} style={{ width:'100%', height:'100%', objectFit:'contain' }}
             onError={e => { e.target.parentElement.innerHTML = '<div style="font-size:24px;display:flex;align-items:center;justify-content:center;width:100%;height:100%">🔧</div>' }} />
         </div>
       ) : (
@@ -36,18 +38,18 @@ function ToolRow({ t, canSeeVerleih }) {
       )}
       <div style={{ flex:1, padding:'10px 16px', display:'flex', flexDirection:'column', justifyContent:'center', gap:4, minWidth:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-          <span style={{ fontWeight:700, fontSize:'0.92rem', color:'var(--text)' }}>{t.bezeichnung}</span>
-          <span style={{ fontSize:'0.72rem', color:'var(--text-3)', background:'var(--surface-2)', padding:'1px 7px', borderRadius:6, border:'1px solid var(--border)' }}>{t.nr || t.internNr}</span>
+          <span style={{ fontWeight:700, fontSize:'0.92rem', color:'var(--text)' }}>{tool.bezeichnung}</span>
+          <span style={{ fontSize:'0.72rem', color:'var(--text-3)', background:'var(--surface-2)', padding:'1px 7px', borderRadius:6, border:'1px solid var(--border)' }}>{tool.nr || tool.internNr}</span>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
-          <StatusBadge status={t.status} mieter={canSeeVerleih ? t.mieter : null} />
-          {t.lagerort && t.status === 'lager' && <span style={{ fontSize:'0.78rem', color:'var(--text-3)' }}>📍 {t.lagerort}</span>}
-          {t.naechsteRes && t.status === 'reserviert' && (
+          <StatusBadge status={tool.status} mieter={canSeeVerleih ? tool.mieter : null} />
+          {tool.lagerort && tool.status === 'lager' && <span style={{ fontSize:'0.78rem', color:'var(--text-3)' }}>📍 {tool.lagerort}</span>}
+          {tool.naechsteRes && tool.status === 'reserviert' && (
             <span style={{ fontSize:'0.78rem', color:'#854d0e' }}>
-              ab {new Date(t.naechsteRes).toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' })} {new Date(t.naechsteRes).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' })} Uhr
+              ab {new Date(tool.naechsteRes).toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' })} {new Date(tool.naechsteRes).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' })} Uhr
             </span>
           )}
-          {t.ausgabe && t.status === 'verliehen' && canSeeVerleih && <span style={{ fontSize:'0.78rem', color:'var(--text-3)' }}>seit {t.ausgabe}</span>}
+          {tool.ausgabe && tool.status === 'verliehen' && canSeeVerleih && <span style={{ fontSize:'0.78rem', color:'var(--text-3)' }}>seit {tool.ausgabe}</span>}
         </div>
       </div>
     </div>
@@ -83,7 +85,7 @@ export default function ToolsSearchPage() {
 
   const displayed = useMemo(() => {
     let result = [...allTools]
-    if (filterStatus !== 'all') result = result.filter(t => t.status === filterStatus)
+    if (filterStatus !== 'all') result = result.filter(t => tool.status === filterStatus)
     result.sort((a, b) => {
       if (sortBy === 'name') return a.bezeichnung.localeCompare(b.bezeichnung, 'de')
       if (sortBy === 'nr') return (a.nr || a.internNr).localeCompare(b.nr || b.internNr, 'de')
@@ -98,9 +100,9 @@ export default function ToolsSearchPage() {
 
   const counts = {
     all: allTools.length,
-    lager: allTools.filter(t => t.status === 'lager').length,
-    reserviert: allTools.filter(t => t.status === 'reserviert').length,
-    verliehen: allTools.filter(t => t.status === 'verliehen').length,
+    lager: allTools.filter(t => tool.status === 'lager').length,
+    reserviert: allTools.filter(t => tool.status === 'reserviert').length,
+    verliehen: allTools.filter(t => tool.status === 'verliehen').length,
   }
 
   const filterBtn = (key, label, dot) => (
@@ -154,7 +156,7 @@ export default function ToolsSearchPage() {
         </div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          {displayed.map((t, i) => <ToolRow key={i} t={t} canSeeVerleih={canSeeVerleih} />)}
+          {displayed.map((t, i) => <ToolRow key={i} tool={t} canSeeVerleih={canSeeVerleih} />)}
         </div>
       )}
     </div>

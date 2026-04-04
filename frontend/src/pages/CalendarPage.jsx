@@ -6,6 +6,9 @@ import 'react-big-calendar/lib/css/react-big-calendar.css'
 import api from '../utils/api.js'
 import ApptDetailPopup from '../components/ApptDetailPopup.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { useLang } from '../contexts/LanguageContext.jsx'
+import { t } from '../i18n/translations.js'
+
 import { useBranding } from '../contexts/BrandingContext.jsx'
 
 moment.locale('de')
@@ -30,6 +33,7 @@ const fmtDt = d => new Date(d).toLocaleString('de-DE', {
 
 export default function CalendarPage() {
   const { user } = useAuth()
+  const { lang } = useLang()
   const { branding } = useBranding()
   const isMobile = window.innerWidth < 768
   const rangeDays = branding.calendar_range_days || 14
