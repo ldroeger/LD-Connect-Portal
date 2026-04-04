@@ -487,7 +487,7 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
          (SELECT TOP 1 CONVERT(varchar(19), h.Termin_Start, 120)
           FROM HWTER h
           WHERE h.Termin_ResourceArt = 'Werkzeuge'
-            AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE w.Intern_Nr + '%'
+            AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE CONVERT(varchar,w.Intern_Nr) + '%'
             AND h.Termin_Start >= GETDATE()
             AND ISNULL(h.Geloescht,0) = 0
           ORDER BY h.Termin_Start ASC) AS NaechsteReservierung,
@@ -495,7 +495,7 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
          (SELECT TOP 1 LTRIM(RTRIM(ISNULL(h.Termin_Label,'')))
           FROM HWTER h
           WHERE h.Termin_ResourceArt = 'Werkzeuge'
-            AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE w.Intern_Nr + '%'
+            AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE CONVERT(varchar,w.Intern_Nr) + '%'
             AND h.Termin_Start <= GETDATE()
             AND h.Termin_Ende >= GETDATE()
             AND ISNULL(h.Geloescht,0) = 0
