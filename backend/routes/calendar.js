@@ -462,10 +462,9 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
 router.get('/tools-search', authMiddleware, async (req, res) => {
   try {
     const q = (req.query.q || '').trim()
-    if (!q) return res.json({ tools: [] })
 
     const result = await pbDb.query(
-      `SELECT TOP 50
+      `SELECT TOP 500
          w.RecNo,
          LTRIM(RTRIM(ISNULL(w.LAN,'')))          AS LAN,
          LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))     AS InternNr,
@@ -501,11 +500,11 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
             AND ISNULL(h.Geloescht,0) = 0
           ORDER BY h.Termin_Start ASC) AS AktuellerTerminLabel
        FROM ELWZV w
-       WHERE (
-         LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))  LIKE '%' + @q + '%'
-         OR LTRIM(RTRIM(ISNULL(w.LAN,'')))        LIKE '%' + @q + '%'
-         OR LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))   LIKE '%' + @q + '%'
-         OR LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))   LIKE '%' + @q + '%'
+       WHERE (@q = '' OR
+         LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))   LIKE '%' + @q + '%'
+         OR LTRIM(RTRIM(ISNULL(w.LAN,'')))         LIKE '%' + @q + '%'
+         OR LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))    LIKE '%' + @q + '%'
+         OR LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))    LIKE '%' + @q + '%'
          OR LTRIM(RTRIM(ISNULL(w.SerienNummer,''))) LIKE '%' + @q + '%'
          OR LTRIM(RTRIM(ISNULL(w.WZV_Lagerort,''))) LIKE '%' + @q + '%'
        )
