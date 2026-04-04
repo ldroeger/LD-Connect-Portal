@@ -3,7 +3,6 @@ services:
     build: ./backend
     restart: unless-stopped
     container_name: ld-portal-backend-1
-    privileged: true
     environment:
       - NODE_ENV=production
       - DATA_DIR=/data

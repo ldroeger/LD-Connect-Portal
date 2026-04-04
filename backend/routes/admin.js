@@ -2,8 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { adminMiddleware } = require('../middleware/auth');
 const localDb = require('../db/localDb');
-const { exec } = require('child_process');
-const fs = require('fs');
 
 // Get all settings (admin only)
 router.get('/settings', adminMiddleware, (req, res) => {
@@ -42,59 +40,65 @@ router.put('/settings', adminMiddleware, (req, res) => {
 });
 
 
-// POST /api/admin/smb-mount - Save settings and auto-mount
-router.post('/smb-mount', adminMiddleware, (req, res) => {
+// POST /api/admin/smb-mount - Save settings and test SMB2 connection
+router.post('/smb-mount', adminMiddleware, async (req, res) => {
   try {
     const { server, user, password, mount } = req.body
     if (server) localDb.setSetting('smb_server', server)
     if (user) localDb.setSetting('smb_user', user)
     if (password) localDb.setSetting('smb_password', password)
-    if (mount) localDb.setSetting('smb_mount', mount)
 
     const smbServer = server || localDb.getSetting('smb_server') || ''
     const smbUser = user || localDb.getSetting('smb_user') || ''
     const smbPass = password || localDb.getSetting('smb_password') || ''
-    const mountPath = mount || localDb.getSetting('smb_mount') || '/mnt/smb'
 
     if (!smbServer || !smbUser || !smbPass) {
       return res.status(400).json({ error: 'Server-Pfad, Benutzer und Passwort erforderlich' })
     }
 
-    // Create mount dir
-    exec(`mkdir -p "${mountPath}"`, () => {
-      // Unmount if already mounted
-      exec(`umount "${mountPath}" 2>/dev/null; true`, () => {
-        // Mount
-        const cmd = `mount -t cifs "${smbServer}" "${mountPath}" -o username="${smbUser}",password="${smbPass}",uid=1000,gid=1000,vers=3.0,noperm,iocharset=utf8 2>&1`
-        exec(cmd, (err, stdout, stderr) => {
-          const output = (stdout + stderr).trim()
-          if (err || output) {
-            return res.status(500).json({ error: 'Mount fehlgeschlagen', detail: output })
-          }
-          res.json({ success: true, message: `✅ ${smbServer} erfolgreich gemountet nach ${mountPath}` })
-        })
+    // Parse host and share
+    const normalized = smbServer.replace(/\\/g, '/').replace(/^\/\//, '')
+    const parts = normalized.split('/')
+    const host = parts[0]
+    const share = parts[1] || ''
+
+    try {
+      const SMB2 = require('@marsaud/smb2')
+      const smb2Client = new SMB2({
+        share: `\\\\${host}\\${share}`,
+        domain: '',
+        username: smbUser,
+        password: smbPass,
+        autoCloseTimeout: 3000,
       })
-    })
+
+      smb2Client.readdir('.', (err, files) => {
+        smb2Client.close()
+        if (err) {
+          return res.status(500).json({ error: 'Verbindung fehlgeschlagen', detail: err.message })
+        }
+        res.json({ success: true, message: `✅ Verbunden! ${files.length} Dateien/Ordner gefunden in ${smbServer}` })
+      })
+    } catch(e) {
+      res.status(500).json({ error: 'SMB2 Fehler: ' + e.message })
+    }
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
 
-// POST /api/admin/smb-unmount
+// POST /api/admin/smb-unmount - just clear settings
 router.post('/smb-unmount', adminMiddleware, (req, res) => {
-  const mount = localDb.getSetting('smb_mount') || '/mnt/smb'
-  exec(`umount "${mount}" 2>&1`, (err, stdout, stderr) => {
-    const output = (stdout + stderr).trim()
-    if (err) return res.status(500).json({ error: output || 'Fehler beim Unmount' })
-    res.json({ success: true, message: `✅ ${mount} ausgehängt` })
-  })
+  localDb.setSetting('smb_server', '')
+  localDb.setSetting('smb_user', '')
+  localDb.setSetting('smb_password', '')
+  res.json({ success: true, message: '✅ SMB-Zugangsdaten gelöscht' })
 })
 
 // GET /api/admin/smb-status
 router.get('/smb-status', adminMiddleware, (req, res) => {
-  const mount = localDb.getSetting('smb_mount') || '/mnt/smb'
-  exec(`mountpoint -q "${mount}" 2>/dev/null && echo mounted || echo not`, (err, stdout) => {
-    const mounted = stdout.trim() === 'mounted'
-    res.json({ mounted, mount, server: localDb.getSetting('smb_server') || '' })
-  })
+  const server = localDb.getSetting('smb_server') || ''
+  const user = localDb.getSetting('smb_user') || ''
+  const mounted = !!(server && user)
+  res.json({ mounted, mount: 'SMB2', server })
 })
 
 module.exports = router;
