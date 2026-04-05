@@ -543,12 +543,12 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
          -- Ausgemusterte Geräte (Zustand=4) ausblenden
          ISNULL(w.WZV_Zustand, 0) <> 4
          AND (@q = '' OR
-           LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))   LIKE '%' + @q + '%'
-           OR LTRIM(RTRIM(ISNULL(w.LAN,'')))         LIKE '%' + @q + '%'
-           OR LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))    LIKE '%' + @q + '%'
-           OR LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))    LIKE '%' + @q + '%'
-           OR LTRIM(RTRIM(ISNULL(w.SerienNummer,''))) LIKE '%' + @q + '%'
-           OR LTRIM(RTRIM(ISNULL(w.WZV_Lagerort,''))) LIKE '%' + @q + '%'
+           LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))    COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
+           OR LTRIM(RTRIM(ISNULL(w.LAN,'')))          COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
+           OR LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))     COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
+           OR LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))     COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
+           OR LTRIM(RTRIM(ISNULL(w.SerienNummer,'')))  COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
+           OR LTRIM(RTRIM(ISNULL(w.WZV_Lagerort,''))) COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
          )
        ORDER BY w.Bezeichnung ASC`,
       { q }
