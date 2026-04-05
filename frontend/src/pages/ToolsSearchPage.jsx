@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import api from '../utils/api.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useLang } from '../contexts/LanguageContext.jsx'
-import { tr } from '../i18n/translations.js'
 
 const STATUS = {
   lager:     { label: 'Im Lager',   bg: '#dcfce7', border: '#86efac', text: '#15803d', dot: '#22c55e' },
@@ -12,7 +11,7 @@ const STATUS = {
 }
 
 function StatusBadge({ status, mieter }) {
-  const { lang } = useLang()
+  const { lang, tr } = useLang()
   const s = STATUS[status] || STATUS.lager
   const label = status === 'verliehen' && mieter ? tr(lang,'status_verliehen_an').replace('{name}',mieter) : (tr(lang,'status_'+status) || s.label)
   return (
@@ -24,7 +23,7 @@ function StatusBadge({ status, mieter }) {
 }
 
 function ToolRow({ tool, canSeeVerleih }) {
-  const { lang } = useLang()
+  const { lang, tr } = useLang()
   const imgUrl = tool.bild ? `/api/tools/image?path=${encodeURIComponent(tool.bild)}` : null
   return (
     <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, overflow:'hidden', display:'flex', alignItems:'stretch' }}>
@@ -59,7 +58,7 @@ function ToolRow({ tool, canSeeVerleih }) {
 
 export default function ToolsSearchPage() {
   const { user } = useAuth()
-  const { lang } = useLang()
+  const { lang, tr } = useLang()
   const canSeeVerleih = user?.features?.show_verleih !== false
   const [query, setQuery] = useState('')
   const [allTools, setAllTools] = useState([])
