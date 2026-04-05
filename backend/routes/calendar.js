@@ -356,8 +356,8 @@ router.get('/tools', authMiddleware, async (req, res) => {
          LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))      AS WZNr,
          LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))    AS Bezeichnung,
          LTRIM(RTRIM(ISNULL(w.WZV_WZNr_1,'')))    AS WZNr_Intern,
-         w.WZV_Zustand                              AS ZustandNr,
-         w.WZV_Status,
+         w.WZV_Status                              AS WZVStatus,
+         CONVERT(varchar(10), w.WZV_DefektSeit, 120) AS DefektSeit,
          CONVERT(varchar(10), w.Verleih_AusgabeAm, 120) AS AusgabeAm,
          CONVERT(varchar(10), w.Verleih_RueckgabeAm, 120) AS RueckgabeAm,
          LTRIM(RTRIM(ISNULL(CAST(w.Info AS NVARCHAR(MAX)),''))) AS Info,
@@ -365,19 +365,22 @@ router.get('/tools', authMiddleware, async (req, res) => {
        FROM ELWZV w
        WHERE LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,''))) = @uid
          AND (w.Verleih_RueckgabeAm IS NULL OR w.Verleih_RueckgabeAm >= GETDATE())
-         AND ISNULL(w.WZV_Zustand, 0) <> 4
+         AND w.WZV_Status != 4
+         AND ISNULL(w.WZV_AusgemustertAm, '') = ''
        ORDER BY w.Bezeichnung ASC`,
       { uid: req.user.powerbird_id }
     )
     res.json({ tools: r.recordset.map(w => {
-      // 0=Im Lager, 1=Verliehen Mitarb, 2=Defekt, 3=Verliehen Kunde/Lief, 4=Ausgemustert
-      const zNr = w.ZustandNr
-      const toolStatus = zNr === 2 ? 'defekt' : zNr === 1 || zNr === 3 ? 'verliehen' : 'lager'
+      // WZV_Status: 0=Lager, 1=Verliehen(Mitarb), 2=Verliehen(Kunde), 3=Verliehen(Lief), 4=Ausgemustert
+      // WZV_DefektSeit gesetzt = Defekt
+      const isDefekt = !!w.DefektSeit
+      let toolStatus = 'lager'
+      if (isDefekt) toolStatus = 'defekt'
+      else if (w.WZVStatus === 1 || w.WZVStatus === 2 || w.WZVStatus === 3) toolStatus = 'verliehen'
       return {
         recno:       w.RecNo,
         nr:          w.WZNr,
         bezeichnung: w.Bezeichnung,
-        zustand:     w.ZustandNr,
         status:      toolStatus,
         ausgabe:     w.AusgabeAm,
         rueckgabe:   w.RueckgabeAm,
@@ -482,7 +485,9 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
          LTRIM(RTRIM(ISNULL(w.WZV_Lagerort,'')))  AS Lagerort,
          LTRIM(RTRIM(ISNULL(w.WZV_Zustand,'')))   AS Zustand,
          LTRIM(RTRIM(ISNULL(w.WZV_Bilddatei,''))) AS Bilddatei,
-         w.WZV_Status,
+         w.WZV_Status AS WZVStatus,
+         CONVERT(varchar(10), w.WZV_DefektSeit, 120) AS DefektSeit,
+         CONVERT(varchar(10), w.WZV_AusgemustertAm, 120) AS AusgemustertAm,
          -- Verleih an Mitarbeiter
          LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))    AS VerliehAnMitarb,
          LTRIM(RTRIM(ISNULL(w.MitgenommenVon,'')))       AS MitgenommenVon,
@@ -603,6 +608,7 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
         nr:           w.WZNr,
         lagerort:     w.Lagerort,
         zustand:      w.Zustand,
+        defektSeit:   w.DefektSeit || null,
         bild:         w.Bilddatei || null,
         status,
         mieter:       mieterName,
