@@ -477,6 +477,8 @@ router.get('/tools/:internNr/events', authMiddleware, async (req, res) => {
     const from = new Date(); from.setDate(from.getDate() - 60)
     const to   = new Date(); to.setDate(to.getDate() + 180)
 
+    // internNr can be numeric (100000) or alphanumeric (WZ010002)
+    // Termin_ResourceName format: '100000-LSP500A' so LIKE '100000%'
     const result = await pbDb.query(
       `SELECT
          h.RecNo,
@@ -485,16 +487,24 @@ router.get('/tools/:internNr/events', authMiddleware, async (req, res) => {
          CONVERT(varchar(19), h.Termin_Start, 120)        AS Start,
          CONVERT(varchar(19), h.Termin_Ende,  120)        AS Ende,
          LTRIM(RTRIM(ISNULL(h.Termin_Farbe,'')))          AS Farbe,
-         h.Termin_GanzerTag
+         h.Termin_GanzerTag,
+         LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,'')))   AS ResourceName
        FROM HWTER h
        WHERE h.Termin_ResourceArt = 'Werkzeuge'
-         AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE @nr + '%'
+         AND (
+           LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE @nr + '%'
+           OR LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE '%' + @nr + '%'
+         )
          AND h.Termin_Start >= @from
          AND h.Termin_Start <= @to
          AND ISNULL(h.Geloescht, 0) = 0
        ORDER BY h.Termin_Start ASC`,
       { nr: String(internNr), from: from.toISOString(), to: to.toISOString() }
     )
+    console.log('tools-events query for internNr:', internNr, 'found:', result.recordset.length, 'events')
+    if (result.recordset.length > 0) {
+      console.log('First ResourceName:', result.recordset[0].ResourceName)
+    }
 
     const events = result.recordset.map(h => ({
       recno:   h.RecNo,
