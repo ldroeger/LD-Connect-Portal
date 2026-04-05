@@ -11,9 +11,9 @@ const STATUS = {
 }
 
 function StatusBadge({ status, mieter }) {
-  const { lang, tr } = useLang()
+  const { tr } = useLang()
   const s = STATUS[status] || STATUS.lager
-  const label = status === 'verliehen' && mieter ? tr(lang,'status_verliehen_an').replace('{name}',mieter) : (tr(lang,'status_'+status) || s.label)
+  const label = status === 'verliehen' && mieter ? (tr('status_verliehen_an') + ' ' + mieter) : (tr('status_' + status) || s.label)
   return (
     <span style={{ display:'inline-flex', alignItems:'center', gap:6, background:s.bg, border:`1px solid ${s.border}`, color:s.text, borderRadius:20, padding:'3px 10px', fontSize:'0.78rem', fontWeight:700 }}>
       <span style={{ width:7, height:7, borderRadius:'50%', background:s.dot, flexShrink:0 }} />
@@ -120,13 +120,13 @@ export default function ToolsSearchPage() {
 
   return (
     <div style={{ maxWidth:900, margin:'0 auto' }}>
-      <h2 style={{ marginBottom:4 }}>🔍 {tr(lang,'search_title')}</h2>
+      <h2 style={{ marginBottom:4 }}>🔍 {tr('search_title')}</h2>
       <p style={{ color:'var(--text-3)', marginBottom:16, fontSize:'0.88rem' }}>Suche nach Name, Nummer, Seriennummer oder Lagerort</p>
 
       {/* Search */}
       <div style={{ position:'relative', marginBottom:14 }}>
         <span style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>🔍</span>
-        <input value={query} onChange={e => handleSearch(e.target.value)} placeholder={tr(lang,'search_placeholder')}
+        <input value={query} onChange={e => handleSearch(e.target.value)} placeholder={tr('search_placeholder')}
           autoFocus style={{ width:'100%', boxSizing:'border-box', padding:'11px 16px 11px 42px', border:'1px solid var(--border)', borderRadius:12, background:'var(--surface)', color:'var(--text)', fontSize:'0.95rem', outline:'none', boxShadow:'var(--shadow)' }} />
       </div>
 
