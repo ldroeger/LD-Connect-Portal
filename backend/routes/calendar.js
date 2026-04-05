@@ -371,12 +371,10 @@ router.get('/tools', authMiddleware, async (req, res) => {
       { uid: req.user.powerbird_id }
     )
     res.json({ tools: r.recordset.map(w => {
-      // WZV_Status: 0=Lager, 1=Verliehen(Mitarb), 2=Verliehen(Kunde), 3=Verliehen(Lief), 4=Ausgemustert
-      // WZV_DefektSeit gesetzt = Defekt
-      const isDefekt = !!w.DefektSeit
+      // WZV_Status: 0=Lager, 1=Verliehen(Mitarb), 2=Defekt, 3=Verliehen(Kunde/Lief), 4=Ausgemustert
       let toolStatus = 'lager'
-      if (isDefekt) toolStatus = 'defekt'
-      else if (w.WZVStatus === 1 || w.WZVStatus === 2 || w.WZVStatus === 3) toolStatus = 'verliehen'
+      if (w.WZVStatus === 2) toolStatus = 'defekt'
+      else if (w.WZVStatus === 1 || w.WZVStatus === 3) toolStatus = 'verliehen'
       return {
         recno:       w.RecNo,
         nr:          w.WZNr,
@@ -587,17 +585,14 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
       const diffDays = naechste ? (naechste - jetzt) / 864e5 : null
 
       // Status direkt aus WZV_Zustand:
-      // 0=Im Lager, 1=Verliehen Mitarbeiter, 2=Defekt, 3=Verliehen Kunde/Lief, 4=Ausgemustert
-      const zustandNr = w.ZustandNr ?? w.WZV_Zustand
-      let status
-      if (zustandNr === 2) {
+      // WZV_Status: 0=Lager, 1=Verliehen(Mitarb), 2=Defekt, 3=Verliehen(Kunde/Lief), 4=Ausgemustert
+      let status = 'lager'
+      if (w.WZVStatus === 2) {
         status = 'defekt'
-      } else if (zustandNr === 1 || zustandNr === 3) {
+      } else if (w.WZVStatus === 1 || w.WZVStatus === 3) {
         status = 'verliehen'
       } else if (diffDays !== null && diffDays <= 2) {
         status = 'reserviert'
-      } else {
-        status = 'lager'
       }
 
       return {
