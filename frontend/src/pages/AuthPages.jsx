@@ -32,7 +32,7 @@ export function LoginPage() {
   const { login } = useAuth()
   const { branding } = useBranding()
   const navigate = useNavigate()
-  const { lang, tr } = useLang()
+  const { lang } = useLang()
 
   const handleSubmit = async () => {
     if (!email || !password) return setError('Bitte E-Mail und Passwort eingeben')

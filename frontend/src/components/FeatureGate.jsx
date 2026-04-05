@@ -5,7 +5,7 @@ import { useLang } from '../contexts/LanguageContext.jsx'
 
 export default function FeatureGate({ feature, children }) {
   const { user } = useAuth()
-  const { lang, tr } = useLang()
+  const { lang } = useLang()
   const navigate = useNavigate()
 
   const allowed = user?.features?.[feature] !== false

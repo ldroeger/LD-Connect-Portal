@@ -41,7 +41,7 @@ function NavCard({ icon, title, desc, onClick, color }) {
 
 export default function DashboardPage() {
   const { user, isAdmin } = useAuth()
-  const { lang, tr } = useLang()
+  const { lang } = useLang()
   const navigate = useNavigate()
   const [appointments, setAppointments] = useState([])
   const [labels, setLabels] = useState({})
