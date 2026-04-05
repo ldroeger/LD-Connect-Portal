@@ -486,7 +486,7 @@ router.get('/tools/:internNr/events', authMiddleware, async (req, res) => {
          LTRIM(RTRIM(ISNULL(h.TER_KurzinfoTermin,'')))   AS Kurzinfo,
          CONVERT(varchar(19), h.Termin_Start, 120)        AS Start,
          CONVERT(varchar(19), h.Termin_Ende,  120)        AS Ende,
-         LTRIM(RTRIM(ISNULL(h.Termin_Farbe,'')))          AS Farbe,
+         h.Termin_Color,
          h.Termin_Length,
          LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,'')))   AS ResourceName
        FROM HWTER h
@@ -511,7 +511,7 @@ router.get('/tools/:internNr/events', authMiddleware, async (req, res) => {
       label:   h.Label || h.Kurzinfo || 'Termin',
       start:   h.Start,
       end:     h.Ende,
-      color:   h.Farbe || '#2563EB',
+      color:   h.Termin_Color ? ('#'+((h.Termin_Color&0xFF).toString(16).padStart(2,'0'))+((h.Termin_Color>>8&0xFF).toString(16).padStart(2,'0'))+((h.Termin_Color>>16&0xFF).toString(16).padStart(2,'0'))) : '#2563EB',
       allDay:  (h.Termin_Length >= 480),
     }))
 
