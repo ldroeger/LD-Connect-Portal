@@ -353,9 +353,10 @@ router.get('/tools', authMiddleware, async (req, res) => {
     const r = await pbDb.query(
       `SELECT
          w.RecNo,
-         LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))   AS WZNr,
-         LTRIM(RTRIM(ISNULL(w.Bezeichnung,''))) AS Bezeichnung,
-         LTRIM(RTRIM(ISNULL(w.WZV_WZNr_1,''))) AS WZNr_Intern,
+         LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))      AS WZNr,
+         LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))    AS Bezeichnung,
+         LTRIM(RTRIM(ISNULL(w.WZV_WZNr_1,'')))    AS WZNr_Intern,
+         w.WZV_Zustand                              AS ZustandNr,
          w.WZV_Status,
          CONVERT(varchar(10), w.Verleih_AusgabeAm, 120) AS AusgabeAm,
          CONVERT(varchar(10), w.Verleih_RueckgabeAm, 120) AS RueckgabeAm,
@@ -364,19 +365,26 @@ router.get('/tools', authMiddleware, async (req, res) => {
        FROM ELWZV w
        WHERE LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,''))) = @uid
          AND (w.Verleih_RueckgabeAm IS NULL OR w.Verleih_RueckgabeAm >= GETDATE())
+         AND ISNULL(w.WZV_Zustand, 0) <> 4
        ORDER BY w.Bezeichnung ASC`,
       { uid: req.user.powerbird_id }
     )
-    res.json({ tools: r.recordset.map(w => ({
-      recno:      w.RecNo,
-      nr:         w.WZNr,
-      bezeichnung: w.Bezeichnung,
-      status:     w.WZV_Status,
-      ausgabe:    w.AusgabeAm,
-      rueckgabe:  w.RueckgabeAm,
-      info:       w.Info,
-      bild:       w.Bilddatei || null,
-    })) })
+    res.json({ tools: r.recordset.map(w => {
+      // 0=Im Lager, 1=Verliehen Mitarb, 2=Defekt, 3=Verliehen Kunde/Lief, 4=Ausgemustert
+      const zNr = w.ZustandNr
+      const toolStatus = zNr === 2 ? 'defekt' : zNr === 1 || zNr === 3 ? 'verliehen' : 'lager'
+      return {
+        recno:       w.RecNo,
+        nr:          w.WZNr,
+        bezeichnung: w.Bezeichnung,
+        zustand:     w.ZustandNr,
+        status:      toolStatus,
+        ausgabe:     w.AusgabeAm,
+        rueckgabe:   w.RueckgabeAm,
+        info:        w.Info,
+        bild:        w.Bilddatei || null,
+      }
+    }) })
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -528,14 +536,17 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
             AND ISNULL(h.Geloescht,0) = 0
           ORDER BY h.Termin_Start ASC) AS AktuellerTerminLabel
        FROM ELWZV w
-       WHERE (@q = '' OR
-         LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))   LIKE '%' + @q + '%'
-         OR LTRIM(RTRIM(ISNULL(w.LAN,'')))         LIKE '%' + @q + '%'
-         OR LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))    LIKE '%' + @q + '%'
-         OR LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))    LIKE '%' + @q + '%'
-         OR LTRIM(RTRIM(ISNULL(w.SerienNummer,''))) LIKE '%' + @q + '%'
-         OR LTRIM(RTRIM(ISNULL(w.WZV_Lagerort,''))) LIKE '%' + @q + '%'
-       )
+       WHERE
+         -- Ausgemusterte Geräte (Zustand=4) ausblenden
+         ISNULL(w.WZV_Zustand, 0) <> 4
+         AND (@q = '' OR
+           LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))   LIKE '%' + @q + '%'
+           OR LTRIM(RTRIM(ISNULL(w.LAN,'')))         LIKE '%' + @q + '%'
+           OR LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))    LIKE '%' + @q + '%'
+           OR LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))    LIKE '%' + @q + '%'
+           OR LTRIM(RTRIM(ISNULL(w.SerienNummer,''))) LIKE '%' + @q + '%'
+           OR LTRIM(RTRIM(ISNULL(w.WZV_Lagerort,''))) LIKE '%' + @q + '%'
+         )
        ORDER BY w.Bezeichnung ASC`,
       { q }
     )
@@ -570,13 +581,18 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
       const naechste = w.NaechsteReservierung ? new Date(w.NaechsteReservierung) : null
       const diffDays = naechste ? (naechste - jetzt) / 864e5 : null
 
-      let status = 'lager' // grün
-      if (w.AktuellerTerminLabel !== null && w.AktuellerTerminLabel !== undefined) {
-        status = 'verliehen'
-      } else if (ausgabe && (!rueckgabe || rueckgabe >= jetzt) && (w.VerliehAnMitarb || w.VerleihTyp)) {
+      // Status direkt aus WZV_Zustand:
+      // 0=Im Lager, 1=Verliehen Mitarbeiter, 2=Defekt, 3=Verliehen Kunde/Lief, 4=Ausgemustert
+      const zustandNr = w.ZustandNr ?? w.WZV_Zustand
+      let status
+      if (zustandNr === 2) {
+        status = 'defekt'
+      } else if (zustandNr === 1 || zustandNr === 3) {
         status = 'verliehen'
       } else if (diffDays !== null && diffDays <= 2) {
         status = 'reserviert'
+      } else {
+        status = 'lager'
       }
 
       return {

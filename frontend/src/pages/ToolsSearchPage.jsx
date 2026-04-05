@@ -2,17 +2,19 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import api from '../utils/api.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useLang } from '../contexts/LanguageContext.jsx'
+import { tr } from '../i18n/translations.js'
 
 const STATUS = {
   lager:     { label: 'Im Lager',   bg: '#dcfce7', border: '#86efac', text: '#15803d', dot: '#22c55e' },
   reserviert:{ label: 'Reserviert', bg: '#fef9c3', border: '#fde047', text: '#854d0e', dot: '#eab308' },
   verliehen: { label: 'Verliehen',  bg: '#fee2e2', border: '#fca5a5', text: '#991b1b', dot: '#ef4444' },
+  defekt:    { label: 'Defekt',     bg: '#f3e8ff', border: '#d8b4fe', text: '#6b21a8', dot: '#a855f7' },
 }
 
 function StatusBadge({ status, mieter }) {
-  const { lang, tr } = useLang()
+  const { lang } = useLang()
   const s = STATUS[status] || STATUS.lager
-  const label = status === 'verliehen' && mieter ? (tr('status_verliehen_an') + ' ' + mieter) : (tr('status_'+status) || s.label)
+  const label = status === 'verliehen' && mieter ? tr(lang,'status_verliehen_an').replace('{name}',mieter) : (tr(lang,'status_'+status) || s.label)
   return (
     <span style={{ display:'inline-flex', alignItems:'center', gap:6, background:s.bg, border:`1px solid ${s.border}`, color:s.text, borderRadius:20, padding:'3px 10px', fontSize:'0.78rem', fontWeight:700 }}>
       <span style={{ width:7, height:7, borderRadius:'50%', background:s.dot, flexShrink:0 }} />
@@ -22,7 +24,7 @@ function StatusBadge({ status, mieter }) {
 }
 
 function ToolRow({ tool, canSeeVerleih }) {
-  const { lang, tr } = useLang()
+  const { lang } = useLang()
   const imgUrl = tool.bild ? `/api/tools/image?path=${encodeURIComponent(tool.bild)}` : null
   return (
     <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, overflow:'hidden', display:'flex', alignItems:'stretch' }}>
@@ -57,7 +59,7 @@ function ToolRow({ tool, canSeeVerleih }) {
 
 export default function ToolsSearchPage() {
   const { user } = useAuth()
-  const { lang, tr } = useLang()
+  const { lang } = useLang()
   const canSeeVerleih = user?.features?.show_verleih !== false
   const [query, setQuery] = useState('')
   const [allTools, setAllTools] = useState([])
@@ -84,7 +86,7 @@ export default function ToolsSearchPage() {
 
   const displayed = useMemo(() => {
     let result = [...allTools]
-    if (filterStatus !== 'all') result = result.filter(t => t.status === filterStatus) // ✅ Fix: tool -> t
+    if (filterStatus !== 'all') result = result.filter(t => tool.status === filterStatus)
     result.sort((a, b) => {
       if (sortBy === 'name') return a.bezeichnung.localeCompare(b.bezeichnung, 'de')
       if (sortBy === 'nr') return (a.nr || a.internNr).localeCompare(b.nr || b.internNr, 'de')
@@ -99,9 +101,9 @@ export default function ToolsSearchPage() {
 
   const counts = {
     all: allTools.length,
-    lager:      allTools.filter(t => t.status === 'lager').length,      // ✅ Fix: tool -> t
-    reserviert: allTools.filter(t => t.status === 'reserviert').length, // ✅ Fix: tool -> t
-    verliehen:  allTools.filter(t => t.status === 'verliehen').length,  // ✅ Fix: tool -> t
+    lager: allTools.filter(t => tool.status === 'lager').length,
+    reserviert: allTools.filter(t => tool.status === 'reserviert').length,
+    verliehen: allTools.filter(t => tool.status === 'verliehen').length,
   }
 
   const filterBtn = (key, label, dot) => (
@@ -119,13 +121,13 @@ export default function ToolsSearchPage() {
 
   return (
     <div style={{ maxWidth:900, margin:'0 auto' }}>
-      <h2 style={{ marginBottom:4 }}>🔍 {tr('search_title')}</h2>
+      <h2 style={{ marginBottom:4 }}>🔍 {tr(lang,'search_title')}</h2>
       <p style={{ color:'var(--text-3)', marginBottom:16, fontSize:'0.88rem' }}>Suche nach Name, Nummer, Seriennummer oder Lagerort</p>
 
       {/* Search */}
       <div style={{ position:'relative', marginBottom:14 }}>
         <span style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>🔍</span>
-        <input value={query} onChange={e => handleSearch(e.target.value)} placeholder={tr('search_placeholder')}
+        <input value={query} onChange={e => handleSearch(e.target.value)} placeholder={tr(lang,'search_placeholder')}
           autoFocus style={{ width:'100%', boxSizing:'border-box', padding:'11px 16px 11px 42px', border:'1px solid var(--border)', borderRadius:12, background:'var(--surface)', color:'var(--text)', fontSize:'0.95rem', outline:'none', boxShadow:'var(--shadow)' }} />
       </div>
 
@@ -136,6 +138,7 @@ export default function ToolsSearchPage() {
           {filterBtn('lager', 'Im Lager', true)}
           {filterBtn('reserviert', 'Reserviert', true)}
           {filterBtn('verliehen', 'Verliehen', true)}
+          {filterBtn('defekt', 'Defekt', true)}
         </div>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
           style={{ padding:'5px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface)', color:'var(--text)', fontSize:'0.82rem', cursor:'pointer' }}>
