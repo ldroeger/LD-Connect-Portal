@@ -487,7 +487,7 @@ router.get('/tools/:internNr/events', authMiddleware, async (req, res) => {
          CONVERT(varchar(19), h.Termin_Start, 120)        AS Start,
          CONVERT(varchar(19), h.Termin_Ende,  120)        AS Ende,
          LTRIM(RTRIM(ISNULL(h.Termin_Farbe,'')))          AS Farbe,
-         h.Termin_GanzerTag,
+         h.Termin_Length,
          LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,'')))   AS ResourceName
        FROM HWTER h
        WHERE h.Termin_ResourceArt = 'Werkzeuge'
@@ -512,7 +512,7 @@ router.get('/tools/:internNr/events', authMiddleware, async (req, res) => {
       start:   h.Start,
       end:     h.Ende,
       color:   h.Farbe || '#2563EB',
-      allDay:  !!h.Termin_GanzerTag,
+      allDay:  (h.Termin_Length >= 480),
     }))
 
     res.json({ events })
