@@ -3,8 +3,6 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useBranding } from '../contexts/BrandingContext.jsx'
 import { useTheme } from '../contexts/ThemeContext.jsx'
-import LanguageSwitcher from './LanguageSwitcher.jsx'
-import { useLang } from '../contexts/LanguageContext.jsx'
 
 const navLink = (active) => ({
   display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8,
@@ -18,7 +16,6 @@ export default function Layout() {
   const { branding } = useBranding()
   const navigate = useNavigate()
   const { dark, toggle } = useTheme()
-  const { lang } = useLang()
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const initials = user?.name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '?'
@@ -29,7 +26,7 @@ export default function Layout() {
   const NavItems = ({ onNavigate }) => (
     <>
       <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>
-          {tr('nav_overview')}
+          {'Übersicht'}
         </div>
       <NavLink to="/" end style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🏠</span><span>{tr(lang,"nav_dashboard")}</span></NavLink>
       {!!features.calendar && <NavLink to="/calendar" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📅</span><span>{tr(lang,"nav_calendar")}</span></NavLink>}
@@ -42,14 +39,14 @@ export default function Layout() {
 
       {canApprove && <>
         <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>
-          {tr('nav_approval')}
+          {'Genehmigung'}
         </div>
         <NavLink to="/vacation-approve" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>{tr(lang,"nav_vacation_approve")}</span></NavLink>
       </>}
 
       {isAdmin && <>
         <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>
-          {tr('nav_admin')}
+          {'Administration'}
         </div>
         <NavLink to="/admin" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⚙️</span><span>{tr(lang,"nav_settings")}</span></NavLink>
         <NavLink to="/display-manage" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🖥</span><span>{tr(lang,"nav_display")}</span></NavLink>
@@ -124,7 +121,6 @@ export default function Layout() {
             </div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <LanguageSwitcher />
             <button onClick={toggle} title={dark ? 'Hell' : 'Dunkel'}
               style={{ width:34, height:34, borderRadius:8, border:'1px solid var(--border)', background:'var(--surface-2)', cursor:'pointer', fontSize:'1rem', display:'flex', alignItems:'center', justifyContent:'center' }}>
               {dark ? '☀️' : '🌙'}

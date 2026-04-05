@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import api from '../utils/api.js'
 import ToolDetailPopup from '../components/ToolDetailPopup.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
-import { useLang } from '../contexts/LanguageContext.jsx'
 
 const STATUS_CFG = {
   lager:      { bg: '#dcfce7', border: '#86efac', color: '#15803d', dot: '#22c55e' },
@@ -17,7 +16,6 @@ const STATUS_LABELS = {
 
 export default function ToolsSearchPage() {
   const { user } = useAuth()
-  const { tr } = useLang()
   const canSeeVerleih = user?.features?.show_verleih !== false
 
   const [query, setQuery]           = useState('')
@@ -78,8 +76,8 @@ export default function ToolsSearchPage() {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <h2 style={{ marginBottom: 4 }}>🔍 {tr('search_title')}</h2>
-      <p style={{ color: 'var(--text-3)', marginBottom: 16, fontSize: '0.88rem' }}>{tr('search_hint')}</p>
+      <h2 style={{ marginBottom: 4 }}>🔍 {'Werkzeug suchen'}</h2>
+      <p style={{ color: 'var(--text-3)', marginBottom: 16, fontSize: '0.88rem' }}>{'Suche nach Name, Nummer, Seriennummer oder Lagerort'}</p>
 
       {/* Search */}
       <div style={{ position: 'relative', marginBottom: 14 }}>
@@ -87,7 +85,7 @@ export default function ToolsSearchPage() {
         <input
           value={query}
           onChange={e => handleSearch(e.target.value)}
-          placeholder={tr('search_placeholder')}
+          placeholder={'z.B. LSP500, WZ010002, Beamer...'}
           autoFocus
           style={{ width: '100%', boxSizing: 'border-box', padding: '11px 16px 11px 42px', border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface)', color: 'var(--text)', fontSize: '0.95rem', outline: 'none' }}
         />
@@ -126,7 +124,7 @@ export default function ToolsSearchPage() {
       ) : displayed.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🔧</div>
-          <div>{query ? `Keine Werkzeuge gefunden für „${query}"` : tr('search_start')}</div>
+          <div>{query ? `Keine Werkzeuge gefunden für „${query}"` : 'Keine Werkzeuge vorhanden'}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

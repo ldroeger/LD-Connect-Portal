@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import api from '../utils/api.js'
-import { useLang } from '../contexts/LanguageContext.jsx'
 
 const STATUS_CFG = {
   lager:      { bg: '#dcfce7', border: '#86efac', color: '#15803d', dot: '#22c55e', label: 'Im Lager' },
@@ -92,7 +91,6 @@ function MiniCalendar({ events }) {
 }
 
 export default function ToolDetailPopup({ tool, onClose }) {
-  const { tr } = useLang()
   const [events, setEvents] = useState(null)
   const [loadingEvents, setLoadingEvents] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)

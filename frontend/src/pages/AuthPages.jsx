@@ -1,6 +1,4 @@
 import React, { useState } from 'react'
-import LanguageSwitcher from '../components/LanguageSwitcher.jsx'
-import { useLang } from '../contexts/LanguageContext.jsx'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useBranding } from '../contexts/BrandingContext.jsx'
@@ -32,7 +30,6 @@ export function LoginPage() {
   const { login } = useAuth()
   const { branding } = useBranding()
   const navigate = useNavigate()
-  const { lang, tr } = useLang()
 
   const handleSubmit = async () => {
     if (!email || !password) return setError('Bitte E-Mail und Passwort eingeben')
@@ -44,26 +41,27 @@ export function LoginPage() {
 
   return (
     <div style={S.wrap}>
-      <div style={{ position:'fixed', top:16, right:16, zIndex:100 }}><LanguageSwitcher /></div>
+      <div style={{ position:'fixed', top:16, right:16, zIndex:100 }}>
+</div>
       <div style={S.card}>
         <div style={S.header}>
           {branding.logo_url
             ? <img src={branding.logo_url} alt="Logo" style={{ height: 56, objectFit: 'contain', marginBottom: 12 }} />
             : <img src="/default-logo.png" alt="LD Connect" style={{ height:56, objectFit:'contain', marginBottom:12 }} />}
           <h1 style={S.title}>{branding.company_name}</h1>
-          <p style={S.subtitle}>LD Connect · {tr('login_title')}</p>
+          <p style={S.subtitle}>LD Connect · {'Anmelden'}</p>
         </div>
         {error && <div style={S.error}>{error}</div>}
         <div style={S.field}>
-          <label style={S.label}>{tr('login_email')}</label>
+          <label style={S.label}>{'E-Mail'}</label>
           <input style={S.input} type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && handleSubmit()} placeholder="name@firma.de" autoFocus />
         </div>
         <div style={S.field}>
-          <label style={S.label}>{tr('login_password')}</label>
+          <label style={S.label}>{'Passwort'}</label>
           <input style={S.input} type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key==='Enter' && handleSubmit()} placeholder="Ihr Passwort" />
         </div>
-        <div style={S.forgotRow}><Link to="/forgot-password" style={S.link}>{tr('login_forgot')}</Link></div>
-        <button style={S.btn} onClick={handleSubmit} disabled={loading}>{loading ? tr('loading') : tr('login_button')}</button>
+        <div style={S.forgotRow}><Link to="/forgot-password" style={S.link}>{'Passwort vergessen?'}</Link></div>
+        <button style={S.btn} onClick={handleSubmit} disabled={loading}>{loading ? 'Lädt...' : 'Anmelden'}</button>
       </div>
     </div>
   )
@@ -85,7 +83,8 @@ export function ForgotPasswordPage() {
 
   return (
     <div style={S.wrap}>
-      <div style={{ position:'fixed', top:16, right:16, zIndex:100 }}><LanguageSwitcher /></div>
+      <div style={{ position:'fixed', top:16, right:16, zIndex:100 }}>
+</div>
       <div style={S.card}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <img src="/default-logo.png" alt="LD Connect" style={{ height:56, objectFit:'contain', marginBottom:12 }} />
@@ -96,7 +95,7 @@ export function ForgotPasswordPage() {
         {done
           ? <div style={S.success}>Falls die E-Mail registriert ist, wurde ein Link gesendet. Bitte prüfen Sie Ihr Postfach.</div>
           : <>
-              <label style={S.label}>{tr('login_email')}</label>
+              <label style={S.label}>{'E-Mail'}</label>
               <input style={{ ...S.input, marginBottom: 16 }} type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && handleSubmit()} placeholder="name@firma.de" autoFocus />
               <button style={S.btn} onClick={handleSubmit} disabled={loading}>{loading ? 'Senden…' : 'Reset-Link senden'}</button>
             </>}
@@ -138,7 +137,8 @@ export function SetPasswordPage() {
 
   return (
     <div style={S.wrap}>
-      <div style={{ position:'fixed', top:16, right:16, zIndex:100 }}><LanguageSwitcher /></div>
+      <div style={{ position:'fixed', top:16, right:16, zIndex:100 }}>
+</div>
       <div style={S.card}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <img src="/default-logo.png" alt="LD Connect" style={{ height:56, objectFit:'contain', marginBottom:12 }} />

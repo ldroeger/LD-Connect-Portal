@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react'
 import api from '../utils/api.js'
 import ToolDetailPopup from '../components/ToolDetailPopup.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
-import { useLang } from '../contexts/LanguageContext.jsx'
 
 function ToolCard({ t, onClick, showImage, canSeeVerleih }) {
   const imgUrl = t.bild ? `/api/tools/image?path=${encodeURIComponent(t.bild)}` : null
@@ -40,7 +39,6 @@ export default function ToolsPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const { user } = useAuth()
-  const { tr } = useLang()
   const canSeeVerleih = user?.features?.show_verleih !== false
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [sortBy, setSortBy] = useState('name') // name | ausgabe | rueckgabe
@@ -80,7 +78,7 @@ export default function ToolsPage() {
 
   return (
     <div style={{ maxWidth:1200, margin:'0 auto' }}>
-      <h2 style={{ marginBottom:4 }}>🔧 {tr('tools_title')}</h2>
+      <h2 style={{ marginBottom:4 }}>🔧 {'Mein Werkzeug'}</h2>
       <p style={{ color:'var(--text-3)', marginBottom:16, fontSize:'0.88rem' }}>{tools.length} Werkzeug{tools.length !== 1 ? 'e' : ''} zugewiesen</p>
 
       {/* Rückgabe-Hinweis */}
@@ -112,7 +110,7 @@ export default function ToolsPage() {
       {!loading && tools.length > 0 && (
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16, flexWrap:'wrap', justifyContent:'space-between' }}>
           <div style={{ display:'flex', gap:6 }}>
-            {[['all',tr('tools_filter_all')], ['expiring',tr('tools_filter_expiring')]].map(([key, label]) => (
+            {[['all','Alle'], ['expiring','Bald fällig']].map(([key, label]) => (
               <button key={key} onClick={() => setFilterStatus(key)} style={{
                 padding:'5px 12px', borderRadius:20, border:'1px solid', cursor:'pointer', fontSize:'0.8rem', fontWeight:600,
                 background: filterStatus === key ? 'var(--primary-light)' : 'var(--surface-2)',
