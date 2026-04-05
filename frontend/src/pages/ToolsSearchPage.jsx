@@ -84,7 +84,7 @@ export default function ToolsSearchPage() {
 
   const displayed = useMemo(() => {
     let result = [...allTools]
-    if (filterStatus !== 'all') result = result.filter(t => tool.status === filterStatus)
+    if (filterStatus !== 'all') result = result.filter(t => t.status === filterStatus) // ✅ Fix: tool -> t
     result.sort((a, b) => {
       if (sortBy === 'name') return a.bezeichnung.localeCompare(b.bezeichnung, 'de')
       if (sortBy === 'nr') return (a.nr || a.internNr).localeCompare(b.nr || b.internNr, 'de')
@@ -99,9 +99,9 @@ export default function ToolsSearchPage() {
 
   const counts = {
     all: allTools.length,
-    lager: allTools.filter(t => tool.status === 'lager').length,
-    reserviert: allTools.filter(t => tool.status === 'reserviert').length,
-    verliehen: allTools.filter(t => tool.status === 'verliehen').length,
+    lager:      allTools.filter(t => t.status === 'lager').length,      // ✅ Fix: tool -> t
+    reserviert: allTools.filter(t => t.status === 'reserviert').length, // ✅ Fix: tool -> t
+    verliehen:  allTools.filter(t => t.status === 'verliehen').length,  // ✅ Fix: tool -> t
   }
 
   const filterBtn = (key, label, dot) => (

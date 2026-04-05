@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react"
 import api from "../utils/api.js"
+import { useLang } from "../contexts/LanguageContext.jsx"
 
 const fmtDate = d => d ? new Date(d).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '–'
-// STATUS_LABEL is now dynamic - use tr() inside component
 const STATUS_COLOR = { pending: '#F59E0B', approved: '#10B981', rejected: '#EF4444' }
 
 const S = {
@@ -65,6 +65,7 @@ function RejectModal({ request, onClose, onDone }) {
 }
 
 export default function VacationApprovePage() {
+  const { tr } = useLang() // ✅ Fix 1: useLang() importiert und aufgerufen
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('pending')
@@ -120,7 +121,8 @@ export default function VacationApprovePage() {
               <div>
                 <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:4 }}>
                   {r.user_name}
-                  <span style={{ ...S.badge(STATUS_COLOR[r.status]), marginLeft:10 }}>{STATUS_LABEL[r.status]}</span>
+                  {/* ✅ Fix 2: STATUS_LABEL[r.status] durch tr() ersetzt */}
+                  <span style={{ ...S.badge(STATUS_COLOR[r.status]), marginLeft:10 }}>{tr('status_' + r.status)}</span>
                 </div>
                 <div style={{ fontSize:'0.88rem', color:'var(--text-2)', marginBottom:4 }}>
                   📅 {new Date(r.from_date).toLocaleDateString('de-DE')} – {new Date(r.to_date).toLocaleDateString('de-DE')}
