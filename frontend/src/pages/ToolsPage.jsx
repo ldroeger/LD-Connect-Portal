@@ -33,34 +33,6 @@ function ToolCard({ t, onClick, showImage, canSeeVerleih }) {
   )
 }
 
-function ToolPopup({ tool, onClose, canSeeVerleih }) {
-  if (!tool) return null
-  const imgUrl = tool.bild ? `/api/tools/image?path=${encodeURIComponent(tool.bild)}` : null
-  return (
-    <div style={{ position:'fixed', inset:0, zIndex:1000, display:'flex', alignItems:'flex-end', background:'rgba(0,0,0,0.5)' }} onClick={onClose}>
-      <div style={{ width:'100%', background:'var(--surface)', borderRadius:'20px 20px 0 0', padding:24, maxHeight:'85vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ width:40, height:4, background:'var(--border)', borderRadius:2, margin:'0 auto 20px' }} />
-        {imgUrl && (
-          <div style={{ width:'100%', height:220, marginBottom:16, borderRadius:12, overflow:'hidden', background:'var(--surface-2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <img src={imgUrl} alt={tool.bezeichnung} style={{ width:'100%', height:'100%', objectFit:'contain' }} onError={e => { e.target.parentElement.innerHTML = '<div style="font-size:48px">🔧</div>' }} />
-          </div>
-        )}
-        <div style={{ marginBottom:12 }}>
-          <span style={{ background:'var(--primary-light)', color:'var(--primary)', padding:'3px 10px', borderRadius:8, fontSize:'0.8rem', fontWeight:700 }}>🔧 {tool.nr || '–'}</span>
-        </div>
-        <h3 style={{ margin:'0 0 12px', color:'var(--text)', fontSize:'1.1rem' }}>{tool.bezeichnung}</h3>
-        {canSeeVerleih && (tool.ausgabe || tool.rueckgabe) && (
-          <div style={{ display:'flex', gap:32, marginBottom:12, fontSize:'0.88rem' }}>
-            {tool.ausgabe && <div><div style={{ color:'var(--text-3)', fontSize:'0.72rem', marginBottom:2 }}>Ausgabe</div>{tool.ausgabe}</div>}
-            {tool.rueckgabe && <div><div style={{ color:'var(--text-3)', fontSize:'0.72rem', marginBottom:2 }}>Rückgabe</div><span style={{ color:'var(--error)' }}>{tool.rueckgabe}</span></div>}
-          </div>
-        )}
-        {tool.info && <p style={{ color:'var(--text-3)', fontSize:'0.88rem', margin:'0 0 16px' }}>{tool.info}</p>}
-        <button onClick={onClose} style={{ width:'100%', padding:14, borderRadius:12, border:'none', background:'var(--surface-2)', color:'var(--text)', fontWeight:600, cursor:'pointer', fontSize:'1rem' }}>{tr('close')}</button>
-      </div>
-    </div>
-  )
-}
 
 export default function ToolsPage() {
   const [tools, setTools] = useState([])
@@ -68,7 +40,7 @@ export default function ToolsPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const { user } = useAuth()
-  const { lang, tr } = useLang()
+  const { tr } = useLang()
   const canSeeVerleih = user?.features?.show_verleih !== false
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [sortBy, setSortBy] = useState('name') // name | ausgabe | rueckgabe

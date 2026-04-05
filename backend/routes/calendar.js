@@ -355,6 +355,7 @@ router.get('/tools', authMiddleware, async (req, res) => {
          w.RecNo,
          LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))      AS WZNr,
          LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))    AS Bezeichnung,
+         LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))      AS InternNr,
          LTRIM(RTRIM(ISNULL(w.WZV_WZNr_1,'')))    AS WZNr_Intern,
          w.WZV_Status                              AS WZVStatus,
          CONVERT(varchar(10), w.WZV_DefektSeit, 120) AS DefektSeit,
@@ -378,6 +379,7 @@ router.get('/tools', authMiddleware, async (req, res) => {
       return {
         recno:       w.RecNo,
         nr:          w.WZNr,
+        internNr:    w.InternNr,
         bezeichnung: w.Bezeichnung,
         status:      toolStatus,
         ausgabe:     w.AusgabeAm,
@@ -583,8 +585,9 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
           ORDER BY h.Termin_Start ASC) AS AktuellerTerminLabel
        FROM ELWZV w
        WHERE
-         -- Ausgemusterte Geräte (Zustand=4) ausblenden
-         ISNULL(w.WZV_Zustand, 0) <> 4
+         -- Ausgemusterte Geräte ausblenden (WZV_Status=4)
+         w.WZV_Status != 4
+         AND ISNULL(w.WZV_AusgemustertAm, '') = ''
          AND (@q = '' OR
            LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))    COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
            OR LTRIM(RTRIM(ISNULL(w.LAN,'')))          COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
