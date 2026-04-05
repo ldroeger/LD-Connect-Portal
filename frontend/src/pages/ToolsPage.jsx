@@ -72,7 +72,6 @@ export default function ToolsPage() {
   const { lang } = useLang()
   const canSeeVerleih = user?.features?.show_verleih !== false
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
-  const [selected, setSelected] = useState(null)
   const [sortBy, setSortBy] = useState('name') // name | ausgabe | rueckgabe
   const [filterStatus, setFilterStatus] = useState('all') // all | active | expiring
 
