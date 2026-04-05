@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import api from '../utils/api.js'
+import ToolDetailPopup from '../components/ToolDetailPopup.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useLang } from '../contexts/LanguageContext.jsx'
 
@@ -24,6 +25,7 @@ export default function ToolsSearchPage() {
   const [loading, setLoading]       = useState(true)
   const [sortBy, setSortBy]         = useState('name')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [selected, setSelected]       = useState(null)
 
   const load = useCallback(async (q = '') => {
     setLoading(true)
@@ -133,7 +135,7 @@ export default function ToolsSearchPage() {
             const statusLabel = STATUS_LABELS[item.status] || item.status
             const imgUrl = item.bild ? `/api/tools/image?path=${encodeURIComponent(item.bild)}` : null
             return (
-              <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', display: 'flex', alignItems: 'stretch' }}>
+              <div key={i} onClick={() => setSelected(item)} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', display: 'flex', alignItems: 'stretch', cursor:'pointer', transition:'box-shadow 0.15s' }} onMouseEnter={e=>e.currentTarget.style.boxShadow='var(--shadow-lg)'} onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
                 <div style={{ width: 4, flexShrink: 0, background: cfg.dot }} />
                 {imgUrl ? (
                   <div style={{ width: 80, height: 80, flexShrink: 0, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
@@ -173,6 +175,7 @@ export default function ToolsSearchPage() {
           })}
         </div>
       )}
+      {selected && <ToolDetailPopup tool={selected} onClose={() => setSelected(null)} />}
     </div>
   )
 }

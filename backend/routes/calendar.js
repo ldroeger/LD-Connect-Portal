@@ -467,6 +467,49 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
   }
 })
 
+
+// GET /api/calendar/tools/:internNr/events - Kalendereinträge für ein Werkzeug
+router.get('/tools/:internNr/events', authMiddleware, async (req, res) => {
+  try {
+    const internNr = req.params.internNr
+    const from = new Date(); from.setDate(from.getDate() - 60)
+    const to   = new Date(); to.setDate(to.getDate() + 180)
+
+    const result = await pbDb.query(
+      `SELECT
+         h.RecNo,
+         LTRIM(RTRIM(ISNULL(h.Termin_Label,'')))         AS Label,
+         LTRIM(RTRIM(ISNULL(h.TER_KurzinfoTermin,'')))   AS Kurzinfo,
+         CONVERT(varchar(19), h.Termin_Start, 120)        AS Start,
+         CONVERT(varchar(19), h.Termin_Ende,  120)        AS Ende,
+         LTRIM(RTRIM(ISNULL(h.Termin_Farbe,'')))          AS Farbe,
+         h.Termin_GanzerTag
+       FROM HWTER h
+       WHERE h.Termin_ResourceArt = 'Werkzeuge'
+         AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE @nr + '%'
+         AND h.Termin_Start >= @from
+         AND h.Termin_Start <= @to
+         AND ISNULL(h.Geloescht, 0) = 0
+       ORDER BY h.Termin_Start ASC`,
+      { nr: String(internNr), from: from.toISOString(), to: to.toISOString() }
+    )
+
+    const events = result.recordset.map(h => ({
+      recno:   h.RecNo,
+      label:   h.Label || h.Kurzinfo || 'Termin',
+      start:   h.Start,
+      end:     h.Ende,
+      color:   h.Farbe || '#2563EB',
+      allDay:  !!h.Termin_GanzerTag,
+    }))
+
+    res.json({ events })
+  } catch(e) {
+    console.error('tools-events error:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // GET /api/calendar/tools-search?q=... - Werkzeug Volltext-Suche
 router.get('/tools-search', authMiddleware, async (req, res) => {
   try {
