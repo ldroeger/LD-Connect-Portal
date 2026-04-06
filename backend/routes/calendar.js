@@ -245,12 +245,7 @@ router.get('/appointment/:recno', authMiddleware, async (req, res) => {
               p.Kunde_Name1        AS PRJ_Kunde,
               p.Dokument_Nummer    AS PRJ_Nr,
               p.Kommission_Bezeichng AS PRJ_Kommission,
-              k.Kdi_AuftrBeschreibng           AS KDI_Beschreibung,
-              -- Direct customer address via AdrNr
-              ku.Adresse_Strasse     AS KUN_Strasse,
-              ku.Adresse_PLZ         AS KUN_PLZ,
-              ku.Adresse_Ort         AS KUN_Ort,
-              ku.Adresse_Name1       AS KUN_Name
+              k.Kdi_AuftrBeschreibng           AS KDI_Beschreibung
        FROM HWTER h
        LEFT JOIN ELKDI k
               ON h.DocType = 3
@@ -258,9 +253,6 @@ router.get('/appointment/:recno', authMiddleware, async (req, res) => {
        LEFT JOIN ELPRJ p
               ON h.DocType = 2
              AND LTRIM(RTRIM(CAST(h.DocNr AS NVARCHAR(50)))) = LTRIM(RTRIM(p.Dokument_Nummer)) COLLATE DATABASE_DEFAULT
-       LEFT JOIN ELKUN ku
-              ON h.AdrType = 1
-             AND LTRIM(RTRIM(ISNULL(CAST(h.AdrNr AS NVARCHAR(50)),''))) = LTRIM(RTRIM(ISNULL(ku.Kunde_KundenNr,''))) COLLATE DATABASE_DEFAULT
        WHERE h.RecNo = @recno`,
       { recno: req.params.recno }
     )
@@ -285,19 +277,12 @@ router.get('/appointment/:recno', authMiddleware, async (req, res) => {
     if (settings.show_customer && x.KDI_Kunde) {
       detail.kunde = x.KDI_Kunde.trim()
     }
-    if (settings.show_address) {
-      // Try ELKDI address first, then ELKUN direct address
-      const strasse = (x.KDI_Strasse || x.KUN_Strasse || '').trim()
-      const plz = (x.KDI_PLZ || x.KUN_PLZ || '').trim()
-      const ort = (x.KDI_Ort || x.KUN_Ort || '').trim()
-      if (strasse || ort) {
-        const parts = [strasse, [plz, ort].filter(Boolean).join(' ')].filter(Boolean)
-        detail.adresse = parts.join(', ')
-      }
-      // Also set customer name from ELKUN if not already set
-      if (!detail.kunde && x.KUN_Name) {
-        detail.kunde = x.KUN_Name.trim()
-      }
+    if (settings.show_address && (x.KDI_Strasse || x.KDI_Ort)) {
+      const strasse = (x.KDI_Strasse || '').trim()
+      const plz = (x.KDI_PLZ || '').trim()
+      const ort = (x.KDI_Ort || '').trim()
+      const parts = [strasse, [plz, ort].filter(Boolean).join(' ')].filter(Boolean)
+      if (parts.length) detail.adresse = parts.join(', ')
     }
 
 
