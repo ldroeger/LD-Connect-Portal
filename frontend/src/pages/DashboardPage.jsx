@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../utils/api.js'
+import ApptDetailPopup from '../components/ApptDetailPopup.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
 const fmtTime = d => { if (!d) return ''; const t = new Date(d); return `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}` }
@@ -42,6 +43,7 @@ export default function DashboardPage() {
   const { user, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [appointments, setAppointments] = useState([])
+  const [selectedAppt, setSelectedAppt] = useState(null)
   const [labels, setLabels] = useState({})
   const [saldo, setSaldo] = useState(null)
   const [urlaubStats, setUrlaubStats] = useState(null)
@@ -171,7 +173,7 @@ export default function DashboardPage() {
                 const bgColor = a.termColor || labels[a.label] || 'var(--primary)'
                 const txtColor = (a.termColor || labels[a.label]) ? getTextColor(a.termColor || labels[a.label]) : 'white'
                 return (
-                  <div key={i} style={{ display:'flex', gap:0, alignItems:'stretch', borderRadius:10, overflow:'hidden', border:'1px solid var(--border)' }}>
+                  <div key={i} onClick={() => setSelectedAppt(a)} style={{ display:'flex', gap:0, alignItems:'stretch', borderRadius:10, overflow:'hidden', border:'1px solid var(--border)', cursor:'pointer', transition:'box-shadow 0.15s' }} onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'} onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
                     <div style={{ width:4, background:a.termColor || labels[a.label] || 'var(--primary)', flexShrink:0 }} />
                     <div style={{ flex:1, padding:'10px 14px', background:'var(--surface-2)' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
@@ -192,6 +194,14 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+      {selectedAppt && (
+        <ApptDetailPopup
+          recno={selectedAppt.id || selectedAppt.recno}
+          label={selectedAppt.label}
+          termColor={selectedAppt.termColor}
+          labelColors={labels}
+          onClose={() => setSelectedAppt(null)}
+        />
       )}
     </div>
   )
