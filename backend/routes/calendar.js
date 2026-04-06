@@ -277,6 +277,11 @@ router.get('/appointment/:recno', authMiddleware, async (req, res) => {
     if (settings.show_customer && x.KDI_Kunde) {
       detail.kunde = x.KDI_Kunde.trim()
     }
+    if (settings.show_address && (x.KDI_Strasse || x.KDI_Ort)) {
+      const parts = [x.KDI_Strasse, [x.KDI_PLZ, x.KDI_Ort].filter(Boolean).join(' ')].filter(Boolean)
+      detail.adresse = parts.map(p => p.trim()).join(', ')
+      detail.adresse_nav = parts.map(p => p.trim()).join(', ') // for navigation
+    }
 
 
     // Find colleagues on same site (same DocNr, same day)

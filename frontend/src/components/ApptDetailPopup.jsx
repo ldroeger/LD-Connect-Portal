@@ -100,7 +100,19 @@ export default function ApptDetailPopup({ recno, labelColors = {}, label, termCo
             {detail.kommission && <InfoRow icon="📋" label="Kommission" value={detail.kommission} textSub={textSub} textMuted={textMuted} />}
 
             {/* Address */}
-            {detail.adresse && <InfoRow icon="📍" label="Adresse" value={detail.adresse} textSub={textSub} textMuted={textMuted} />}
+            {detail.adresse && (
+              <div>
+                <InfoRow icon="📍" label="Adresse" value={detail.adresse} textSub={textSub} textMuted={textMuted} />
+                <a
+                  href={`https://maps.google.com/?q=${encodeURIComponent(detail.adresse)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display:'flex', alignItems:'center', gap:8, marginTop:6, padding:'10px 14px', borderRadius:10, background:'var(--primary)', color:'#fff', textDecoration:'none', fontWeight:600, fontSize:'0.9rem' }}
+                >
+                  🗺 Navigation starten
+                </a>
+              </div>
+            )}
 
             {/* Mobile */}
             {detail.mobil && (
