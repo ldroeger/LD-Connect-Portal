@@ -1,323 +1,140 @@
-# LD Connect Mitarbeiterportal
+# LD Connect Portal — Web-Applikation
 
-Ein selbst gehostetes Mitarbeiterportal für **Powerbird ERP** (Hausmann Wynen). Ermöglicht Mitarbeitern den Zugriff auf Kalender, Urlaubsplanung, Stundenkonto und mehr — direkt aus Powerbird.
+Das **LD Connect Mitarbeiterportal** ist eine Web-App für Unternehmen die Powerbird ERP einsetzen. Mitarbeiter greifen über den Browser auf Kalender, Stunden, Urlaub und mehr zu.
 
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Docker](https://img.shields.io/badge/docker-ready-brightgreen)
-![Platform](https://img.shields.io/badge/platform-web%20%7C%20iOS%20%7C%20Android-lightgrey)
+## Features
 
----
+- **Dashboard** — Tagesüberblick mit Terminen, Stundensaldo und Aufgaben
+- **Kalender** — Vollständige Terminansicht mit Detailpopup (Kunde, Adresse, Navigation, Telefon)
+- **Stundenkonto** — Monats- und Jahresübersicht mit Wochendetails
+- **Urlaubsplanung** — Anträge stellen, genehmigen und verwalten
+- **News** — Unternehmensnachrichten
+- **Aufgaben** — Team-Aufgaben mit Erledigungsstatus
+- **Werkzeug** — Zugewiesene Werkzeuge einsehen
+- **Werkzeug suchen** — Volltext-Suche im Werkzeugbestand mit Status-Filter
+- **Urlaubsgenehmigung** — Separate Ansicht für Genehmiger
+- **Mitarbeiterbildschirm** — Öffentlicher Display-Modus für Bildschirme
+- **Admin** — Benutzer- und Einstellungsverwaltung
+- **Dark/Light Mode** — Automatisch nach Systemeinstellung
 
-## 📋 Features
+## Architektur
 
-### Mitarbeiter-Portal (Web)
-| Feature | Beschreibung |
-|---|---|
-| 🏠 **Dashboard** | Übersicht mit Terminen, Stundensaldo, Urlaubsstatus, Schnellnavigation und Werkzeug-Rückgabe-Hinweisen |
-| 📅 **Kalender** | Termine direkt aus Powerbird mit originalen Terminfarben |
-| 🌴 **Urlaubsplanung** | Urlaub beantragen, Status einsehen, automatische Genehmigung |
-| ⏱ **Stundenkonto** | Zeiterfassung, Monats- und Jahresübersicht mit KDI/Projektdetails |
-| 📰 **News** | Interne Neuigkeiten lesen und verwalten |
-| ✅ **Aufgaben** | Aufgaben einsehen, als erledigt markieren |
-| 📋 **Termindetails** | Kundenname, KDI-Nummer, Adresse, Telefon, E-Mail direkt im Popup |
-| 🔧 **Mein Werkzeug** | Zugewiesene Werkzeuge aus Powerbird (ELWZV) mit Bild, Ausgabe- und Rückgabedatum |
-| 🔍 **Werkzeug suchen** | Volltext-Suche über alle Werkzeuge mit Status (Lager/Reserviert/Verliehen) und Namensauflösung |
-
-### Werkzeugverwaltung
-| Feature | Beschreibung |
-|---|---|
-| 🖼 **Werkzeugbilder** | Bilder direkt aus dem Windows-Netzlaufwerk via SMB2-Protokoll |
-| ⚠️ **Rückgabe-Hinweis** | Automatischer Hinweis auf Dashboard und Werkzeug-Seite wenn Reservierung ≤ 2 Tage |
-| 🔴🟡🟢 **Status-Anzeige** | Im Lager (grün) / Reserviert (gelb) / Verliehen (rot) mit Mieter-Name |
-| 👤 **Namensauflösung** | Mieter-Name wird aufgelöst aus ELMIT (Mitarbeiter), ELKUN (Kunden) oder ELLIF (Lieferanten) |
-| 🔎 **Filter & Sortierung** | Nach Status filtern, nach Name/Nummer/Datum sortieren |
-
-### Mitarbeiterbildschirm (Display)
-| Feature | Beschreibung |
-|---|---|
-| 🖥 **Bildschirm-Modus** | Öffentliche URL für TV-Bildschirme im Betrieb (Port 8081) |
-| 📅 **Termine pro Mitarbeiter** | Heutige Termine als Kacheln mit Powerbird-Farben |
-| 📰 **News & Aufgaben** | Linke Spalte mit aktuellen Neuigkeiten und offenen Aufgaben |
-| 👆 **Touch-Modus** | Antippen für Termindetails, Wochenkalender, Aufgaben erledigen |
-| 📆 **Wochenkalender** | Popup mit Zeitleiste (06:00–22:00) und automatischem Countdown |
-| 🎨 **Themes** | Dunkel, Hell, Schwarz — pro Bildschirm einstellbar |
-| 🔄 **Auto-Scroll** | Automatisches Scrollen bei langem Inhalt (Touch deaktiviert) |
-
-### Administration
-| Feature | Beschreibung |
-|---|---|
-| 👥 **Benutzerverwaltung** | Anlegen, Rollen, Feature-Flags pro Benutzer |
-| 🔒 **Feature-Flags** | Alle Funktionen einzeln aktivierbar/deaktivierbar pro Benutzer |
-| 🚫 **Zugangssperre** | Gesperrte Funktionen zeigen Schloss-Anzeige statt leerer Seite |
-| 🎨 **Branding** | Logo, Primärfarbe, Firmenname, Favicon, Fallback-Terminfarben |
-| 🌙 **Dark Mode** | Hell/Dunkel-Umschaltung pro Benutzer |
-| 📅 **Termineinstellungen** | Wählbare Felder in der Detailansicht (Adresse, KDI, Telefon, E-Mail) |
-| 📁 **Netzlaufwerk (SMB)** | SMB2-Zugangsdaten für Werkzeugbilder direkt in der Web-UI konfigurierbar |
-| 📱 **Push-Benachrichtigungen** | Bei Urlaubsanträgen und Genehmigungen (iOS & Android) |
-
----
-
-## 🚀 Schnellstart
-
-### Voraussetzungen
-- [Docker](https://www.docker.com/get-started) & Docker Compose
-- Powerbird ERP mit SQL Server (read-only Zugang)
-- Port **80** (Web-App) und **8081** (Bildschirme) erreichbar
-
-### Installation
-
-```bash
-# 1. Repository klonen
-git clone https://github.com/ldroeger/LD-Connect-Portal.git
-cd LD-Connect-Portal
-
-# 2. Docker Compose Plugin installieren (falls nicht vorhanden)
-apt-get update && apt-get install -y docker-compose-plugin
-
-# 3. Starten
-docker compose up -d --build
+```
+LD Connect Portal
+├── Frontend (React + Vite)         → nginx Container
+├── Backend (Node.js + Express)     → Node Container
+├── Lokale DB (SQLite)              → Benutzer, Einstellungen, Labels
+└── Powerbird DB (MSSQL)           → Read-only Verbindung
 ```
 
-Browser öffnen: `http://SERVER-IP` → Setup-Assistent startet automatisch.
+## Technischer Stack
 
-> **Hinweis:** Neuere Docker-Versionen verwenden `docker compose` (ohne Bindestrich) statt `docker-compose`.
+| Komponente | Technologie |
+|---|---|
+| Frontend | React 18, Vite |
+| Backend | Node.js 20, Express |
+| Lokale DB | SQLite (better-sqlite3) |
+| ERP-Anbindung | MSSQL (mssql) |
+| Deployment | Docker Compose |
+| Reverse Proxy | nginx |
 
-### Update
+## Voraussetzungen
+
+- Docker & Docker Compose
+- Netzwerkzugang zur Powerbird MSSQL-Datenbank
+- Node.js 20+ (für lokale Entwicklung)
+
+## Installation (Produktion)
 
 ```bash
-cd /opt/LD-Connect-Portal
-
-# Neueste Version laden
-git fetch origin
-git reset --hard origin/main
-
-# Container neu bauen und starten
-docker compose up -d --build
-```
-
-### Erstinstallation auf einem Server (Linux)
-
-```bash
-# Docker installieren (falls nicht vorhanden)
-curl -fsSL https://get.docker.com | sh
-
-# Docker Compose Plugin installieren
-apt-get install -y docker-compose-plugin
-
 # Repository klonen
-mkdir -p /opt
-cd /opt
 git clone https://github.com/ldroeger/LD-Connect-Portal.git
 cd LD-Connect-Portal
+
+# Umgebungsvariablen konfigurieren
+cp .env.example .env
+# .env anpassen: DB-Verbindung, Port, etc.
 
 # Starten
 docker compose up -d --build
+
+# Portal erreichbar unter:
+# http://server-ip:80
 ```
 
----
+## Update (Produktion)
 
-## ⚙️ Einrichtung
-
-Der Setup-Assistent führt durch 3 Schritte:
-
-1. **Admin-Account** — E-Mail und Passwort
-2. **Powerbird SQL Server** — Host, Port, Datenbank, Benutzer, Passwort
-3. **Branding** — Firmenname, Logo, Farben
-
-Danach unter **Einstellungen → Verbindung & SMTP**:
-- SMTP für E-Mail-Versand konfigurieren
-- **Lokale IP für Bildschirme** eintragen (damit der Öffnen-Button die richtige URL generiert)
-
-Unter **Einstellungen → Netzlaufwerk** (für Werkzeugbilder):
-- SMB-Server-Pfad, Domain, Benutzer und Passwort eintragen
-- **Verbinden & Testen** klicken — Bilder werden direkt via SMB2 geladen (kein OS-Mount nötig)
-
----
-
-## 🗄️ Powerbird Datenbankzugriff
-
-Die App benötigt **read-only** Zugriff auf folgende Tabellen:
-
-| Tabelle | Inhalt |
-|---|---|
-| `HWTER` | Termine & Kalendereinträge |
-| `ELZEF` | Zeiterfassung |
-| `LOZKT` | Stundenkonto |
-| `LOURL` | Urlaubskonto |
-| `ELMIT` | Mitarbeiterstammdaten (für Werkzeug-Mieter-Auflösung) |
-| `ELPRJ` | Projekte |
-| `ELKDI` | KDI (Kundendienst) — für Termindetails |
-| `ELWZV` | Werkzeugverwaltung |
-| `ELKUN` | Kundenstammdaten (für Werkzeug-Mieter-Auflösung) |
-| `ELLIF` | Lieferantenstammdaten (für Werkzeug-Mieter-Auflösung) |
-
-SQL Server Benutzer anlegen:
-```sql
-CREATE LOGIN ld_connect WITH PASSWORD = 'IhrPasswort';
-CREATE USER ld_connect FOR LOGIN ld_connect;
-GRANT SELECT ON HWTER TO ld_connect;
-GRANT SELECT ON ELZEF TO ld_connect;
-GRANT SELECT ON LOZKT TO ld_connect;
-GRANT SELECT ON LOURL TO ld_connect;
-GRANT SELECT ON ELMIT TO ld_connect;
-GRANT SELECT ON ELPRJ TO ld_connect;
-GRANT SELECT ON ELKDI TO ld_connect;
-GRANT SELECT ON ELWZV TO ld_connect;
-GRANT SELECT ON ELKUN TO ld_connect;
-GRANT SELECT ON ELLIF TO ld_connect;
+```bash
+cd /opt/LD-Connect-Portal
+git fetch origin && git reset --hard origin/main
+docker compose up -d --build
 ```
 
----
+## Lokale Entwicklung
 
-## 🔧 Werkzeugverwaltung
+```bash
+# Backend
+cd backend
+npm install
+npm run dev
 
-### Mein Werkzeug
-Zeigt alle Werkzeuge aus ELWZV die dem eingeloggten Mitarbeiter zugewiesen sind (`Verleih_AnMitarb = Powerbird-ID`). Desktop: Kachel-Grid mit Bild. Mobil: Liste mit Popup.
+# Frontend (separates Terminal)
+cd frontend
+npm install
+npm run dev
+```
 
-### Werkzeug suchen (Admin)
-Volltext-Suche über alle Werkzeuge im Bestand. Zeigt Status basierend auf:
-- **Im Lager** (grün): Nicht verliehen, keine Reservierung in ≤ 2 Tagen
-- **Reserviert** (gelb): Reservierung in HWTER innerhalb der nächsten 2 Tage
-- **Verliehen** (rot): Aktuell verliehen — an Mitarbeiter, Kunden oder Lieferanten
-
-Mieter-Name wird aufgelöst via:
-- `WZV_VerliehenAnADR = 2` → Mitarbeiter → ELMIT (Vorname + Nachname)
-- `WZV_VerliehenAnADR = 1` → Kunde → ELKUN (Name1 + Name2)
-- `WZV_VerliehenAnADR = 3` → Lieferant → ELLIF (Name1 + Name2)
-
-### Werkzeugbilder (SMB2)
-Bilder werden direkt per SMB2-Protokoll aus dem Windows-Netzlaufwerk geladen (`ELWZV.WZV_Bilddatei`). Kein OS-Mount erforderlich. Konfiguration unter **Einstellungen → Netzlaufwerk**.
-
-> **Hinweis:** Node.js 20 benötigt `NODE_OPTIONS=--openssl-legacy-provider` für die NTLM-Authentifizierung. Das Dockerfile setzt dies automatisch.
-
-### Rückgabe-Hinweis
-Wenn ein zugewiesenes Werkzeug eine HWTER-Reservierung (`Termin_ResourceArt = 'Werkzeuge'`) in den nächsten 2 Tagen hat und der Mitarbeiter selbst nicht an dem Tag einen eigenen Termin hat, erscheint ein Hinweis auf Dashboard und Werkzeug-Seite.
-
----
-
-## 🖥 Mitarbeiterbildschirm
-
-Bildschirme sind ausschließlich über **Port 8081** erreichbar — nicht über Port 80.
-
-**Einrichten:**
-1. Unter **Einstellungen → Verbindung & SMTP** die lokale IP eintragen
-2. Unter **Mitarbeiterbildschirm** einen neuen Bildschirm erstellen
-3. Generierten Link auf dem TV-Browser öffnen
-
-**Einstellungen pro Bildschirm:**
-- Design: Dunkel / Hell / Schwarz
-- Eigenes Logo + Größe
-- Inhalte: Termine, News, Aufgaben
-- Alle Mitarbeiter anzeigen (auch ohne Termine)
-- Touch-Modus mit Popup-Countdown
-- Schriftgröße, Uhrzeitgröße
-- Auto-Scroll Geschwindigkeit
-
----
-
-## 🏗️ Architektur
+## Projektstruktur
 
 ```
 LD-Connect-Portal/
-├── backend/              Node.js/Express API (Port 3001, intern)
+├── backend/
 │   ├── routes/
-│   │   ├── auth.js       Authentifizierung & Session
-│   │   ├── calendar.js   Kalender, Stunden, Werkzeug-Endpoints
-│   │   ├── vacation.js   Urlaubsverwaltung
-│   │   ├── display.js    Mitarbeiterbildschirm, News, Aufgaben
-│   │   ├── users.js      Benutzerverwaltung
-│   │   ├── branding.js   Branding-Einstellungen
-│   │   ├── push.js       Push-Benachrichtigungen
-│   │   ├── admin.js      Admin-Einstellungen, SMB-Verbindungstest
-│   │   └── smb-image.js  Werkzeugbilder via SMB2
-│   └── db/
-│       ├── localDb.js    SQLite (Benutzer, Einstellungen, News, Aufgaben)
-│       └── powerbirdDb.js MSSQL (Powerbird, read-only)
-├── frontend/             React + Vite (Port 80 / 8081)
+│   │   ├── auth.js          # Login, Token-Verwaltung
+│   │   ├── calendar.js      # Termine, Stunden, Werkzeuge
+│   │   ├── vacation.js      # Urlaub
+│   │   ├── display.js       # News, Aufgaben, Mitarbeiterbildschirm
+│   │   ├── users.js         # Benutzerverwaltung, Feature-Flags
+│   │   └── branding.js      # Logo, Farben, Firmenname
+│   ├── db/
+│   │   └── localDb.js       # SQLite-Initialisierung & Migrations
+│   └── server.js
+├── frontend/
 │   └── src/
-│       ├── pages/        Dashboard, Kalender, Urlaub, Stunden, Werkzeug, Admin...
-│       ├── components/   Layout, FeatureGate, ApptDetailPopup
-│       └── contexts/     Auth, Branding, Theme
-├── app/                  React Native (Expo) — iOS & Android
+│       ├── pages/
+│       │   ├── DashboardPage.jsx
+│       │   ├── CalendarPage.jsx
+│       │   ├── HoursPage.jsx
+│       │   ├── VacationPage.jsx
+│       │   ├── NewsPage.jsx
+│       │   ├── TodosPage.jsx
+│       │   ├── ToolsPage.jsx
+│       │   ├── ToolsSearchPage.jsx
+│       │   └── ...
+│       └── components/
+│           ├── ApptDetailPopup.jsx   # Termin-Detail mit Navigation
+│           ├── ToolDetailPopup.jsx   # Werkzeug-Detail mit Kalender
+│           └── ...
 └── docker-compose.yml
 ```
 
----
+## Feature-Flags
 
-## 🔒 Rollen & Berechtigungen
-
-| Rolle | Beschreibung |
-|---|---|
-| `user` | Normaler Mitarbeiter |
-| `vacation_approver` | Kann Urlaubsanträge genehmigen/ablehnen |
-| `admin` | Voller Zugriff auf alle Funktionen |
-
-**Feature-Flags pro Benutzer** (im Admin-Popup konfigurierbar):
+Über die Admin-Oberfläche können pro Benutzer Features aktiviert/deaktiviert werden:
 
 | Flag | Beschreibung |
 |---|---|
-| 📅 Kalender | Zugriff auf Kalender-Seite |
-| 🌴 Urlaubsplanung | Urlaub beantragen und einsehen |
-| ⏱ Stundenkonto | Zeiterfassung einsehen |
-| 📰 News lesen | News-Seite sichtbar |
-| ✏️ News schreiben | News erstellen und bearbeiten |
-| ✅ Aufgaben lesen | Aufgaben-Seite sichtbar |
-| ➕ Aufgaben erstellen | Aufgaben anlegen und verwalten |
-| 🔧 Mein Werkzeug | Zugewiesene Werkzeuge einsehen |
-| 🔍 Werkzeug suchen | Volltext-Suche über alle Werkzeuge |
-| 👁 Verleih-Info sehen | An wen und seit wann ein Werkzeug verliehen ist |
+| `feature_calendar` | Kalender anzeigen |
+| `feature_hours` | Stundenkonto anzeigen |
+| `feature_vacation` | Urlaubsplanung anzeigen |
+| `feature_news_read` | News lesen |
+| `feature_news_write` | News schreiben |
+| `feature_todos_read` | Aufgaben lesen |
+| `feature_todos_create` | Aufgaben erstellen |
+| `feature_tools` | Mein Werkzeug anzeigen |
+| `feature_tools_search` | Werkzeug suchen |
+| `feature_show_verleih` | Verleih-Details anzeigen |
 
-> Gesperrte Seiten zeigen eine Schloss-Anzeige wenn der User die URL direkt aufruft.
+## Lizenz
 
----
-
-## 📱 Mobile App
-
-Die native App liegt im Ordner `app/` und wird mit [Expo](https://expo.dev) gebaut.
-
-**Features:**
-- WebView-basiert, lädt das Portal
-- Offline-Erkennung mit Banner + Retry
-- Push-Benachrichtigungen (iOS via APNs, Android via FCM)
-- Automatische Serververbindung
-
-**Build:**
-```bash
-cd app
-npm install
-# Android
-EAS_NO_VCS=1 eas build --platform android --profile preview
-# iOS (Apple Developer Account erforderlich)
-EAS_NO_VCS=1 eas build --platform ios --profile production
-EAS_NO_VCS=1 eas submit --platform ios
-```
-
----
-
-## 🌐 Reverse Proxy (HTTPS)
-
-Mit bestehendem Nginx Proxy Manager:
-- **Port 80** → Web-App (Login erforderlich)
-- **Port 8081** → Nur Bildschirme, intern belassen
-
-Kein zusätzlicher Container nötig — einfach Port 80 als Proxy-Ziel eintragen.
-
----
-
-## 💾 Backup
-
-```bash
-# Datenbank-Backup
-docker run --rm -v ld-portal_app-data:/data -v $(pwd):/backup alpine \
-  tar czf /backup/ld-connect-backup-$(date +%Y%m%d).tar.gz /data
-```
-
----
-
-## 📄 Lizenz
-
-MIT License — frei verwendbar für alle Powerbird-Kunden.
-
----
-
-*Entwickelt für Powerbird ERP von Hausmann Wynen*
+Proprietär — Alle Rechte vorbehalten. Nur für den internen Einsatz mit Powerbird ERP.
