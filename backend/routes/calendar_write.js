@@ -109,11 +109,19 @@ async function insertRecord(pool, record) {
   const cols = Object.keys(record).join(', ')
   const vals = Object.keys(record).map((_, i) => `@p${i}`).join(', ')
   const req  = pool.request()
-  Object.values(record).forEach((v, i) => req.input(`p${i}`, v))
+  Object.values(record).forEach((v, i) => {
+    const key = Object.keys(record)[i]
+    req.input(`p${i}`, key === 'InterneNr' ? -1 : v)
+  })
   // Use SCOPE_IDENTITY() instead of OUTPUT clause to avoid trigger conflict
   await req.query(`INSERT INTO HWTER (${cols}) VALUES (${vals})`)
   const idRes = await pool.request().query('SELECT CAST(SCOPE_IDENTITY() AS INT) AS RecNo')
-  return idRes.recordset[0].RecNo
+  const recno = idRes.recordset[0].RecNo
+  // InterneNr = RecNo setzen (wie Powerbird, HKEY_17 unique index)
+  await pool.request()
+    .input('recno', recno)
+    .query('UPDATE HWTER SET InterneNr=@recno WHERE RecNo=@recno')
+  return recno
 }
 
 // ─── TERMIN ANLEGEN ───────────────────────────────────────────────────────────

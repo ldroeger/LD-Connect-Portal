@@ -55,13 +55,23 @@ function buildRecord({ label, info='', start, end, resourceName, fehlzeitArt=0, 
 
 async function insertRecord(record) {
   const pool = await getPbPool()
+  // InterneNr muss eindeutig sein (HKEY_17) - temporär auf -1 setzen
+  // dann nach INSERT auf echte RecNo updaten
   const cols = Object.keys(record).join(', ')
   const vals = Object.keys(record).map((_, i) => `@p${i}`).join(', ')
   const req  = pool.request()
-  Object.values(record).forEach((v, i) => req.input(`p${i}`, v))
+  Object.values(record).forEach((v, i) => {
+    const key = Object.keys(record)[i]
+    req.input(`p${i}`, key === 'InterneNr' ? -1 : v)
+  })
   await req.query(`INSERT INTO HWTER (${cols}) VALUES (${vals})`)
   const idRes = await pool.request().query('SELECT CAST(SCOPE_IDENTITY() AS INT) AS RecNo')
-  return idRes.recordset[0].RecNo
+  const recno = idRes.recordset[0].RecNo
+  // InterneNr = RecNo setzen (wie Powerbird)
+  await pool.request()
+    .input('recno', recno)
+    .query('UPDATE HWTER SET InterneNr=@recno WHERE RecNo=@recno')
+  return recno
 }
 
 // Urlaubsantrag → FehlzeitArt 17
