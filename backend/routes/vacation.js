@@ -264,6 +264,23 @@ router.post('/request', authMiddleware, async (req, res) => {
       ).catch(() => {});
     }
 
+    // Termin in Powerbird HWTER anlegen (FehlzeitArt=17 = beantragt)
+    if (req.user.powerbird_id) {
+      try {
+        const calWrite = require('./calendar_write_helper')
+        await calWrite.urlaubBeantragen({
+          urlaubLfdNr: result.lastInsertRowid,
+          start: from_date,
+          end: to_date,
+          mitarbeiterKuerzel: req.user.powerbird_id,
+          mitarbeiterNr: req.user.mitarbeiter_nr || 0,
+        })
+        console.log('Urlaubsantrag in HWTER eingetragen (FehlzeitArt=17)')
+      } catch(e) {
+        console.error('HWTER Urlaubsantrag Fehler (nicht fatal):', e.message)
+      }
+    }
+
     // Check auto-approve immediately after creation
     await autoApprovePendingRequests(req.user.powerbird_id, req.user.id);
 
@@ -299,6 +316,23 @@ router.post('/approve/:id', authMiddleware, async (req, res) => {
         <p><strong>Arbeitstage:</strong> ${vr.days}</p>
       </div></body>`
     ).catch(() => {});
+    // HWTER: 17→18 (beantragt→genehmigt)
+    if (applicant.powerbird_id) {
+      try {
+        const calWrite = require('./calendar_write_helper')
+        await calWrite.urlaubGenehmigen({
+          urlaubLfdNr: vr.id,
+          start: vr.from_date,
+          end: vr.to_date,
+          mitarbeiterKuerzel: applicant.powerbird_id,
+          mitarbeiterNr: applicant.mitarbeiter_nr || 0,
+        })
+        console.log('Urlaub in HWTER auf genehmigt (18) gesetzt')
+      } catch(e) {
+        console.error('HWTER Urlaub genehmigen Fehler (nicht fatal):', e.message)
+      }
+    }
+
     // Push to applicant
     try {
       const tokens = getTokensForUser(vr.user_id)
@@ -335,6 +369,17 @@ router.post('/reject/:id', authMiddleware, upload.single('file'), async (req, re
         ${filePath ? `<p>Anhang verfügbar unter: <a href="${appUrl}/vacation">Urlaubsplanung</a></p>` : ''}
       </div></body>`
     ).catch(() => {});
+    // HWTER: Urlaubsantrag-Termin löschen
+    if (applicant?.powerbird_id) {
+      try {
+        const calWrite = require('./calendar_write_helper')
+        await calWrite.urlaubAblehnen({ urlaubLfdNr: vr.id })
+        console.log('Urlaubstermin in HWTER gelöscht')
+      } catch(e) {
+        console.error('HWTER Urlaub ablehnen Fehler (nicht fatal):', e.message)
+      }
+    }
+
     // Push to applicant
     try {
       const tokens = getTokensForUser(vr.user_id)
@@ -376,4 +421,3 @@ router.get('/file/:filename', (req, res) => {
 });
 
 module.exports = router;
-// This accidentally appended - rewrite the file properly

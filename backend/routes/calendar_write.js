@@ -10,41 +10,24 @@
 
 const express = require('express')
 const router  = express.Router()
-// Inline auth middleware - compatible with any auth setup
-const requireAuth = (req, res, next) => {
-  try {
-    const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
-    if (!token) return res.status(401).json({ error: 'Nicht angemeldet' })
-    const localDb = require('../db/localDb')
-    const user = localDb.db.prepare(
-      'SELECT u.*, s.token as sess_token FROM users u JOIN sessions s ON u.id = s.user_id WHERE s.token = ? AND u.is_active = 1'
-    ).get(token)
-    if (!user) return res.status(401).json({ error: 'Ungültige Sitzung' })
-    req.user = user
-    next()
-  } catch(e) {
-    // Fallback: try alternate auth table name
-    try {
-      const localDb = require('../db/localDb')
-      const session = localDb.db.prepare('SELECT user_id FROM sessions WHERE token = ?').get(
-        (req.headers.authorization || '').replace('Bearer ', '').trim()
-      )
-      if (!session) return res.status(401).json({ error: 'Nicht angemeldet' })
-      const user = localDb.db.prepare('SELECT * FROM users WHERE id = ? AND is_active = 1').get(session.user_id)
-      if (!user) return res.status(401).json({ error: 'Kein aktiver Benutzer' })
-      req.user = user
-      next()
-    } catch(e2) {
-      console.error('Auth error:', e2.message)
-      res.status(500).json({ error: 'Auth-Fehler' })
-    }
-  }
-}
+const { authMiddleware: requireAuth } = require('../middleware/auth')
 
 // ─── Powerbird Pool Helper ────────────────────────────────────────────────────
 async function getPbPool() {
-  try { return require('../db/powerbird').getPbPool() }
-  catch { return require('../db/powerbirdDb').getPool?.() || require('../db/powerbirdDb') }
+  const pbDb = require('../db/powerbirdDb')
+  // powerbirdDb exports a query function and a pool getter
+  if (typeof pbDb.getPool === 'function') return pbDb.getPool()
+  // Otherwise create a wrapper that mimics mssql pool
+  return {
+    request: () => {
+      const inputs = {}
+      const req = {
+        input: (name, val) => { inputs[name] = val; return req },
+        query: async (sql) => pbDb.query(sql, inputs)
+      }
+      return req
+    }
+  }
 }
 
 // ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
