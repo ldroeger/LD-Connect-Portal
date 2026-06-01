@@ -53,7 +53,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
-    // Werkzeug-Alerts
     if (user?.features?.tools !== false) {
       api.get('/calendar/tools-alerts').then(r => setToolAlerts(r.data.alerts || [])).catch(() => {})
     }
@@ -79,7 +78,6 @@ export default function DashboardPage() {
 
   return (
     <div style={{ maxWidth:1400 }}>
-      {/* Greeting */}
       <div style={{ marginBottom:24 }}>
         <h1 style={{ fontSize:'1.4rem', fontWeight:800 }}>
           {greeting}, {user?.name?.split(' ')[0]}!
@@ -89,7 +87,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats */}
       <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:24 }}>
         {features.calendar && (
           <StatCard icon="📅" label="Termine heute" value={loading ? '...' : appointments.length}
@@ -111,7 +108,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Quick nav */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px,1fr))', gap:10, marginBottom:28 }}>
         {features.calendar && <NavCard icon="📅" title="Kalender" desc="Alle Termine" onClick={() => navigate('/calendar')} color="#3B82F6" />}
         {features.vacation && <NavCard icon="🌴" title="Urlaub" desc="Beantragen & verwalten" onClick={() => navigate('/vacation')} color="#10B981" />}
@@ -124,12 +120,10 @@ export default function DashboardPage() {
         {isAdmin && <NavCard icon="⚙️" title="Einstellungen" desc="Administration" onClick={() => navigate('/admin')} color="#64748B" />}
       </div>
 
-
-      {/* Werkzeug zurückgeben */}
       {toolAlerts.length > 0 && (
         <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid #f59e0b', padding:20, boxShadow:'var(--shadow)', marginBottom:20 }}>
           <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
-            🔧 {'Bitte folgendes Werkzeug zurückgeben'}
+            🔧 Bitte folgendes Werkzeug zurückgeben
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {toolAlerts.map((a, i) => {
@@ -152,7 +146,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Today's appointments */}
       {features.calendar && (
         <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', padding:20, boxShadow:'var(--shadow)' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
@@ -173,7 +166,10 @@ export default function DashboardPage() {
                 const bgColor = a.termColor || labels[a.label] || 'var(--primary)'
                 const txtColor = (a.termColor || labels[a.label]) ? getTextColor(a.termColor || labels[a.label]) : 'white'
                 return (
-                  <div key={i} onClick={() => setSelectedAppt(a)} style={{ display:'flex', gap:0, alignItems:'stretch', borderRadius:10, overflow:'hidden', border:'1px solid var(--border)', cursor:'pointer', transition:'box-shadow 0.15s' }} onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'} onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
+                  <div key={i} onClick={() => setSelectedAppt(a)}
+                    style={{ display:'flex', gap:0, alignItems:'stretch', borderRadius:10, overflow:'hidden', border:'1px solid var(--border)', cursor:'pointer', transition:'box-shadow 0.15s' }}
+                    onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'}
+                    onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
                     <div style={{ width:4, background:a.termColor || labels[a.label] || 'var(--primary)', flexShrink:0 }} />
                     <div style={{ flex:1, padding:'10px 14px', background:'var(--surface-2)' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
@@ -193,15 +189,17 @@ export default function DashboardPage() {
               })}
             </div>
           )}
+
+          {selectedAppt && (
+            <ApptDetailPopup
+              recno={selectedAppt.id || selectedAppt.recno}
+              label={selectedAppt.label}
+              termColor={selectedAppt.termColor}
+              labelColors={labels}
+              onClose={() => setSelectedAppt(null)}
+            />
+          )}
         </div>
-      {selectedAppt && (
-        <ApptDetailPopup
-          recno={selectedAppt.id || selectedAppt.recno}
-          label={selectedAppt.label}
-          termColor={selectedAppt.termColor}
-          labelColors={labels}
-          onClose={() => setSelectedAppt(null)}
-        />
       )}
     </div>
   )
