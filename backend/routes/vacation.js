@@ -48,6 +48,7 @@ async function autoApprovePendingRequests(powerbird_id, user_id) {
        WHERE Termin_ResourceName = @uid
          AND (Geloescht IS NULL OR Geloescht = 0)
          AND Termin_Label LIKE '%Urlaub%'
+         AND TER_FehlzeitArt IN (18, 19)
        ORDER BY Termin_Start ASC`,
       { uid: powerbird_id }
     );
@@ -169,6 +170,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
            AND YEAR(Termin_Start) = @year
            AND (Geloescht IS NULL OR Geloescht = 0)
            AND Termin_Label LIKE '%Urlaub%'
+           AND TER_FehlzeitArt IN (18, 19)
          ORDER BY Termin_Start ASC`,
         { uid: u.powerbird_id, year }
       );
