@@ -49,6 +49,7 @@ db.initialize();
 app.use('/api/setup',    require('./routes/setup'));
 app.use('/api/auth',     require('./routes/auth'));
 app.use('/api/calendar', require('./routes/calendar'));
+app.use('/api/calendar', require('./routes/calendar_write'));
 app.use('/api/users',    require('./routes/users'));
 app.use('/api/admin',    require('./routes/admin'));
 app.use('/api/branding', require('./routes/branding'));
