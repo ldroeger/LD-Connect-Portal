@@ -127,8 +127,10 @@ async function insertRecord(pool, record) {
   const vals = Object.keys(record).map((_, i) => `@p${i}`).join(', ')
   const req  = pool.request()
   Object.values(record).forEach((v, i) => req.input(`p${i}`, v))
-  const result = await req.query(`INSERT INTO HWTER (${cols}) OUTPUT INSERTED.RecNo VALUES (${vals})`)
-  return result.recordset[0].RecNo
+  // Use SCOPE_IDENTITY() instead of OUTPUT clause to avoid trigger conflict
+  await req.query(`INSERT INTO HWTER (${cols}) VALUES (${vals})`)
+  const idRes = await pool.request().query('SELECT CAST(SCOPE_IDENTITY() AS INT) AS RecNo')
+  return idRes.recordset[0].RecNo
 }
 
 // ─── TERMIN ANLEGEN ───────────────────────────────────────────────────────────
