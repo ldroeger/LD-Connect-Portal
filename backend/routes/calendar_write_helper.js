@@ -27,11 +27,16 @@ function buildRecord({ label, info='', start, end, resourceName, fehlzeitArt=0, 
   const startD = new Date(start)
   const endD   = new Date(end || start)
   const days   = Math.max(1, Math.round((endD - startD) / 86400000) + 1)
+  // Farben: 17=beantragt(blau), 18=genehmigt(grün), 33=krank(orange)
+  const color = fehlzeitArt === 17 ? 9676257 : fehlzeitArt === 18 ? 2171337 : fehlzeitArt === 33 ? 8712441 : 0
+  // Für Ganztag: Start/Ende auf 09:00/17:00 setzen
+  startD.setHours(9, 0, 0, 0)
+  endD.setHours(17, 0, 0, 0)
   return {
     Termin_Start: startD, Termin_Ende: endD, Termin_Length: days * 480,
     Termin_ResourceArt: 'Mitarbeiter', Termin_ResourceArt_1: 'MITARBEITER',
     Termin_ResourceName: resourceName, Termin_ResourceName_1: resourceName,
-    Termin_Label: label, Termin_Info: info, Termin_Color: 0,
+    Termin_Label: label, Termin_Info: info, Termin_Color: color,
     Termin_SerialRecNo: 0, Termin_SerialMode: 0, Termin_Serientyp: 0,
     AdrType: 0, AdrNr: '', DocType: 0, DocNr: '', Preset: '',
     TER_FehlzeitArt: fehlzeitArt, TER_UrlaubsantragLfdNr: urlaubLfdNr,
@@ -53,24 +58,32 @@ function buildRecord({ label, info='', start, end, resourceName, fehlzeitArt=0, 
   }
 }
 
+const { v4: uuidv4 } = (() => { try { return require('uuid') } catch { return { v4: () => require('crypto').randomUUID().replace(/-/g,'').toUpperCase() } } })()
+
 async function insertRecord(record) {
   const pool = await getPbPool()
-  // InterneNr muss eindeutig sein (HKEY_17) - temporär auf -1 setzen
-  // dann nach INSERT auf echte RecNo updaten
   const cols = Object.keys(record).join(', ')
   const vals = Object.keys(record).map((_, i) => `@p${i}`).join(', ')
   const req  = pool.request()
   Object.values(record).forEach((v, i) => {
     const key = Object.keys(record)[i]
+    // InterneNr temporär -1 (wird nach INSERT auf RecNo gesetzt)
     req.input(`p${i}`, key === 'InterneNr' ? -1 : v)
   })
   await req.query(`INSERT INTO HWTER (${cols}) VALUES (${vals})`)
   const idRes = await pool.request().query('SELECT CAST(SCOPE_IDENTITY() AS INT) AS RecNo')
   const recno = idRes.recordset[0].RecNo
-  // InterneNr = RecNo setzen (wie Powerbird)
+  // Nach INSERT: InterneNr=RecNo, TER_CreateUser/ModifyUser=1, AppointmentGUID setzen
+  const guid = require('crypto').randomUUID().replace(/-/g,'').toUpperCase()
   await pool.request()
     .input('recno', recno)
-    .query('UPDATE HWTER SET InterneNr=@recno WHERE RecNo=@recno')
+    .input('guid', guid)
+    .query(`UPDATE HWTER SET
+      InterneNr        = @recno,
+      TER_CreateUser   = 1,
+      TER_ModifyUser   = 1,
+      AppointmentGUID  = @guid
+      WHERE RecNo = @recno`)
   return recno
 }
 

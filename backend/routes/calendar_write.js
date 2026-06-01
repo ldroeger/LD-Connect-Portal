@@ -39,9 +39,15 @@ function calcLength(start, end) {
 function buildRecord({ label, info='', start, end, resourceName, color=0,
                         fehlzeitArt=0, urlaubLfdNr=null, mitarbeiterNr=0, ganzerTag=false }) {
   const length = ganzerTag ? 480 : calcLength(start, end)
+  const startD = new Date(start)
+  const endD   = new Date(end || start)
+  // Ganztag: 09:00-17:00 wie Powerbird
+  if (ganzerTag) { startD.setHours(9,0,0,0); endD.setHours(17,0,0,0) }
+  // Farbe automatisch wenn nicht angegeben
+  const termColor = color || (fehlzeitArt === 17 ? 9676257 : fehlzeitArt === 18 ? 2171337 : fehlzeitArt === 33 ? 8712441 : 0)
   return {
-    Termin_Start:             new Date(start),
-    Termin_Ende:              ganzerTag ? new Date(start) : new Date(end || start),
+    Termin_Start:             startD,
+    Termin_Ende:              ganzerTag ? endD : new Date(end || start),
     Termin_Length:            length,
     Termin_ResourceArt:       'Mitarbeiter',
     Termin_ResourceArt_1:     'MITARBEITER',
@@ -49,7 +55,7 @@ function buildRecord({ label, info='', start, end, resourceName, color=0,
     Termin_ResourceName_1:    resourceName,
     Termin_Label:             label || '',
     Termin_Info:              info || '',
-    Termin_Color:             color,
+    Termin_Color:             termColor,
     Termin_SerialRecNo:       0,
     Termin_SerialMode:        0,
     Termin_Serientyp:         0,
@@ -113,14 +119,19 @@ async function insertRecord(pool, record) {
     const key = Object.keys(record)[i]
     req.input(`p${i}`, key === 'InterneNr' ? -1 : v)
   })
-  // Use SCOPE_IDENTITY() instead of OUTPUT clause to avoid trigger conflict
   await req.query(`INSERT INTO HWTER (${cols}) VALUES (${vals})`)
   const idRes = await pool.request().query('SELECT CAST(SCOPE_IDENTITY() AS INT) AS RecNo')
   const recno = idRes.recordset[0].RecNo
-  // InterneNr = RecNo setzen (wie Powerbird, HKEY_17 unique index)
+  const guid = require('crypto').randomUUID().replace(/-/g,'').toUpperCase()
   await pool.request()
     .input('recno', recno)
-    .query('UPDATE HWTER SET InterneNr=@recno WHERE RecNo=@recno')
+    .input('guid', guid)
+    .query(`UPDATE HWTER SET
+      InterneNr       = @recno,
+      TER_CreateUser  = 1,
+      TER_ModifyUser  = 1,
+      AppointmentGUID = @guid
+      WHERE RecNo = @recno`)
   return recno
 }
 
