@@ -10,7 +10,36 @@
 
 const express = require('express')
 const router  = express.Router()
-const { requireAuth } = require('../middleware/auth')
+// Inline auth middleware - compatible with any auth setup
+const requireAuth = (req, res, next) => {
+  try {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
+    if (!token) return res.status(401).json({ error: 'Nicht angemeldet' })
+    const localDb = require('../db/localDb')
+    const user = localDb.db.prepare(
+      'SELECT u.*, s.token as sess_token FROM users u JOIN sessions s ON u.id = s.user_id WHERE s.token = ? AND u.is_active = 1'
+    ).get(token)
+    if (!user) return res.status(401).json({ error: 'Ungültige Sitzung' })
+    req.user = user
+    next()
+  } catch(e) {
+    // Fallback: try alternate auth table name
+    try {
+      const localDb = require('../db/localDb')
+      const session = localDb.db.prepare('SELECT user_id FROM sessions WHERE token = ?').get(
+        (req.headers.authorization || '').replace('Bearer ', '').trim()
+      )
+      if (!session) return res.status(401).json({ error: 'Nicht angemeldet' })
+      const user = localDb.db.prepare('SELECT * FROM users WHERE id = ? AND is_active = 1').get(session.user_id)
+      if (!user) return res.status(401).json({ error: 'Kein aktiver Benutzer' })
+      req.user = user
+      next()
+    } catch(e2) {
+      console.error('Auth error:', e2.message)
+      res.status(500).json({ error: 'Auth-Fehler' })
+    }
+  }
+}
 
 // ─── Powerbird Pool Helper ────────────────────────────────────────────────────
 async function getPbPool() {
