@@ -114,4 +114,13 @@ app.use((err, req, res, next) => {
 })
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`LD Connect Backend running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`LD Connect Backend running on port ${PORT}`)
+  // Powerbird Sync-Job starten
+  try {
+    const { startSync } = require('./sync')
+    startSync()
+  } catch(e) {
+    console.error('Sync-Job Startfehler:', e.message)
+  }
+});

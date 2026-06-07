@@ -104,4 +104,28 @@ router.get('/smb-status', adminMiddleware, (req, res) => {
   res.json({ mounted, mount: 'SMB2', server, domain: localDb.getSetting('smb_domain') || 'WORKGROUP' })
 })
 
+
+// ── Sync-Einstellungen ────────────────────────────────────────────────────
+router.get('/sync/status', requireAuth, requireAdmin, (req, res) => {
+  const { getStatus } = require('../sync')
+  res.json(getStatus())
+})
+
+router.post('/sync/settings', requireAuth, requireAdmin, (req, res) => {
+  const { enabled, intervalMinutes } = req.body
+  if (typeof enabled === 'boolean')
+    localDb.setSetting('sync_enabled', enabled ? 'true' : 'false')
+  if (intervalMinutes && parseInt(intervalMinutes) >= 1)
+    localDb.setSetting('sync_interval_minutes', String(parseInt(intervalMinutes)))
+  const { restartSync } = require('../sync')
+  restartSync()
+  res.json({ ok: true })
+})
+
+router.post('/sync/run-now', requireAuth, requireAdmin, async (req, res) => {
+  const { runSync } = require('../sync')
+  res.json({ ok: true, message: 'Sync gestartet' })
+  await runSync()
+})
+
 module.exports = router;

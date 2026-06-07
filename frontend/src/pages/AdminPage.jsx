@@ -1,3 +1,4 @@
+import SyncSettingsCard from '../components/SyncSettingsCard.jsx'
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
 import api from '../utils/api.js'
@@ -29,7 +30,7 @@ function Toggle({ checked, onChange }) {
   return (
     <div onClick={onChange} style={{ width:40, height:22, borderRadius:11, background:checked?'var(--success)':'var(--border)', cursor:'pointer', position:'relative', transition:'background 0.2s', flexShrink:0 }}>
       <div style={{ position:'absolute', top:3, left:checked?20:3, width:16, height:16, borderRadius:'50%', background:'var(--surface)', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }} />
-    </div>
+    </div></>
   )
 }
 
@@ -129,7 +130,7 @@ function EditModal({ user, onClose, onSaved }) {
           </div>
         </div>
       </div>
-    </div>
+    </div></>
   )
 }
 
@@ -218,7 +219,7 @@ function UserAdmin() {
           onSaved={() => { setEditUser(null); setMsg('Benutzer gespeichert'); load() }}
         />
       )}
-    </div>
+    </div></>
   )
 }
 
@@ -270,7 +271,7 @@ function UploadField({ label, settingKey, currentUrl, hint, accept }) {
         </div>
         <input ref={fileRef} type="file" accept={accept} onChange={handleUpload} style={{ display:'none' }} />
       </div>
-    </div>
+    </div></>
   )
 }
 
@@ -400,7 +401,7 @@ function BrandingAdmin() {
       </div>
 
       <button style={{...btn(), width:'100%'}} onClick={save}>Einstellungen speichern</button>
-    </div>
+    </div></>
   )
 }
 
@@ -459,7 +460,7 @@ function SettingsAdmin() {
         </div>
       </div>
       <button style={{...btn(), width:'100%'}} onClick={save}>Einstellungen speichern</button>
-    </div>
+    </div></>
   )
 }
 
@@ -511,7 +512,7 @@ function TermineTab() {
         <Toggle field="show_email" label="✉️ E-Mail" desc="E-Mail-Adresse des Kunden" />
         <button style={{...btn,marginTop:8}} onClick={save}>Einstellungen speichern</button>
       </div>
-    </div>
+    </div></>
   )
 }
 
@@ -580,7 +581,7 @@ function SmbTab() {
   const lbl = { fontSize:'0.78rem', color:'var(--text-3)', marginBottom:4, display:'block' }
 
   return (
-    <div style={{ maxWidth: 540 }}>
+    <><SyncSettingsCard /><div style={{ maxWidth: 540 }}>
       <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:4 }}>📁 SMB / Netzlaufwerk</div>
       <p style={{ color:'var(--text-3)', fontSize:'0.82rem', marginBottom:20 }}>
         Zugangsdaten für Werkzeugbilder aus dem Powerbird-Netzwerk (ELWZV.WZV_Bilddatei)
@@ -635,14 +636,14 @@ function SmbTab() {
           <code style={{ background:'var(--surface)', padding:'3px 7px', borderRadius:4 }}>apt-get install -y cifs-utils</code>
         </div>
       </div>
-    </div>
+    </div></>
   )
 }
 
 
 export default function AdminPage() {
   return (
-    <div style={{ maxWidth:900 }}>
+    <><SyncSettingsCard /><div style={{ maxWidth:900 }}>
       <h1 style={{ fontSize:'1.2rem', fontWeight:700, marginBottom:16 }}>Administration</h1>
       <div style={{ display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap' }}>
         <div style={{ width:180, flexShrink:0, background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', padding:8, boxShadow:'var(--shadow)' }}>
@@ -662,6 +663,6 @@ export default function AdminPage() {
           </Routes>
         </div>
       </div>
-    </div>
+    </div></>
   )
 }
