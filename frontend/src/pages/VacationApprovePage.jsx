@@ -102,7 +102,7 @@ export default function VacationApprovePage() {
       {msg && <div style={{ ...S.success, marginBottom:16 }}>{msg}</div>}
 
       <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap' }}>
-        {[['pending',Ausstehend],['approved',Genehmigt],['rejected',Abgelehnt],['all','Alle']].map(([val,label]) => (
+        {[['pending','Ausstehend'],['approved','Genehmigt'],['rejected','Abgelehnt'],['all','Alle']].map(([val,label]) => (
           <button key={val} onClick={()=>setFilter(val)} style={{
             padding:'7px 16px', borderRadius:8, border:'1px solid var(--border)', cursor:'pointer', fontFamily:'var(--font)', fontSize:'0.85rem', fontWeight:filter===val?600:400,
             background: filter===val ? 'var(--primary)' : 'var(--surface)', color: filter===val ? 'white' : 'var(--text)',
