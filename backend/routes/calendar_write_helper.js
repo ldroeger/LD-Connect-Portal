@@ -29,6 +29,7 @@ function buildRecord({ label, info='', start, end, resourceName, fehlzeitArt=0, 
   const days   = Math.max(1, Math.round((endD - startD) / 86400000) + 1)
   // Farben: 17=beantragt(blau), 18=genehmigt(grün), 33=krank(orange)
   const color = fehlzeitArt === 17 ? 9676257 : fehlzeitArt === 18 ? 2171337 : fehlzeitArt === 33 ? 8712441 : 0
+  // Label: immer 'Urlaub' (Powerbird zeigt kein 'beantragt')
   // Für Ganztag: Start/Ende auf 09:00/17:00 setzen
   startD.setHours(9, 0, 0, 0)
   endD.setHours(17, 0, 0, 0)
@@ -107,7 +108,7 @@ async function urlaubBeantragen({ urlaubLfdNr, start, end, mitarbeiterKuerzel, m
     if (ex.recordset?.length) return ex.recordset[0].RecNo
   }
   const record = buildRecord({
-    label: 'Urlaub beantragt',
+    label: 'Urlaub',
     info: urlaubLfdNr ? `Urlaubsantrag #${urlaubLfdNr}` : 'Urlaubsantrag',
     start, end, resourceName: mitarbeiterKuerzel,
     fehlzeitArt: 17, urlaubLfdNr: urlaubLfdNr || null, mitarbeiterNr,
@@ -124,7 +125,7 @@ async function urlaubGenehmigen({ urlaubLfdNr, start, end, mitarbeiterKuerzel, m
     if (ex.recordset?.length) {
       await pool.request()
         .input('recno', ex.recordset[0].RecNo)
-        .query(`UPDATE HWTER SET TER_FehlzeitArt=18, Termin_Label='Urlaub', TER_ModifyDate=GETDATE() WHERE RecNo=@recno`)
+        .query(`UPDATE HWTER SET TER_FehlzeitArt=18, Termin_Label='Urlaub', Termin_Color=2171337, TER_ModifyDate=GETDATE() WHERE RecNo=@recno`)
       return ex.recordset[0].RecNo
     }
   }
