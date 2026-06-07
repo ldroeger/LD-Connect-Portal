@@ -9,6 +9,14 @@ const db = new Database(path.join(DATA_DIR, 'app.db'));
 function initialize() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+    CREATE TABLE IF NOT EXISTS sick_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      hwter_recno INTEGER UNIQUE,
+      from_date TEXT,
+      to_date TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
