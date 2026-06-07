@@ -10,7 +10,7 @@ const btn = (v='primary') => ({ padding:'9px 18px', borderRadius:8, border:v==='
 const success = { background:'#ECFDF5', border:'1px solid #A7F3D0', color:'#059669', padding:'10px 14px', borderRadius:8, fontSize:'0.85rem', marginBottom:12 }
 const error = { background:'#FEF2F2', border:'1px solid #FECACA', color:'#DC2626', padding:'10px 14px', borderRadius:8, fontSize:'0.85rem', marginBottom:12 }
 
-const ROLE_LABEL = { admin:'Admin', vacation_approver:'Urlaub Gen.', user:'Benutzer', news_manager:'Benutzer' }
+const ROLE_LABEL = { admin:'Admin', vacation_approver:'Urlaub Gen.', manager:'Auswertung', user:'Benutzer', news_manager:'Benutzer' }
 const ROLE_COLOR = { admin:'var(--primary)', vacation_approver:'#6366F1', user:'var(--text-3)' }
 
 const FEATURES = [
@@ -91,6 +91,7 @@ function EditModal({ user, onClose, onSaved }) {
             <select style={{...inp, cursor:'pointer'}} value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
               <option value="user">Benutzer</option>
               <option value="vacation_approver">Urlaub genehmigen</option>
+              <option value="manager">Auswertung (Geschäftsführer)</option>
               <option value="admin">Administrator</option>
             </select>
           </div>
@@ -172,6 +173,7 @@ function UserAdmin() {
             <select style={{...inp, cursor:'pointer'}} value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
               <option value="user">Benutzer</option>
               <option value="vacation_approver">Urlaub genehmigen</option>
+              <option value="manager">Auswertung (Geschäftsführer)</option>
               <option value="admin">Administrator</option>
             </select>
           </div>

@@ -21,6 +21,7 @@ export default function Layout() {
   const initials = user?.name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '?'
 
   const canApprove = user?.role === 'admin' || user?.role === 'vacation_approver'
+  const canManage = user?.role === 'admin' || user?.role === 'vacation_approver' || user?.role === 'manager'
   const features = { calendar: true, vacation: true, hours: true, ...(user?.features || {}) }
 
   const NavItems = ({ onNavigate }) => (
