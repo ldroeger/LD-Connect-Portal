@@ -23,6 +23,7 @@ import TodosPage from './pages/TodosPage.jsx'
 import ToolsPage from './pages/ToolsPage.jsx'
 import ToolsSearchPage from './pages/ToolsSearchPage.jsx'
 import Layout from './components/Layout.jsx'
+import ManagerDashboard from './pages/ManagerDashboard.jsx'
 
 function AppRoutes() {
   const { user, loading } = useAuth()
@@ -51,11 +52,12 @@ function AppRoutes() {
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/calendar" element={<FeatureGate feature="calendar"><CalendarPage /></FeatureGate>} />
-          <Route path="/sick" element={<SickPage />} />
+          <Route path="/sick" element={<FeatureGate feature="sick"><SickPage /></FeatureGate>} />
           {features.vacation && <Route path="/vacation" element={<FeatureGate feature="vacation"><VacationPage /></FeatureGate>} />}
           {features.hours    && <Route path="/hours" element={<FeatureGate feature="hours"><HoursPage /></FeatureGate>} />}
           {canApprove && <Route path="/vacation-approve" element={<VacationApprovePage />} />}
           {user.role === 'admin' && <Route path="/admin/*" element={<AdminPage />} />}
+          {(user.role === 'admin' || user.role === 'vacation_approver') && <Route path="/manager" element={<ManagerDashboard />} />}
           {user.role === 'admin' && <Route path="/display-manage" element={<DisplayManagePage />} />}
           <Route path="/news" element={<FeatureGate feature="news_read"><NewsPage /></FeatureGate>} />
           <Route path="/tools" element={<FeatureGate feature="tools"><ToolsPage /></FeatureGate>} />

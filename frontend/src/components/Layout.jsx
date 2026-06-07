@@ -30,6 +30,7 @@ export default function Layout() {
         </div>
       <NavLink to="/" end style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🏠</span><span>Dashboard</span></NavLink>
       {!!features.calendar && <NavLink to="/calendar" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📅</span><span>Kalender</span></NavLink>}
+      {(user?.features?.sick !== false) && <NavLink to="/sick" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🤒</span><span>Krankmeldung</span></NavLink>}
       {!!features.vacation && <NavLink to="/vacation" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🌴</span><span>Urlaubsplanung</span></NavLink>}
       {features.hours    && <NavLink to="/hours" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⏱</span><span>Stundenkonto</span></NavLink>}
       {(user?.features?.news_read !== false) && <NavLink to="/news" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📰</span><span>News</span></NavLink>}
