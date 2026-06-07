@@ -54,6 +54,7 @@ app.use('/api/users',    require('./routes/users'));
 app.use('/api/admin',    require('./routes/admin'));
 app.use('/api/branding', require('./routes/branding'));
 app.use('/api/vacation', require('./routes/vacation'));
+app.use('/api/sick',    require('./routes/sick'));
 app.use('/api/push',    require('./routes/push').router);
 app.use('/api/display',  require('./routes/display'));
 app.use('/api/upload',   require('./routes/upload'));

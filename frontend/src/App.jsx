@@ -10,6 +10,7 @@ import SetupWizard from './pages/SetupWizard.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import { SetPasswordPage, ForgotPasswordPage } from './pages/AuthPages.jsx'
 import CalendarPage from './pages/CalendarPage.jsx'
+import SickPage from './pages/SickPage.jsx'
 import VacationPage from './pages/VacationPage.jsx'
 import VacationApprovePage from './pages/VacationApprovePage.jsx'
 import HoursPage from './pages/HoursPage.jsx'
@@ -50,7 +51,8 @@ function AppRoutes() {
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/calendar" element={<FeatureGate feature="calendar"><CalendarPage /></FeatureGate>} />
-          {features.vacation && <Route path="/vacation" element={<FeatureGate feature="vacation"><VacationPage /></FeatureGate>} />}
+          {features.vacation && <Route path="/sick" element={<SickPage />} />
+          <Route path="/vacation" element={<FeatureGate feature="vacation"><VacationPage /></FeatureGate>} />}
           {features.hours    && <Route path="/hours" element={<FeatureGate feature="hours"><HoursPage /></FeatureGate>} />}
           {canApprove && <Route path="/vacation-approve" element={<VacationApprovePage />} />}
           {user.role === 'admin' && <Route path="/admin/*" element={<AdminPage />} />}

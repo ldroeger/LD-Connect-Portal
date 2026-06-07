@@ -147,4 +147,15 @@ async function urlaubAblehnen({ urlaubLfdNr }) {
     .query('UPDATE HWTER SET Geloescht=1, TER_ModifyDate=GETDATE() WHERE TER_UrlaubsantragLfdNr=@lfdnr AND Geloescht=0')
 }
 
-module.exports = { urlaubBeantragen, urlaubGenehmigen, urlaubAblehnen }
+async function krankmeldungEintragen({ start, end, mitarbeiterKuerzel, mitarbeiterNr=0, note='', sickLfdNr=null }) {
+  const pool = await getPbPool()
+  const record = buildRecord({
+    label: 'Krank',
+    info: note || (sickLfdNr ? `Krankmeldung #${sickLfdNr}` : 'Krankmeldung'),
+    start, end, resourceName: mitarbeiterKuerzel,
+    fehlzeitArt: 33, urlaubLfdNr: null, mitarbeiterNr,
+  })
+  return insertRecord(record)
+}
+
+module.exports = { urlaubBeantragen, urlaubGenehmigen, urlaubAblehnen, krankmeldungEintragen }

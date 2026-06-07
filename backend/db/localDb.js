@@ -12,9 +12,10 @@ function initialize() {
     CREATE TABLE IF NOT EXISTS sick_reports (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER,
-      hwter_recno INTEGER UNIQUE,
+      hwter_recno INTEGER,
       from_date TEXT,
       to_date TEXT,
+      note TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
     CREATE TABLE IF NOT EXISTS users (
