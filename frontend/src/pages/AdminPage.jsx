@@ -581,7 +581,7 @@ function SmbTab() {
   const lbl = { fontSize:'0.78rem', color:'var(--text-3)', marginBottom:4, display:'block' }
 
   return (
-    <><SyncSettingsCard /><div style={{ maxWidth: 540 }}>
+    <div style={{ maxWidth: 540 }}>
       <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:4 }}>📁 SMB / Netzlaufwerk</div>
       <p style={{ color:'var(--text-3)', fontSize:'0.82rem', marginBottom:20 }}>
         Zugangsdaten für Werkzeugbilder aus dem Powerbird-Netzwerk (ELWZV.WZV_Bilddatei)
@@ -643,26 +643,29 @@ function SmbTab() {
 
 export default function AdminPage() {
   return (
-    <><SyncSettingsCard /><div style={{ maxWidth:900 }}>
-      <h1 style={{ fontSize:'1.2rem', fontWeight:700, marginBottom:16 }}>Administration</h1>
-      <div style={{ display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap' }}>
-        <div style={{ width:180, flexShrink:0, background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', padding:8, boxShadow:'var(--shadow)' }}>
-          <NavLink to="/admin" end style={({isActive})=>navLinkStyle(isActive)}>👥 Benutzer</NavLink>
-          <NavLink to="/admin/branding" style={({isActive})=>navLinkStyle(isActive)}>🎨 Branding</NavLink>
-          <NavLink to="/admin/settings" style={({isActive})=>navLinkStyle(isActive)}>🔧 Verbindung & SMTP</NavLink>
-          <NavLink to="/admin/termine" style={({isActive})=>navLinkStyle(isActive)}>📅 Termine</NavLink>
-          <NavLink to="/admin/smb" style={({isActive})=>navLinkStyle(isActive)}>📁 Netzlaufwerk</NavLink>
-        </div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <Routes>
-            <Route index element={<UserAdmin />} />
-            <Route path="branding" element={<BrandingAdmin />} />
-            <Route path="settings" element={<SettingsAdmin />} />
-            <Route path="termine" element={<TermineTab />} />
-            <Route path="smb" element={<SmbTab />} />
-          </Routes>
+    <>
+      <SyncSettingsCard />
+      <div style={{ maxWidth:900 }}>
+        <h1 style={{ fontSize:'1.2rem', fontWeight:700, marginBottom:16 }}>Administration</h1>
+        <div style={{ display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap' }}>
+          <div style={{ width:180, flexShrink:0, background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', padding:8, boxShadow:'var(--shadow)' }}>
+            <NavLink to="/admin" end style={({isActive})=>navLinkStyle(isActive)}>👥 Benutzer</NavLink>
+            <NavLink to="/admin/branding" style={({isActive})=>navLinkStyle(isActive)}>🎨 Branding</NavLink>
+            <NavLink to="/admin/settings" style={({isActive})=>navLinkStyle(isActive)}>🔧 Verbindung & SMTP</NavLink>
+            <NavLink to="/admin/termine" style={({isActive})=>navLinkStyle(isActive)}>📅 Termine</NavLink>
+            <NavLink to="/admin/smb" style={({isActive})=>navLinkStyle(isActive)}>📁 Netzlaufwerk</NavLink>
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <Routes>
+              <Route index element={<UserAdmin />} />
+              <Route path="branding" element={<BrandingAdmin />} />
+              <Route path="settings" element={<SettingsAdmin />} />
+              <Route path="termine" element={<TermineTab />} />
+              <Route path="smb" element={<SmbTab />} />
+            </Routes>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
