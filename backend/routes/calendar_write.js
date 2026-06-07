@@ -112,14 +112,14 @@ function buildRecord({ label, info='', start, end, resourceName, color=0,
 }
 
 async function insertRecord(pool, record) {
-  // InterneNr weglassen - Trigger oder UPDATE setzt sie
-  const recordWithoutInterneNr = Object.fromEntries(
-    Object.entries(record).filter(([k]) => k !== 'InterneNr')
-  )
-  const cols = Object.keys(recordWithoutInterneNr).join(', ')
-  const vals = Object.keys(recordWithoutInterneNr).map((_, i) => `@p${i}`).join(', ')
+  // Freien negativen InterneNr-Wert holen
+  const minRes = await pool.request().query('SELECT ISNULL(MIN(InterneNr), 0) AS minVal FROM HWTER')
+  const tempInterneNr = Math.min(-1, (minRes.recordset[0].minVal || 0) - 1)
+  const recordWithInterneNr = { ...record, InterneNr: tempInterneNr }
+  const cols = Object.keys(recordWithInterneNr).join(', ')
+  const vals = Object.keys(recordWithInterneNr).map((_, i) => `@p${i}`).join(', ')
   const req  = pool.request()
-  Object.values(recordWithoutInterneNr).forEach((v, i) => req.input(`p${i}`, v))
+  Object.values(recordWithInterneNr).forEach((v, i) => req.input(`p${i}`, v))
   await req.query(`INSERT INTO HWTER (${cols}) VALUES (${vals})`)
   const idRes = await pool.request().query('SELECT CAST(SCOPE_IDENTITY() AS INT) AS RecNo')
   const recno = idRes.recordset[0].RecNo

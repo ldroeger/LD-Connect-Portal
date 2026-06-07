@@ -62,14 +62,14 @@ const { v4: uuidv4 } = (() => { try { return require('uuid') } catch { return { 
 
 async function insertRecord(record) {
   const pool = await getPbPool()
-  // InterneNr aus record entfernen - wird nach INSERT per UPDATE gesetzt
-  const recordWithoutInterneNr = Object.fromEntries(
-    Object.entries(record).filter(([k]) => k !== 'InterneNr')
-  )
-  const cols = Object.keys(recordWithoutInterneNr).join(', ')
-  const vals = Object.keys(recordWithoutInterneNr).map((_, i) => `@p${i}`).join(', ')
+  // Freien negativen InterneNr-Wert holen (HKEY_17 unique, 0 ist oft belegt)
+  const minRes = await pool.request().query('SELECT ISNULL(MIN(InterneNr), 0) AS minVal FROM HWTER')
+  const tempInterneNr = Math.min(-1, (minRes.recordset[0].minVal || 0) - 1)
+  const recordWithInterneNr = { ...record, InterneNr: tempInterneNr }
+  const cols = Object.keys(recordWithInterneNr).join(', ')
+  const vals = Object.keys(recordWithInterneNr).map((_, i) => `@p${i}`).join(', ')
   const req  = pool.request()
-  Object.values(recordWithoutInterneNr).forEach((v, i) => req.input(`p${i}`, v))
+  Object.values(recordWithInterneNr).forEach((v, i) => req.input(`p${i}`, v))
   await req.query(`INSERT INTO HWTER (${cols}) VALUES (${vals})`)
   const idRes = await pool.request().query('SELECT CAST(SCOPE_IDENTITY() AS INT) AS RecNo')
   const recno = idRes.recordset[0].RecNo
