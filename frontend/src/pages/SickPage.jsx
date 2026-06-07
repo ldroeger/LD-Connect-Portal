@@ -52,7 +52,6 @@ export default function SickPage() {
     load()
   }
 
-  const today = new Date().toISOString().split('T')[0]
 
   return (
     <div style={{ maxWidth:800 }}>
@@ -78,14 +77,14 @@ export default function SickPage() {
           <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:12 }}>
             <div>
               <div style={{ fontSize:'0.8rem', color:'var(--text-3)', marginBottom:4 }}>Von</div>
-              <input type="date" value={form.from_date} max={today}
+              <input type="date" value={form.from_date}
                 onChange={e => setForm(f => ({ ...f, from_date: e.target.value, to_date: f.to_date || e.target.value }))}
                 style={{ padding:'7px 10px', borderRadius:8, border:'1px solid var(--border)',
                   background:'var(--surface-2)', color:'var(--text)', fontFamily:'var(--font)', fontSize:'0.9rem' }} />
             </div>
             <div>
               <div style={{ fontSize:'0.8rem', color:'var(--text-3)', marginBottom:4 }}>Bis</div>
-              <input type="date" value={form.to_date} min={form.from_date || undefined} max={today}
+              <input type="date" value={form.to_date} min={form.from_date || undefined}
                 onChange={e => setForm(f => ({ ...f, to_date: e.target.value }))}
                 style={{ padding:'7px 10px', borderRadius:8, border:'1px solid var(--border)',
                   background:'var(--surface-2)', color:'var(--text)', fontFamily:'var(--font)', fontSize:'0.9rem' }} />
