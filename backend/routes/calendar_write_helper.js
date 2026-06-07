@@ -62,10 +62,10 @@ const { v4: uuidv4 } = (() => { try { return require('uuid') } catch { return { 
 
 async function insertRecord(record) {
   const pool = await getPbPool()
-  // Freien negativen InterneNr-Wert holen (HKEY_17 unique, 0 ist oft belegt)
-  const minRes = await pool.request().query('SELECT ISNULL(MIN(InterneNr), 0) AS minVal FROM HWTER')
-  const tempInterneNr = Math.min(-1, (minRes.recordset[0].minVal || 0) - 1)
-  const recordWithInterneNr = { ...record, InterneNr: tempInterneNr }
+  // Nächste freie InterneNr = MAX(positive InterneNr) + 1
+  const maxRes = await pool.request().query('SELECT ISNULL(MAX(InterneNr), 0) AS maxVal FROM HWTER WHERE InterneNr > 0')
+  const nextInterneNr = (maxRes.recordset[0].maxVal || 0) + 1
+  const recordWithInterneNr = { ...record, InterneNr: nextInterneNr }
   const cols = Object.keys(recordWithInterneNr).join(', ')
   const vals = Object.keys(recordWithInterneNr).map((_, i) => `@p${i}`).join(', ')
   const req  = pool.request()
