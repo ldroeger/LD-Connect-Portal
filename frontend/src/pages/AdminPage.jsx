@@ -130,7 +130,7 @@ function EditModal({ user, onClose, onSaved }) {
           </div>
         </div>
       </div>
-    </div></>
+    </div>
   )
 }
 
@@ -219,7 +219,7 @@ function UserAdmin() {
           onSaved={() => { setEditUser(null); setMsg('Benutzer gespeichert'); load() }}
         />
       )}
-    </div></>
+    </div>
   )
 }
 
@@ -271,7 +271,7 @@ function UploadField({ label, settingKey, currentUrl, hint, accept }) {
         </div>
         <input ref={fileRef} type="file" accept={accept} onChange={handleUpload} style={{ display:'none' }} />
       </div>
-    </div></>
+    </div>
   )
 }
 
@@ -401,7 +401,7 @@ function BrandingAdmin() {
       </div>
 
       <button style={{...btn(), width:'100%'}} onClick={save}>Einstellungen speichern</button>
-    </div></>
+    </div>
   )
 }
 
@@ -460,7 +460,7 @@ function SettingsAdmin() {
         </div>
       </div>
       <button style={{...btn(), width:'100%'}} onClick={save}>Einstellungen speichern</button>
-    </div></>
+    </div>
   )
 }
 
@@ -512,7 +512,7 @@ function TermineTab() {
         <Toggle field="show_email" label="✉️ E-Mail" desc="E-Mail-Adresse des Kunden" />
         <button style={{...btn,marginTop:8}} onClick={save}>Einstellungen speichern</button>
       </div>
-    </div></>
+    </div>
   )
 }
 
@@ -636,7 +636,7 @@ function SmbTab() {
           <code style={{ background:'var(--surface)', padding:'3px 7px', borderRadius:4 }}>apt-get install -y cifs-utils</code>
         </div>
       </div>
-    </div></>
+    </div>
   )
 }
 
@@ -663,6 +663,6 @@ export default function AdminPage() {
           </Routes>
         </div>
       </div>
-    </div></>
+    </div>
   )
 }
