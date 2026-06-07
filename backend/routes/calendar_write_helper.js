@@ -44,7 +44,7 @@ function buildRecord({ label, info='', start, end, resourceName, fehlzeitArt=0, 
     KfzResId: '', KfzResId_1: '', KfzResName: '', KfzResName_1: '',
     TER_CreateDate: new Date(), TER_CreateUser: mitarbeiterNr,
     TER_ModifyDate: new Date(), TER_ModifyUser: mitarbeiterNr,
-    InterneNr: 0, ErinnerungsIntervall: 0, VorgangJN: false, Geloescht: false,
+    InterneNr: 0, // wird nicht inserted ErinnerungsIntervall: 0, VorgangJN: false, Geloescht: false,
     OutlookId: '', Version: 0, Status: 0, Lohnart: '', Lohnart_1: '',
     ZEF_Buchung: 1, Private: false, MAfaktor: 1, LengthFromAbz: false,
     Lohnart: fehlzeitArt === 33 ? '97' : (fehlzeitArt > 0 ? '98' : ''),
@@ -62,28 +62,38 @@ const { v4: uuidv4 } = (() => { try { return require('uuid') } catch { return { 
 
 async function insertRecord(record) {
   const pool = await getPbPool()
-  const cols = Object.keys(record).join(', ')
-  const vals = Object.keys(record).map((_, i) => `@p${i}`).join(', ')
+  // InterneNr aus record entfernen - wird nach INSERT per UPDATE gesetzt
+  const recordWithoutInterneNr = Object.fromEntries(
+    Object.entries(record).filter(([k]) => k !== 'InterneNr')
+  )
+  const cols = Object.keys(recordWithoutInterneNr).join(', ')
+  const vals = Object.keys(recordWithoutInterneNr).map((_, i) => `@p${i}`).join(', ')
   const req  = pool.request()
-  Object.values(record).forEach((v, i) => {
-    const key = Object.keys(record)[i]
-    // InterneNr temporär -1 (wird nach INSERT auf RecNo gesetzt)
-    req.input(`p${i}`, key === 'InterneNr' ? -1 : v)
-  })
+  Object.values(recordWithoutInterneNr).forEach((v, i) => req.input(`p${i}`, v))
   await req.query(`INSERT INTO HWTER (${cols}) VALUES (${vals})`)
   const idRes = await pool.request().query('SELECT CAST(SCOPE_IDENTITY() AS INT) AS RecNo')
   const recno = idRes.recordset[0].RecNo
-  // Nach INSERT: InterneNr=RecNo, TER_CreateUser/ModifyUser=1, AppointmentGUID setzen
+  // UPDATE: InterneNr=RecNo + GUID + korrekte User-IDs
   const guid = require('crypto').randomUUID().replace(/-/g,'').toUpperCase()
-  await pool.request()
-    .input('recno', recno)
-    .input('guid', guid)
-    .query(`UPDATE HWTER SET
-      InterneNr        = @recno,
-      TER_CreateUser   = 1,
-      TER_ModifyUser   = 1,
-      AppointmentGUID  = @guid
-      WHERE RecNo = @recno`)
+  try {
+    await pool.request()
+      .input('recno', recno)
+      .input('guid', guid)
+      .query(`UPDATE HWTER SET
+        InterneNr        = @recno,
+        TER_CreateUser   = 1,
+        TER_ModifyUser   = 1,
+        AppointmentGUID  = @guid
+        WHERE RecNo = @recno AND InterneNr IS NULL OR InterneNr = 0`)
+  } catch(e) {
+    // Trigger hat InterneNr möglicherweise selbst gesetzt - nur GUID updaten
+    try {
+      await pool.request()
+        .input('recno', recno)
+        .input('guid', guid)
+        .query(`UPDATE HWTER SET AppointmentGUID=@guid, TER_CreateUser=1, TER_ModifyUser=1 WHERE RecNo=@recno`)
+    } catch(e2) { console.log('GUID update failed (non-fatal):', e2.message) }
+  }
   return recno
 }
 
