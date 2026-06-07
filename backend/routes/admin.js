@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { adminMiddleware } = require('../middleware/auth');
+const { adminMiddleware, authMiddleware } = require('../middleware/auth');
+const requireAuth = authMiddleware;
+const requireAdmin = adminMiddleware;
 const localDb = require('../db/localDb');
 
 // Get all settings (admin only)
