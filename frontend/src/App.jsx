@@ -51,8 +51,8 @@ function AppRoutes() {
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/calendar" element={<FeatureGate feature="calendar"><CalendarPage /></FeatureGate>} />
-          {features.vacation && <Route path="/sick" element={<SickPage />} />
-          <Route path="/vacation" element={<FeatureGate feature="vacation"><VacationPage /></FeatureGate>} />}
+          <Route path="/sick" element={<SickPage />} />
+          {features.vacation && <Route path="/vacation" element={<FeatureGate feature="vacation"><VacationPage /></FeatureGate>} />}
           {features.hours    && <Route path="/hours" element={<FeatureGate feature="hours"><HoursPage /></FeatureGate>} />}
           {canApprove && <Route path="/vacation-approve" element={<VacationApprovePage />} />}
           {user.role === 'admin' && <Route path="/admin/*" element={<AdminPage />} />}
