@@ -39,11 +39,12 @@ export default function Layout() {
       {(user?.features?.tools !== false) && <NavLink to="/tools" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔧</span><span>Mein Werkzeug</span></NavLink>}
       {(user?.features?.tools_search !== false) && <NavLink to="/tools-search" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔍</span><span>Werkzeug suchen</span></NavLink>}
 
-      {canApprove && <>
+      {canManage && <>
         <div style={{ fontSize:'0.68rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.08em', padding:'12px 12px 4px' }}>
-          {'Genehmigung'}
+          {'Auswertung'}
         </div>
-        <NavLink to="/vacation-approve" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>Urlaubsanträge</span></NavLink>
+        <NavLink to="/manager" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📊</span><span>Geschäftsführer</span></NavLink>
+        {canApprove && <NavLink to="/vacation-approve" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>✅</span><span>Urlaubsanträge</span></NavLink>}
       </>}
 
       {isAdmin && <>
