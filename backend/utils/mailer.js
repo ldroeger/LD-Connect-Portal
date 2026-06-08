@@ -53,11 +53,25 @@ function buildEmail(opts) {
   }).join('');
 
   const buttonHtml = (buttonText && buttonLink)
-    ? '<table cellpadding="0" cellspacing="0" style="margin:28px 0;"><tr><td style="border-radius:8px;background:' + primary + ';">'
-      + '<a href="' + buttonLink + '" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;background:' + primary + ';font-family:Arial,sans-serif;">'
-      + buttonText + '</a></td></tr></table>'
-      + '<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">Falls der Button nicht funktioniert, kopieren Sie diesen Link:<br/>'
-      + '<a href="' + buttonLink + '" style="color:' + primary + ';word-break:break-all;">' + buttonLink + '</a></p>'
+    ? '<!--[if mso]>'
+      + '<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"'
+      + ' href="' + buttonLink + '" style="height:48px;v-text-anchor:middle;width:220px;" arcsize="10%" stroke="f" fillcolor="' + primary + '">'
+      + '<w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">' + buttonText + '</center>'
+      + '</v:roundrect><![endif]-->'
+      + '<!--[if !mso]><!-->'
+      + '<table cellpadding="0" cellspacing="0" style="margin:28px 0;">'
+      + '<tr><td align="center" style="border-radius:8px;background:' + primary + ';">'
+      + '<a href="' + buttonLink + '" target="_blank"'
+      + ' style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:700;'
+      + 'text-decoration:none;border-radius:8px;background:' + primary + ';'
+      + 'font-family:Arial,sans-serif;mso-hide:all;">'
+      + buttonText
+      + '</a></td></tr></table>'
+      + '<!--<![endif]-->'
+      + '<p style="margin:8px 0;color:#6b7280;font-size:13px;">'
+      + 'Falls der Button nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:</p>'
+      + '<p style="margin:0 0 16px;font-size:12px;word-break:break-all;">'
+      + '<a href="' + buttonLink + '" style="color:' + primary + ';">' + buttonLink + '</a></p>'
     : '';
 
   return '<!DOCTYPE html>'
