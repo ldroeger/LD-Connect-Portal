@@ -14,7 +14,9 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const type = req.params.type; // 'logo' or 'favicon'
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${type}${ext}`);
+    // Timestamp im Namen verhindert Browser-Caching des alten Logos
+    const ts = Date.now()
+    cb(null, `${type}_${ts}${ext}`);
   },
 });
 
@@ -34,6 +36,13 @@ router.post('/:type', adminMiddleware, upload.single('file'), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen' });
     const type = req.params.type;
+    const setting = type === 'logo' ? 'logo_url' : 'favicon_url';
+    // Altes File löschen
+    const oldUrl = localDb.getSetting(setting);
+    if (oldUrl && oldUrl.startsWith('/api/upload/serve/')) {
+      const oldFile = path.join(LOGO_DIR, path.basename(oldUrl.split('?')[0]));
+      if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
+    }
     const url = `/api/upload/serve/${req.file.filename}`;
     if (type === 'logo') localDb.setSetting('logo_url', url);
     if (type === 'favicon') localDb.setSetting('favicon_url', url);
@@ -47,6 +56,10 @@ router.get('/serve/:filename', (req, res) => {
   const filePath = path.join(LOGO_DIR, filename);
   if (!filePath.startsWith(LOGO_DIR)) return res.status(400).send('Invalid path');
   if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
+  // Kein Browser-Caching für Logo-Dateien
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(filePath);
 });
 
