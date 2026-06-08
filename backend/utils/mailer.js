@@ -26,19 +26,25 @@ async function sendMail(to, subject, html) {
 }
 
 function getBaseConfig() {
+  let appUrl = localDb.getSetting('app_url') || '';
+  if (appUrl && !appUrl.startsWith('http')) appUrl = 'https://' + appUrl;
+  if (appUrl.endsWith('/')) appUrl = appUrl.slice(0, -1);
   return {
     company: localDb.getSetting('company_name') || 'LD Connect',
     primary: localDb.getSetting('primary_color') || '#2563EB',
     logoUrl: localDb.getSetting('logo_url') || '',
-    appUrl:  localDb.getSetting('app_url') || '',
+    appUrl,
   };
 }
 
 function buildEmail(opts) {
+  // Sicherstellen dass buttonLink eine saubere URL ist (kein Text angehängt)
+  if (opts.buttonLink) opts.buttonLink = opts.buttonLink.trim();
   const { company, primary, logoUrl, appUrl, title, greeting, lines, buttonText, buttonLink, footerNote } = opts;
 
+  const absLogoUrl = logoUrl && logoUrl.startsWith('http') ? logoUrl : (appUrl || '') + logoUrl;
   const logoHtml = logoUrl
-    ? '<img src="' + (appUrl || '') + logoUrl + '" alt="' + company + '" style="max-height:60px;max-width:200px;object-fit:contain;margin-bottom:8px;" />'
+    ? '<img src="' + absLogoUrl + '" alt="' + company + '" style="max-height:60px;max-width:200px;object-fit:contain;margin-bottom:8px;" />'
     : '<div style="font-size:22px;font-weight:800;color:#ffffff;">' + company + '</div>';
 
   const linesHtml = lines.map(function(l) {
