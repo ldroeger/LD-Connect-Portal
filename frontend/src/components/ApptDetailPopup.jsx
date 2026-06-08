@@ -48,8 +48,8 @@ export default function ApptDetailPopup({ recno, labelColors = {}, label, termCo
   const tc = (termColor || labelColors[label]) ? getTC(termColor || labelColors[label]) : 'white'
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:2000 }} onClick={onClose}>
-      <div style={{ background:bg, borderRadius:16, padding:24, maxWidth:440, width:'92%', border:`1px solid ${border}`, boxShadow:'0 24px 64px rgba(0,0,0,0.4)' }} onClick={e=>e.stopPropagation()}>
+    <div style={{ position:'fixed', inset:0, padding:16, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:2000 }} onClick={onClose}>
+      <div style={{ background:bg, borderRadius:16, padding:24, maxWidth:700, width:'min(700px,94vw)', border:`1px solid ${border}`, boxShadow:'0 24px 64px rgba(0,0,0,0.4)' }} onClick={e=>e.stopPropagation()}>
 
         {/* Header */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>

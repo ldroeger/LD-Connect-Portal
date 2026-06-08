@@ -76,7 +76,11 @@ function LoadingScreen() {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', flexDirection:'column', gap:16 }}>
       <div style={{ width:40, height:40, borderRadius:'50%', border:'3px solid var(--border)', borderTopColor:'var(--primary)', animation:'spin 0.8s linear infinite' }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }
+      .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000; padding:16px; }
+      .modal-card { width:min(720px,94vw); max-height:92vh; overflow-y:auto; background:var(--surface); border-radius:16px; box-shadow:0 24px 64px rgba(0,0,0,0.4); }
+      @media(max-width:600px) { .modal-card { width:100%; border-radius:12px; } }
+`}</style>
     </div>
   )
 }

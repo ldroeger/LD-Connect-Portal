@@ -585,7 +585,7 @@ function SmbTab() {
   const lbl = { fontSize:'0.78rem', color:'var(--text-3)', marginBottom:4, display:'block' }
 
   return (
-    <div style={{ maxWidth: 540 }}>
+    <div style={{ maxWidth: 720 }}>
       <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:4 }}>📁 SMB / Netzlaufwerk</div>
       <p style={{ color:'var(--text-3)', fontSize:'0.82rem', marginBottom:20 }}>
         Zugangsdaten für Werkzeugbilder aus dem Powerbird-Netzwerk (ELWZV.WZV_Bilddatei)

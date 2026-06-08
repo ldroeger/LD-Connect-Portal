@@ -14,7 +14,7 @@ const S = {
   success: { background:'#ECFDF5', border:'1px solid #A7F3D0', color:'#059669', padding:'10px 14px', borderRadius:8, fontSize:'0.85rem', marginBottom:12 },
   error: { background:'#FEF2F2', border:'1px solid #FECACA', color:'#DC2626', padding:'10px 14px', borderRadius:8, fontSize:'0.85rem', marginBottom:12 },
   modal: { position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:16 },
-  modalCard: { background:'var(--surface)', borderRadius:12, padding:28, maxWidth:480, width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.2)' },
+  modalCard: { background:'var(--surface)', borderRadius:12, padding:28, maxWidth:680, width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.2)' },
 }
 
 function RejectModal({ request, onClose, onDone }) {
