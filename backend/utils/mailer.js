@@ -67,7 +67,7 @@ function buildEmail(opts) {
   if (opts.buttonLink) opts.buttonLink = opts.buttonLink.trim();
   const { company, primary, logoUrl, appUrl, title, greeting, lines, buttonText, buttonLink, footerNote } = opts;
 
-  const absLogoUrl = logoUrl && logoUrl.startsWith('http') ? logoUrl : (appUrl || '') + logoUrl;
+  const absLogoUrl = logoUrl && (logoUrl.startsWith('http') || logoUrl.startsWith('data:')) ? logoUrl : (appUrl || '') + logoUrl;
   const logoHtml = logoUrl
     ? '<img src="' + absLogoUrl + '" alt="' + company + '" style="max-height:60px;max-width:200px;object-fit:contain;margin-bottom:8px;" />'
     : '<div style="font-size:22px;font-weight:800;color:#ffffff;">' + company + '</div>';
