@@ -57,7 +57,7 @@ function AppRoutes() {
           {features.hours    && <Route path="/hours" element={<FeatureGate feature="hours"><HoursPage /></FeatureGate>} />}
           {canApprove && <Route path="/vacation-approve" element={<VacationApprovePage />} />}
           {user.role === 'admin' && <Route path="/admin/*" element={<AdminPage />} />}
-          {(user.role === 'admin' || user.role === 'vacation_approver' || user.role === 'manager') && <Route path="/manager" element={<ManagerDashboard />} />}
+          {(user.role === 'admin' || user.role === 'vacation_approver' || user.role === 'manager') && <Route path="/manager/*" element={<ManagerDashboard />} />}
           {user.role === 'admin' && <Route path="/display-manage" element={<DisplayManagePage />} />}
           <Route path="/news" element={<FeatureGate feature="news_read"><NewsPage /></FeatureGate>} />
           <Route path="/tools" element={<FeatureGate feature="tools"><ToolsPage /></FeatureGate>} />
