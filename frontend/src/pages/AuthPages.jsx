@@ -46,8 +46,8 @@ export function LoginPage() {
       <div style={S.card}>
         <div style={S.header}>
           {branding.logo_url
-            ? <img src={branding.logo_url} alt="Logo" style={{ height: 56, objectFit: 'contain', marginBottom: 12 }} />
-            : <img src="/default-logo.png" alt="LD Connect" style={{ height:56, objectFit:'contain', marginBottom:12 }} />}
+            ? <img src={branding.logo_url} alt="Logo" style={{ height: 56, maxWidth: '100%', maxHeight: 80, objectFit: 'contain', marginBottom: 12 }} />
+            : <img src="/default-logo.png" alt="LD Connect" style={{ height:56, maxWidth:'100%', objectFit:'contain', marginBottom:12 }} />}
           <h1 style={S.title}>{branding.company_name}</h1>
           <p style={S.subtitle}>LD Connect · {'Anmelden'}</p>
         </div>
