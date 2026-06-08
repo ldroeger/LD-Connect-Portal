@@ -22,7 +22,14 @@ async function sendMail(to, subject, html) {
     return;
   }
   const from = localDb.getSetting('smtp_from') || localDb.getSetting('smtp_user');
-  await transporter.sendMail({ from, to, subject, html });
+  // Plain-text Fallback damit Outlook nicht selbst konvertiert
+  const text = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ').replace(/&#[0-9]+;/g, '')
+    .replace(/ {2,}/g, ' ').replace(/\n {2,}/g, '\n').trim();
+  await transporter.sendMail({ from, to, subject, html, text });
 }
 
 function getBaseConfig() {
