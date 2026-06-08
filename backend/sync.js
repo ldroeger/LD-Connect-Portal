@@ -77,11 +77,12 @@ async function syncVacation(pool) {
   }
 }
 
-// ── Krankmeldungen: neue aus Powerbird in lokale DB spiegeln ──────────────
+// ── Krankmeldungen: nur extern eingetragene aus Powerbird spiegeln ─────────
 async function syncKrank(pool) {
-  // Alle Krankmeldungen der letzten 90 Tage aus HWTER
+  // Nur Krankmeldungen die NICHT aus unserem Portal stammen (hwter_recno bereits bekannt = von uns)
+  // Von uns eingetragene haben bereits einen lokalen Eintrag mit hwter_recno gesetzt
   const rows = await pool.request().query(`
-    SELECT RecNo, Termin_ResourceName, Termin_Start, Termin_Ende, TER_FehlzeitArt, Geloescht
+    SELECT RecNo, Termin_ResourceName, Termin_Start, Termin_Ende
     FROM HWTER
     WHERE TER_FehlzeitArt = 33
       AND Geloescht = 0
@@ -91,27 +92,39 @@ async function syncKrank(pool) {
 
   let newCount = 0
   for (const r of rows.recordset) {
+    // Prüfe ob bereits in lokaler DB (egal ob durch Portal oder Sync)
     const exists = localDb.db.prepare(
       'SELECT id FROM sick_reports WHERE hwter_recno = ?'
     ).get(r.RecNo)
     if (exists) continue
 
-    // User anhand des Kürzels finden
-    const user = localDb.db.prepare(
-      'SELECT id FROM users WHERE powerbird_id = ?'
-    ).get(r.Termin_ResourceName)
+    // Prüfe ob es einen lokalen Eintrag ohne hwter_recno gibt der zeitlich passt
+    // (eingetragen aber hwter_recno noch nicht gesetzt weil async)
+    const user = localDb.db.prepare('SELECT id FROM users WHERE powerbird_id = ?').get(r.Termin_ResourceName)
     if (!user) continue
 
+    const fromDate = new Date(r.Termin_Start).toISOString().split('T')[0]
+    const toDate   = new Date(r.Termin_Ende).toISOString().split('T')[0]
+
+    const matchLocal = localDb.db.prepare(
+      'SELECT id FROM sick_reports WHERE user_id=? AND from_date=? AND to_date=?'
+    ).get(user.id, fromDate, toDate)
+
+    if (matchLocal) {
+      // hwter_recno nachtragen
+      localDb.db.prepare('UPDATE sick_reports SET hwter_recno=? WHERE id=?').run(r.RecNo, matchLocal.id)
+      continue
+    }
+
+    // Wirklich neu (extern in Powerbird eingetragen)
     try {
       localDb.db.prepare(`
         INSERT OR IGNORE INTO sick_reports (user_id, hwter_recno, from_date, to_date, created_at)
         VALUES (?, ?, ?, ?, datetime('now'))
-      `).run(user.id, r.RecNo,
-        new Date(r.Termin_Start).toISOString().split('T')[0],
-        new Date(r.Termin_Ende).toISOString().split('T')[0])
+      `).run(user.id, r.RecNo, fromDate, toDate)
       newCount++
     } catch(e) {
-      // Tabelle existiert evtl. noch nicht - ignorieren
+      addLog(`Krankmeldung Insert-Fehler: ${e.message}`, 'warn')
     }
   }
   if (newCount > 0) addLog(`Krankmeldungen: ${newCount} neue aus Powerbird synchronisiert`)
