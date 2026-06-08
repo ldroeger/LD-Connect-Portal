@@ -36,10 +36,28 @@ function getBaseConfig() {
   let appUrl = localDb.getSetting('app_url') || '';
   if (appUrl && !appUrl.startsWith('http')) appUrl = 'https://' + appUrl;
   if (appUrl.endsWith('/')) appUrl = appUrl.slice(0, -1);
+  const logoUrl = localDb.getSetting('logo_url') || '';
+  // Logo als Base64 einbetten damit es in allen E-Mail-Clients angezeigt wird
+  let logoBase64 = '';
+  if (logoUrl) {
+    try {
+      const path = require('path');
+      const fs   = require('fs');
+      const DATA_DIR = process.env.DATA_DIR || '/data';
+      const filename = path.basename(logoUrl.split('?')[0]);
+      const filePath = path.join(DATA_DIR, 'logos', filename);
+      if (fs.existsSync(filePath)) {
+        const ext = path.extname(filename).toLowerCase().replace('.', '');
+        const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'jpg' ? 'image/jpeg' : 'image/' + ext;
+        const data = fs.readFileSync(filePath).toString('base64');
+        logoBase64 = 'data:' + mime + ';base64,' + data;
+      }
+    } catch(e) { console.log('Logo Base64 Fehler:', e.message); }
+  }
   return {
     company: localDb.getSetting('company_name') || 'LD Connect',
     primary: localDb.getSetting('primary_color') || '#2563EB',
-    logoUrl: localDb.getSetting('logo_url') || '',
+    logoUrl: logoBase64 || (appUrl + logoUrl),
     appUrl,
   };
 }
