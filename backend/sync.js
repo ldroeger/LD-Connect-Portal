@@ -148,6 +148,91 @@ async function syncTermine(pool) {
   }
 }
 
+
+// ── Powerbird-Urlaube → vacation_requests spiegeln ────────────────────────
+async function syncPowerbirdVacation(pool) {
+  // Alle User mit Powerbird-Kürzel
+  const users = localDb.db.prepare(
+    "SELECT id, powerbird_id, name FROM users WHERE is_active=1 AND powerbird_id IS NOT NULL AND powerbird_id != ''"
+  ).all()
+
+  let newCount = 0, updCount = 0
+
+  for (const u of users) {
+    try {
+      // Alle Urlaube aus HWTER (FehlzeitArt 18 + 19, nicht gelöscht)
+      const rows = await pool.request()
+        .input('uid', u.powerbird_id)
+        .query(`
+          SELECT RecNo, Termin_Start, Termin_Ende, TER_FehlzeitArt,
+                 Geloescht, TER_UrlaubsantragLfdNr
+          FROM HWTER
+          WHERE Termin_ResourceName = @uid
+            AND TER_FehlzeitArt IN (17, 18, 19)
+            AND Termin_Start >= DATEADD(year, -2, GETDATE())
+          ORDER BY Termin_Start DESC
+        `)
+
+      for (const r of rows.recordset) {
+        const fromDate = new Date(r.Termin_Start).toISOString().split('T')[0]
+        const toDate   = new Date(r.Termin_Ende).toISOString().split('T')[0]
+        const hwterRecno = r.RecNo
+        const isDeleted  = r.Geloescht === true || r.Geloescht === 1
+        const fehlzeitArt = r.TER_FehlzeitArt
+        const lfdNr = r.TER_UrlaubsantragLfdNr
+
+        // Wenn TER_UrlaubsantragLfdNr gesetzt → schon ein Portal-Antrag vorhanden
+        if (lfdNr) {
+          // Status synchronisieren falls nötig
+          const existing = localDb.db.prepare(
+            'SELECT id, status FROM vacation_requests WHERE id = ?'
+          ).get(lfdNr)
+          if (existing) {
+            if (isDeleted && existing.status !== 'rejected') {
+              localDb.db.prepare(
+                "UPDATE vacation_requests SET status='rejected', rejection_reason='In Powerbird gelöscht', updated_at=datetime('now') WHERE id=?"
+              ).run(lfdNr)
+              updCount++
+            } else if (!isDeleted && fehlzeitArt >= 18 && existing.status === 'pending') {
+              localDb.db.prepare(
+                "UPDATE vacation_requests SET status='approved', updated_at=datetime('now') WHERE id=?"
+              ).run(lfdNr)
+              updCount++
+            }
+          }
+          continue
+        }
+
+        if (isDeleted) continue
+
+        // Prüfen ob bereits ein lokaler Eintrag mit diesem Datum existiert
+        const existing = localDb.db.prepare(`
+          SELECT id FROM vacation_requests
+          WHERE user_id=? AND from_date=? AND to_date=?
+        `).get(u.id, fromDate, toDate)
+
+        if (existing) continue
+
+        // Neu aus Powerbird → als approved anlegen
+        const status = fehlzeitArt === 17 ? 'pending' : 'approved'
+        localDb.db.prepare(`
+          INSERT INTO vacation_requests
+            (user_id, from_date, to_date, status, note, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `).run(u.id, fromDate, toDate, status,
+          'Direkt in Powerbird eingetragen (FehlzeitArt ' + fehlzeitArt + ')')
+        newCount++
+      }
+    } catch(e) {
+      addLog('PB-Urlaub Sync Fehler für ' + u.powerbird_id + ': ' + e.message, 'warn')
+    }
+  }
+
+  if (newCount > 0 || updCount > 0) {
+    addLog('Powerbird-Urlaube: ' + newCount + ' neu, ' + updCount + ' aktualisiert')
+  }
+}
+
 // ── Haupt-Sync-Funktion ───────────────────────────────────────────────────
 async function runSync() {
   const enabled = localDb.getSetting('sync_enabled')
@@ -163,6 +248,7 @@ async function runSync() {
     const pool = await pbDb.getPool()
 
     await syncVacation(pool)
+    await syncPowerbirdVacation(pool)
     await syncKrank(pool)
     await syncTermine(pool)
 
