@@ -38,7 +38,7 @@ export default function NewsPage() {
   }
 
   return (
-    <div style={{ maxWidth:1200 }}>
+    <div style={{ maxWidth:'100%' }}>
       <h1 style={{ fontSize:'1.2rem', fontWeight:700, marginBottom:4 }}>📰 News</h1>
       <p style={{ color:'var(--text-3)', fontSize:'0.85rem', marginBottom:20 }}>Nachrichten für den Mitarbeiterbildschirm</p>
 
