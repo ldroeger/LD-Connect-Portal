@@ -75,7 +75,7 @@ export default function ToolsSearchPage() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ maxWidth:'100%' }}>
       <h2 style={{ marginBottom: 4 }}>🔍 {'Werkzeug suchen'}</h2>
       <p style={{ color: 'var(--text-3)', marginBottom: 16, fontSize: '0.88rem' }}>{'Suche nach Name, Nummer, Seriennummer oder Lagerort'}</p>
 

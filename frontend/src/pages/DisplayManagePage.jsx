@@ -77,7 +77,7 @@ export default function DisplayManagePage() {
   }
 
   return (
-    <div style={{ maxWidth:1200 }}>
+    <div style={{ maxWidth:'100%' }}>
       <h1 style={{ fontSize:'1.2rem', fontWeight:700, marginBottom:4 }}>🖥 Mitarbeiterbildschirm</h1>
       <p style={{ color:'var(--text-3)', fontSize:'0.85rem', marginBottom:20 }}>Öffentliche Anzeige für TV/Bildschirme im Betrieb</p>
 

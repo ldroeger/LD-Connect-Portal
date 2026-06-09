@@ -77,7 +77,7 @@ export default function ToolsPage() {
   }, [tools, sortBy, filterStatus])
 
   return (
-    <div style={{ maxWidth:1200, margin:'0 auto' }}>
+    <div style={{ maxWidth:'100%' }}>
       <h2 style={{ marginBottom:4 }}>🔧 {'Mein Werkzeug'}</h2>
       <p style={{ color:'var(--text-3)', marginBottom:16, fontSize:'0.88rem' }}>{tools.length} Werkzeug{tools.length !== 1 ? 'e' : ''} zugewiesen</p>
 

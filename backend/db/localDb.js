@@ -53,6 +53,7 @@ function initialize() {
       to_date TEXT NOT NULL,
       days REAL NOT NULL,
       reason TEXT,
+      note TEXT,
       status TEXT DEFAULT 'pending',
       rejection_reason TEXT,
       rejection_file TEXT,

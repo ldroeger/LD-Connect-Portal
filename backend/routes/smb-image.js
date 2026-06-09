@@ -7,26 +7,39 @@ router.get('/image', async (req, res) => {
     const imgPath = req.query.path
     if (!imgPath) return res.status(400).json({ error: 'Kein Pfad' })
 
-    const smbUser = localDb.getSetting('smb_user') || ''
-    const smbPass = localDb.getSetting('smb_password') || ''
+    const smbUser   = localDb.getSetting('smb_user') || ''
+    const smbPass   = localDb.getSetting('smb_password') || ''
     const smbServer = localDb.getSetting('smb_server') || ''
     const smbDomain = localDb.getSetting('smb_domain') || 'WORKGROUP'
 
-    if (!smbUser || !smbPass || !smbServer) {
-      return res.status(503).json({ error: 'SMB nicht konfiguriert' })
-    }
+    if (!smbServer) return res.status(503).json({ error: 'SMB nicht konfiguriert' })
 
-    // Parse host and share: //192.168.13.20/Pictures
-    const normalized = smbServer.replace(/\\/g, '/').replace(/^\/\//, '')
-    const parts = normalized.split('/')
-    const host = parts[0]
+    // Parse host and share from smb_server: //192.168.13.20/Pictures
+    const normalized = smbServer.replace(/\\/g, '/').replace(/^\/+/, '')
+    const parts = normalized.split('/').filter(Boolean)
+    const host  = parts[0]
     const share = parts[1] || ''
 
-    // Get relative file path from full UNC path
-    // imgPath: \\192.168.13.20\Pictures\Powerbird\file.jpg
+    if (!host || !share) return res.status(503).json({ error: 'SMB-Pfad ungueltig: ' + smbServer })
+
+    // imgPath kann sein: \\192.168.13.20\Pictures\Powerbird\file.jpg
+    // oder: \\server\share\unterordner\file.jpg
+    // Wir extrahieren alles nach host/share als relativen Pfad
     const normalizedImg = imgPath.replace(/\\/g, '/')
-    const imgParts = normalizedImg.replace(/^\/\//, '').split('/')
-    const filePath = imgParts.slice(2).join('\\')
+    const cleanImg = normalizedImg.replace(/^\/+/, '')
+    const imgParts = cleanImg.split('/').filter(Boolean)
+
+    // Wenn imgParts[0] == host und imgParts[1] == share -> ab imgParts[2]
+    let filePath
+    if (imgParts.length >= 2 && imgParts[0].toLowerCase() === host.toLowerCase()) {
+      filePath = imgParts.slice(2).join('\\')
+    } else if (imgParts.length >= 1 && imgParts[0].toLowerCase() === share.toLowerCase()) {
+      filePath = imgParts.slice(1).join('\\')
+    } else {
+      filePath = imgParts.join('\\')
+    }
+
+    if (!filePath) return res.status(400).json({ error: 'Leerer Dateipfad aus: ' + imgPath })
 
     const SMB2 = require('@marsaud/smb2')
     const smb2Client = new SMB2({
@@ -34,15 +47,17 @@ router.get('/image', async (req, res) => {
       domain: smbDomain,
       username: smbUser,
       password: smbPass,
+      autoCloseTimeout: 0,
     })
 
     smb2Client.readFile(filePath, (err, data) => {
+      try { smb2Client.close() } catch(e2) {}
       if (err) {
-        console.error('SMB read error:', err.message)
+        console.error('SMB image error:', err.message, 'path:', filePath)
         return res.status(404).json({ error: 'Bild nicht gefunden', detail: err.message })
       }
-      const ext = (filePath.split('.').pop() || '').toLowerCase()
-      const mime = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' }[ext] || 'image/jpeg'
+      const ext  = (filePath.split('.').pop() || '').toLowerCase()
+      const mime = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp' }[ext] || 'image/jpeg'
       res.setHeader('Content-Type', mime)
       res.setHeader('Cache-Control', 'public, max-age=3600')
       res.send(data)

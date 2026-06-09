@@ -521,182 +521,152 @@ function TermineTab() {
 }
 
 function SmbTab() {
-  const [form, setForm] = React.useState({ smb_user: '', smb_password: '', smb_mount: '/mnt/smb', smb_server: '', smb_domain: 'WORKGROUP', doc_smb_server: '', doc_smb_user: '', doc_smb_password: '', doc_smb_domain: 'WORKGROUP' })
-  const [saving, setSaving] = React.useState(false)
-  const [mounting, setMounting] = React.useState(false)
-  const [status, setStatus] = React.useState(null)
-  const [msg, setMsg] = React.useState('')
+  const [host, setHost]       = React.useState('')
+  const [user, setUser]       = React.useState('')
+  const [pass, setPass]       = React.useState('')
+  const [domain, setDomain]   = React.useState('WORKGROUP')
+  const [toolShare, setToolShare]   = React.useState('')
+  const [docShare, setDocShare]     = React.useState('')
+  const [docSubpath, setDocSubpath] = React.useState('')
+  const [saving, setSaving]   = React.useState(false)
+  const [testTool, setTestTool] = React.useState(null)
+  const [testDoc, setTestDoc]   = React.useState(null)
+  const [msg, setMsg]         = React.useState('')
 
-  const loadSettings = () => {
-    import('../utils/api.js').then(({ default: api }) => {
-      api.get('/admin/settings').then(r => {
-        const s = r.data.settings || {}
-        setForm(f => ({
-          ...f,
-          smb_user: s.smb_user || '',
-          smb_password: s.smb_password || '',
-          smb_mount: s.smb_mount || '/mnt/smb',
-          smb_server: s.smb_server || '',
-          smb_domain: s.smb_domain || 'WORKGROUP',
-          doc_smb_server: s.doc_smb_server || '',
-          doc_smb_user: s.doc_smb_user || '',
-          doc_smb_password: s.doc_smb_password || '',
-          doc_smb_domain: s.doc_smb_domain || 'WORKGROUP',
-        }))
-      }).catch(() => {})
-      api.get('/admin/smb-status').then(r => setStatus(r.data)).catch(() => {})
-    })
+  React.useEffect(() => {
+    api.get('/admin/settings-all').then(r => {
+      const s = r.data || {}
+      setHost(s.smb_host || s.smb_server?.replace(/\/\/|\\\\/g,'').split(/[\/\\]/)[0] || '')
+      setUser(s.smb_user || '')
+      setPass(s.smb_password || '')
+      setDomain(s.smb_domain || 'WORKGROUP')
+      // Werkzeug-Share: aus smb_server den share-Teil
+      const srv = s.smb_server || ''
+      const srvParts = srv.replace(/\\/g,'/').replace(/^\/+/,'').split('/').filter(Boolean)
+      setToolShare(srvParts[1] || '')
+      // Dokument-Share
+      const docSrv = s.doc_smb_server || ''
+      const docParts = docSrv.replace(/\\/g,'/').replace(/^\/+/,'').split('/').filter(Boolean)
+      setDocShare(docParts[1] || '')
+      setDocSubpath(docParts.slice(2).join('/') || '')
+    }).catch(() => {})
+  }, [])
+
+  const save = async () => {
+    setSaving(true); setMsg('')
+    try {
+      const toolServer = host && toolShare ? '//' + host + '/' + toolShare : ''
+      const docServer  = host && docShare  ? '//' + host + '/' + docShare + (docSubpath ? '/' + docSubpath : '') : ''
+      await Promise.all([
+        api.post('/admin/settings', { key:'smb_host',         value: host }),
+        api.post('/admin/settings', { key:'smb_user',         value: user }),
+        api.post('/admin/settings', { key:'smb_password',     value: pass }),
+        api.post('/admin/settings', { key:'smb_domain',       value: domain }),
+        api.post('/admin/settings', { key:'smb_server',       value: toolServer }),
+        api.post('/admin/settings', { key:'doc_smb_server',   value: docServer }),
+        api.post('/admin/settings', { key:'doc_smb_user',     value: user }),
+        api.post('/admin/settings', { key:'doc_smb_password', value: pass }),
+        api.post('/admin/settings', { key:'doc_smb_domain',   value: domain }),
+      ])
+      setMsg('✅ Gespeichert')
+    } catch(e) { setMsg('❌ Fehler: ' + e.message) }
+    setSaving(false)
   }
 
-  React.useEffect(() => { loadSettings() }, [])
-
-  const save = () => {
-    setSaving(true)
-    import('../utils/api.js').then(({ default: api }) => {
-      api.put('/admin/settings', form).then(() => {
-        setMsg('✅ Einstellungen gespeichert')
-        setTimeout(() => setMsg(''), 3000)
-      }).catch(() => setMsg('❌ Fehler')).finally(() => setSaving(false))
-    })
+  const testConnection = async (type) => {
+    const setter = type === 'tool' ? setTestTool : setTestDoc
+    const share  = type === 'tool' ? toolShare : docShare
+    if (!host || !share) return setter('❌ Host und Freigabe erforderlich')
+    setter('⏳ Verbinde...')
+    try {
+      const server = '//' + host + '/' + share
+      const r = await api.post('/admin/smb-test', { server, user, password: pass, domain })
+      setter(r.data.success ? '✅ Verbindung erfolgreich (' + (r.data.files || 0) + ' Dateien)' : '❌ ' + r.data.error)
+    } catch(e) { setter('❌ ' + (e.response?.data?.error || e.message)) }
   }
-
-  const mount = () => {
-    setMounting(true)
-    setMsg('')
-    import('../utils/api.js').then(({ default: api }) => {
-      // First save settings
-      api.put('/admin/settings', form).then(() => {
-        // Dokument-SMB Settings speichern (synchron, kein await nötig)
-        api.post('/admin/settings', { key: 'doc_smb_server', value: form.doc_smb_server }).catch(()=>{})
-        api.post('/admin/settings', { key: 'doc_smb_user', value: form.doc_smb_user }).catch(()=>{})
-        api.post('/admin/settings', { key: 'doc_smb_password', value: form.doc_smb_password }).catch(()=>{})
-        api.post('/admin/settings', { key: 'doc_smb_domain', value: form.doc_smb_domain }).catch(()=>{})
-        return api.post('/admin/smb-mount', { server: form.smb_server, user: form.smb_user, password: form.smb_password, domain: form.smb_domain })
-      }).then(r => {
-        setMsg(r.data.message || '✅ Erfolgreich gemountet')
-        loadSettings()
-      }).catch(e => {
-        setMsg('❌ ' + (e.response?.data?.detail || e.response?.data?.error || 'Mount fehlgeschlagen'))
-      }).finally(() => setMounting(false))
-    })
-  }
-
-  const unmount = () => {
-    import('../utils/api.js').then(({ default: api }) => {
-      api.post('/admin/smb-unmount').then(r => {
-        setMsg(r.data.message || '✅ Ausgehängt')
-        loadSettings()
-      }).catch(e => setMsg('❌ ' + (e.response?.data?.error || 'Fehler')))
-    })
-  }
-
-  const inp = { border:'1px solid var(--border)', background:'var(--surface-2)', color:'var(--text)', borderRadius:8, padding:'9px 12px', fontSize:'0.88rem', width:'100%', boxSizing:'border-box' }
-  const lbl = { fontSize:'0.78rem', color:'var(--text-3)', marginBottom:4, display:'block' }
 
   return (
-    <div style={{ maxWidth: 720 }}>
-      <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:4 }}>📁 SMB / Netzlaufwerk</div>
-      <p style={{ color:'var(--text-3)', fontSize:'0.82rem', marginBottom:20 }}>
-        Zugangsdaten für Werkzeugbilder aus dem Powerbird-Netzwerk (ELWZV.WZV_Bilddatei)
-      </p>
+    <div>
+      {msg && <div style={{ padding:'10px 14px', borderRadius:8, marginBottom:16, fontSize:'0.85rem',
+        background: msg.startsWith('✅') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+        color: msg.startsWith('✅') ? 'var(--success)' : 'var(--error)',
+        border: '1px solid ' + (msg.startsWith('✅') ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') }}>{msg}</div>}
 
-      {/* Status */}
-      {status && (
-        <div style={{ padding:'10px 14px', borderRadius:8, marginBottom:16, fontSize:'0.85rem', fontWeight:600,
-          background: status.mounted ? '#10b98120' : 'var(--surface-2)',
-          color: status.mounted ? '#10b981' : 'var(--text-3)',
-          border: `1px solid ${status.mounted ? '#10b981' : 'var(--border)'}` }}>
-          {status.mounted ? `✅ Verbunden: ${status.server || ''}` : '⚠️ SMB nicht konfiguriert'}
+      {/* Zugangsdaten (geteilt) */}
+      <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:12 }}>🔑 Zugangsdaten (für alle Freigaben)</div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:8 }}>
+        <div>
+          <div style={lbl}>Server / Host</div>
+          <input style={inp} value={host} onChange={e=>setHost(e.target.value)} placeholder="192.168.13.20" />
         </div>
-      )}
+        <div>
+          <div style={lbl}>Domain</div>
+          <input style={inp} value={domain} onChange={e=>setDomain(e.target.value)} placeholder="WORKGROUP" />
+        </div>
+        <div>
+          <div style={lbl}>Benutzer</div>
+          <input style={inp} value={user} onChange={e=>setUser(e.target.value)} placeholder="Administrator" />
+        </div>
+        <div>
+          <div style={lbl}>Passwort</div>
+          <input style={inp} type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" />
+        </div>
+      </div>
 
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-        <div>
-          <label style={lbl}>Server-Pfad (UNC)</label>
-          <input style={inp} value={form.smb_server} onChange={e => setForm(f=>({...f,smb_server:e.target.value}))} placeholder="//192.168.13.20/Pictures" />
-          <div style={{ fontSize:'0.72rem', color:'var(--text-3)', marginTop:3 }}>z.B. //192.168.13.20/Pictures</div>
-        </div>
-        <div>
-          <label style={lbl}>Benutzer</label>
-          <input style={inp} value={form.smb_user} onChange={e => setForm(f=>({...f,smb_user:e.target.value}))} placeholder="domain\benutzer oder benutzer" />
-        </div>
-        <div>
-          <label style={lbl}>Passwort</label>
-          <input style={inp} type="password" value={form.smb_password} onChange={e => setForm(f=>({...f,smb_password:e.target.value}))} placeholder="••••••••" />
-        </div>
-        <div>
-          <label style={lbl}>Domain</label>
-          <input style={inp} value={form.smb_domain} onChange={e => setForm(f=>({...f,smb_domain:e.target.value}))} placeholder="WORKGROUP" />
-          <div style={{ fontSize:'0.72rem', color:'var(--text-3)', marginTop:3 }}>Meist WORKGROUP für Heimnetzwerke</div>
-        </div>
+      <hr style={{ border:'none', borderTop:'1px solid var(--border)', margin:'20px 0' }} />
 
-        {msg && <div style={{ fontWeight:600, color: msg.startsWith('✅') ? '#10b981' : 'var(--error)', fontSize:'0.88rem', whiteSpace:'pre-wrap' }}>{msg}</div>}
-
-        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-          <button onClick={save} disabled={saving}
-            style={{ padding:'9px 18px', background:'var(--surface-2)', color:'var(--text)', border:'1px solid var(--border)', borderRadius:8, cursor:'pointer', fontWeight:600 }}>
-            {saving ? 'Speichern...' : '💾 Speichern'}
-          </button>
-          <button onClick={mount} disabled={mounting || !form.smb_server}
-            style={{ padding:'9px 18px', background:'var(--primary)', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:600 }}>
-            {mounting ? 'Verbinde...' : '🔌 Verbinden & Testen'}
-          </button>
-
+      {/* Werkzeugbilder-Freigabe */}
+      <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:8 }}>🔧 Werkzeugbilder</div>
+      <div style={{ fontSize:'0.82rem', color:'var(--text-3)', marginBottom:10 }}>Freigabe für Werkzeugbilder (ELWZV.WZV_Bilddatei)</div>
+      <div style={{ display:'flex', gap:10, alignItems:'flex-end', marginBottom:8 }}>
+        <div style={{ flex:1 }}>
+          <div style={lbl}>Freigabe-Name</div>
+          <input style={{...inp, marginBottom:0}} value={toolShare} onChange={e=>setToolShare(e.target.value)} placeholder="Pictures" />
         </div>
-
-        <div style={{ background:'var(--surface-2)', borderRadius:8, padding:12, fontSize:'0.78rem', color:'var(--text-3)', lineHeight:1.7 }}>
-          <strong>Hinweis:</strong> Der Server benötigt das Paket <code>cifs-utils</code>:<br/>
-          <code style={{ background:'var(--surface)', padding:'3px 7px', borderRadius:4 }}>apt-get install -y cifs-utils</code>
-        </div>
-
-        <hr style={{ border:'none', borderTop:'1px solid var(--border)', margin:'8px 0' }} />
-        <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:4, marginTop:8 }}>📁 Dokument-Server (SMB)</div>
-        <p style={{ color:'var(--text-3)', fontSize:'0.82rem', marginBottom:16 }}>
-          Zugangsdaten für Mitarbeiter-Dokumente aus Powerbird (ELDVD/ELDVV Tabellen)
-        </p>
-        <div>
-          <label style={lbl}>Server-Pfad (UNC)</label>
-          <input style={inp} value={form.doc_smb_server}
-            onChange={e => setForm(f=>({...f, doc_smb_server: e.target.value}))}
-            placeholder="//192.168.13.20/Powerbird" />
-          <div style={{ fontSize:'0.72rem', color:'var(--text-3)', marginTop:3 }}>Pfad zum Powerbird-Dokumentenverzeichnis</div>
-        </div>
-        <div>
-          <label style={lbl}>Benutzer</label>
-          <input style={inp} value={form.doc_smb_user}
-            onChange={e => setForm(f=>({...f, doc_smb_user: e.target.value}))}
-            placeholder="Administrator" />
-        </div>
-        <div>
-          <label style={lbl}>Passwort</label>
-          <input style={inp} type="password" value={form.doc_smb_password}
-            onChange={e => setForm(f=>({...f, doc_smb_password: e.target.value}))}
-            placeholder="••••••••" />
-        </div>
-        <div>
-          <label style={lbl}>Domain</label>
-          <input style={inp} value={form.doc_smb_domain}
-            onChange={e => setForm(f=>({...f, doc_smb_domain: e.target.value}))}
-            placeholder="WORKGROUP" />
-        </div>
-        <button onClick={() => {
-          import('../utils/api.js').then(({ default: api }) => {
-            Promise.all([
-              api.post('/admin/settings', { key: 'doc_smb_server',   value: form.doc_smb_server }),
-              api.post('/admin/settings', { key: 'doc_smb_user',     value: form.doc_smb_user }),
-              api.post('/admin/settings', { key: 'doc_smb_password', value: form.doc_smb_password }),
-              api.post('/admin/settings', { key: 'doc_smb_domain',   value: form.doc_smb_domain }),
-            ]).then(() => setMsg('✅ Dokument-Server gespeichert')).catch(() => setMsg('❌ Fehler beim Speichern'))
-          })
-        }} style={{ padding:'9px 18px', background:'var(--success)', color:'#fff', border:'none',
-          borderRadius:8, cursor:'pointer', fontWeight:600, marginTop:4 }}>
-          💾 Dokument-Server speichern
+        <button onClick={() => testConnection('tool')}
+          style={{ padding:'9px 16px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface-2)',
+            cursor:'pointer', fontFamily:'var(--font)', fontWeight:600, fontSize:'0.82rem', whiteSpace:'nowrap', marginBottom:0 }}>
+          🔌 Testen
         </button>
       </div>
+      {host && toolShare && <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginBottom:6 }}>Pfad: //{host}/{toolShare}</div>}
+      {testTool && <div style={{ fontSize:'0.82rem', padding:'6px 10px', borderRadius:6, background:'var(--surface-2)', marginBottom:8 }}>{testTool}</div>}
+
+      <hr style={{ border:'none', borderTop:'1px solid var(--border)', margin:'20px 0' }} />
+
+      {/* Dokument-Freigabe */}
+      <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:8 }}>📁 Mitarbeiter-Dokumente</div>
+      <div style={{ fontSize:'0.82rem', color:'var(--text-3)', marginBottom:10 }}>Freigabe für Powerbird-Dokumente (ELDVD/ELDVV)</div>
+      <div style={{ display:'flex', gap:10, alignItems:'flex-end', marginBottom:8 }}>
+        <div style={{ flex:1 }}>
+          <div style={lbl}>Freigabe-Name</div>
+          <input style={{...inp, marginBottom:0}} value={docShare} onChange={e=>setDocShare(e.target.value)} placeholder="Powerbird" />
+        </div>
+        <button onClick={() => testConnection('doc')}
+          style={{ padding:'9px 16px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface-2)',
+            cursor:'pointer', fontFamily:'var(--font)', fontWeight:600, fontSize:'0.82rem', whiteSpace:'nowrap', marginBottom:0 }}>
+          🔌 Testen
+        </button>
+      </div>
+      <div style={{ marginBottom:8 }}>
+        <div style={lbl}>Dokumenten-Unterverzeichnis (optional)</div>
+        <input style={inp} value={docSubpath} onChange={e=>setDocSubpath(e.target.value)} placeholder="PB/DATA/Dokumente" />
+      </div>
+      {host && docShare && <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginBottom:6 }}>
+        Pfad: //{host}/{docShare}{docSubpath ? '/' + docSubpath : ''}
+      </div>}
+      {testDoc && <div style={{ fontSize:'0.82rem', padding:'6px 10px', borderRadius:6, background:'var(--surface-2)', marginBottom:8 }}>{testDoc}</div>}
+
+      <hr style={{ border:'none', borderTop:'1px solid var(--border)', margin:'20px 0' }} />
+
+      <button onClick={save} disabled={saving}
+        style={{ padding:'10px 24px', borderRadius:8, border:'none', cursor:'pointer', background:'var(--primary)',
+          color:'white', fontFamily:'var(--font)', fontWeight:700, fontSize:'0.9rem' }}>
+        {saving ? 'Speichert...' : '💾 Alle Einstellungen speichern'}
+      </button>
     </div>
   )
 }
-
 
 
 function SyncTab() {
@@ -706,7 +676,7 @@ function SyncTab() {
 export default function AdminPage() {
   return (
     <>
-      <div style={{ maxWidth:1400 }}>
+      <div style={{ maxWidth:'100%' }}>
         <h1 style={{ fontSize:'1.2rem', fontWeight:700, marginBottom:16 }}>Administration</h1>
         <div style={{ display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap' }}>
           <div style={{ width:180, flexShrink:0, background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', padding:8, boxShadow:'var(--shadow)' }}>

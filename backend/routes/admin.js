@@ -43,6 +43,24 @@ router.put('/settings', adminMiddleware, (req, res) => {
 });
 
 
+// POST /api/admin/smb-test - Verbindung testen ohne mounten
+router.post('/smb-test', adminMiddleware, async (req, res) => {
+  try {
+    const { server, user, password, domain } = req.body
+    const cleaned = (server || '').replace(/\\/g, '/').replace(/^\/+/, '')
+    const parts   = cleaned.split('/').filter(Boolean)
+    const host    = parts[0]; const share = parts[1] || ''
+    if (!host || !share) return res.json({ success: false, error: 'Host und Freigabe erforderlich' })
+    const SMB2 = require('@marsaud/smb2')
+    const smb2 = new SMB2({ share: '\\\\' + host + '\\' + share, domain: domain || 'WORKGROUP', username: user || '', password: password || '', autoCloseTimeout: 0 })
+    smb2.readdir('', (err, files) => {
+      try { smb2.close() } catch(e2) {}
+      if (err) return res.json({ success: false, error: err.message })
+      res.json({ success: true, files: Array.isArray(files) ? files.length : 0 })
+    })
+  } catch(e) { res.json({ success: false, error: e.message }) }
+})
+
 // POST /api/admin/smb-mount - Save settings and test connection
 router.post('/smb-mount', adminMiddleware, (req, res) => {
   const { server, user, password, domain } = req.body
