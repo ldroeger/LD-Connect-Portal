@@ -566,11 +566,11 @@ function SmbTab() {
     import('../utils/api.js').then(({ default: api }) => {
       // First save settings
       api.put('/admin/settings', form).then(() => {
-        // Dokument-SMB Settings speichern
-        await api.post('/admin/settings', { key: 'doc_smb_server', value: form.doc_smb_server }).catch(()=>{})
-        await api.post('/admin/settings', { key: 'doc_smb_user', value: form.doc_smb_user }).catch(()=>{})
-        await api.post('/admin/settings', { key: 'doc_smb_password', value: form.doc_smb_password }).catch(()=>{})
-        await api.post('/admin/settings', { key: 'doc_smb_domain', value: form.doc_smb_domain }).catch(()=>{})
+        // Dokument-SMB Settings speichern (synchron, kein await nötig)
+        api.post('/admin/settings', { key: 'doc_smb_server', value: form.doc_smb_server }).catch(()=>{})
+        api.post('/admin/settings', { key: 'doc_smb_user', value: form.doc_smb_user }).catch(()=>{})
+        api.post('/admin/settings', { key: 'doc_smb_password', value: form.doc_smb_password }).catch(()=>{})
+        api.post('/admin/settings', { key: 'doc_smb_domain', value: form.doc_smb_domain }).catch(()=>{})
         return api.post('/admin/smb-mount', { server: form.smb_server, user: form.smb_user, password: form.smb_password, domain: form.smb_domain })
       }).then(r => {
         setMsg(r.data.message || '✅ Erfolgreich gemountet')
