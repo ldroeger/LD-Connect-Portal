@@ -202,7 +202,7 @@ export default function HoursPage() {
   const [selectedMonth, setSelectedMonth] = useState(null)
 
   return (
-    <div style={{ maxWidth:1400 }}>
+    <div style={{ maxWidth:'100%' }}>
       <h1 style={{ fontSize:"1.3rem", fontWeight:700, marginBottom:4 }}>⏱ Stundenkonto</h1>
       <p style={{ color:"var(--text-3)", fontSize:"0.85rem", marginBottom:24 }}>
         {selectedMonth ? `${MONTHS[selectedMonth-1]} ${year} – Tagesdetails` : "Monatliche Auswertung aus Powerbird"}

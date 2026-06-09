@@ -54,7 +54,7 @@ export default function SickPage() {
 
 
   return (
-    <div style={{ maxWidth:800 }}>
+    <div style={{ maxWidth:'100%' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
         <div>
           <h1 style={{ fontSize:'1.3rem', fontWeight:800 }}>🤒 Krankmeldungen</h1>

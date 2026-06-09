@@ -66,7 +66,7 @@ export default function VacationPage() {
   }
 
   return (
-    <div style={{ maxWidth:1200 }}>
+    <div style={{ maxWidth:'100%' }}>
       <h1 style={{ fontSize:'1.2rem', fontWeight:700, marginBottom:4 }}>🌴 Urlaubsplanung</h1>
       
 
@@ -96,22 +96,7 @@ export default function VacationPage() {
           )}
 
           {/* Einträge aus Kalender */}
-          {stats.eintraege && stats.eintraege.length > 0 && (
-            <div style={card}>
-              <div style={{ fontWeight:700, fontSize:'0.95rem', marginBottom:12 }}>Urlaubseinträge in Powerbird {year}</div>
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                {stats.eintraege.map((e,i) => (
-                  <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', background:'var(--surface-2)', borderRadius:8, fontSize:'0.85rem' }}>
-                    <div>
-                      <span style={{ fontWeight:500 }}>{fmtDate(e.von)}</span>
-                      {e.bis && e.bis !== e.von && <span style={{ color:'var(--text-3)' }}> – {fmtDate(e.bis)}</span>}
-                    </div>
-                    <span style={{ fontSize:'0.78rem', color:'var(--text-3)' }}>{e.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
         </>
       )}
 
