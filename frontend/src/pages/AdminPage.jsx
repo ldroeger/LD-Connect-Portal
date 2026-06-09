@@ -534,9 +534,13 @@ function SmbTab() {
   const [msg, setMsg]         = React.useState('')
 
   React.useEffect(() => {
-    api.get('/admin/settings-all').then(r => {
-      const s = r.data || {}
-      setHost(s.smb_host || s.smb_server?.replace(/\/\/|\\\\/g,'').split(/[\/\\]/)[0] || '')
+    api.get('/admin/settings').then(r => {
+      const s = r.data.settings || {}
+      setHost(s.smb_host || '')
+      if (!s.smb_host && s.smb_server) {
+        const hp = s.smb_server.replace(/\\/g,'/').replace(/^\/+/,'').split('/').filter(Boolean)
+        setHost(hp[0] || '')
+      }
       setUser(s.smb_user || '')
       setPass(s.smb_password || '')
       setDomain(s.smb_domain || 'WORKGROUP')
@@ -557,17 +561,17 @@ function SmbTab() {
     try {
       const toolServer = host && toolShare ? '//' + host + '/' + toolShare : ''
       const docServer  = host && docShare  ? '//' + host + '/' + docShare + (docSubpath ? '/' + docSubpath : '') : ''
-      await Promise.all([
-        api.post('/admin/settings', { key:'smb_host',         value: host }),
-        api.post('/admin/settings', { key:'smb_user',         value: user }),
-        api.post('/admin/settings', { key:'smb_password',     value: pass }),
-        api.post('/admin/settings', { key:'smb_domain',       value: domain }),
-        api.post('/admin/settings', { key:'smb_server',       value: toolServer }),
-        api.post('/admin/settings', { key:'doc_smb_server',   value: docServer }),
-        api.post('/admin/settings', { key:'doc_smb_user',     value: user }),
-        api.post('/admin/settings', { key:'doc_smb_password', value: pass }),
-        api.post('/admin/settings', { key:'doc_smb_domain',   value: domain }),
-      ])
+      await api.put('/admin/settings', {
+        smb_host:         host,
+        smb_user:         user,
+        smb_password:     pass,
+        smb_domain:       domain,
+        smb_server:       toolServer,
+        doc_smb_server:   docServer,
+        doc_smb_user:     user,
+        doc_smb_password: pass,
+        doc_smb_domain:   domain,
+      })
       setMsg('✅ Gespeichert')
     } catch(e) { setMsg('❌ Fehler: ' + e.message) }
     setSaving(false)
