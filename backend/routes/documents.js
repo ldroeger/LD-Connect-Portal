@@ -87,11 +87,13 @@ router.get('/download/:id', requireAuth, async (req, res) => {
       })
     }
 
-    // Pfad parsen: //host/share oder \\host\share
+    // Pfad parsen: //host/share/sub/path oder \\host\share
     const cleaned = rawServer.replace(/\\/g, '/').replace(/^\/+/, '')
     const parts   = cleaned.split('/').filter(function(p) { return p.length > 0 })
     const host    = parts[0] || ''
     const share   = parts[1] || ''
+    // Alles nach host/share ist der Basis-Unterordner
+    const basePath = parts.slice(2).join('\\')
 
     if (!host || !share) {
       return res.status(500).json({ error: 'Ungueltiger SMB-Pfad: ' + rawServer })
@@ -108,9 +110,11 @@ router.get('/download/:id', requireAuth, async (req, res) => {
 
     // Adresse normalisieren: \\MITARBEITER\\LD\\datei.pdf -> MITARBEITER\LD\datei.pdf
     const rawPath  = doc.ELDVD_Adresse || ''
-    const filePath = rawPath.replace(/^[\\\/]+/, '').replace(/\\\\/g, '\\')
+    const relPath  = rawPath.replace(/^[\\\/]+/, '').replace(/\\\\/g, '\\')
+    // Basispfad voranstellen falls konfiguriert
+    const filePath = basePath ? basePath + '\\' + relPath : relPath
 
-    console.log('SMB download:', host, share, '->', filePath)
+    console.log('SMB download:', host, share, 'base:', basePath, '->', filePath)
 
     smb2.readFile(filePath, function(err, data) {
       // Verbindung sicher schließen - nur wenn smb2 initialisiert
