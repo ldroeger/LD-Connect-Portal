@@ -3,7 +3,6 @@ const router   = express.Router()
 const { authMiddleware } = require('../middleware/auth')
 const pbDb     = require('../db/powerbirdDb')
 const localDb  = require('../db/localDb')
-const path     = require('path')
 
 const requireAuth = authMiddleware
 
@@ -31,7 +30,7 @@ router.get('/', requireAuth, async (req, res) => {
         JOIN ELDVV v ON d.ELDVD_LaufendeNr = v.ELDVD_LaufendeNr
         WHERE v.ELDVV_TargetKey = @kuerzel
           AND v.ELDVV_ObjektTyp = 3
-          AND (d.ELDVD_LoeschDatum IS NULL)
+          AND d.ELDVD_LoeschDatum IS NULL
           AND v.ELDVV_IsDeactivated = 0
         ORDER BY d.ELDVD_AnlageDatum DESC
       `)
@@ -47,7 +46,7 @@ router.get('/', requireAuth, async (req, res) => {
 router.get('/download/:id', requireAuth, async (req, res) => {
   try {
     const kuerzel = req.user.powerbird_id
-    if (!kuerzel) return res.status(403).json({ error: 'Kein Powerbird-Kürzel' })
+    if (!kuerzel) return res.status(403).json({ error: 'Kein Powerbird-Kuerzel' })
 
     const pool = await pbDb.getPool()
     const result = await pool.request()
@@ -67,35 +66,35 @@ router.get('/download/:id', requireAuth, async (req, res) => {
 
     const doc = result.recordset[0]
 
-    // SMB-Pfad aus Settings + Adresse zusammenbauen
-    const smbConfig = localDb.db.prepare(
-      "SELECT * FROM smb_configs WHERE id=1"
-    ).get()
-
+    // SMB-Config aus Datenbank
+    const smbConfig = localDb.db.prepare('SELECT * FROM smb_configs WHERE id=1').get()
     if (!smbConfig) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
 
-    // SMB2 Client verwenden
     const SMB2 = require('smb2')
+
+    // Share-Pfad: \\host\share
+    const shareStr = '\\\\' + smbConfig.host + '\\' + smbConfig.share
+
     const smb2 = new SMB2({
-      share:    '\\' + smbConfig.host + '\' + smbConfig.share,
+      share:    shareStr,
       domain:   smbConfig.domain || '',
       username: smbConfig.username,
       password: smbConfig.password,
     })
 
-    // Pfad normalisieren: \MITARBEITER\LD\datei.pdf -> MITARBEITER\LD\datei.pdf
-    const filePath = doc.ELDVD_Adresse.replace(/^\\/,'').replace(/\\/g,'\\')
+    // Adresse aus DB: \\MITARBEITER\\LD\\datei.pdf
+    // Fuehrende Backslashes entfernen, dann als relativen Pfad nutzen
+    const filePath = doc.ELDVD_Adresse.replace(/^\\+/, '')
 
-    smb2.readFile(filePath, (err, data) => {
+    smb2.readFile(filePath, function(err, data) {
       smb2.close()
       if (err) {
         console.error('SMB read error:', err.message)
         return res.status(500).json({ error: 'Datei konnte nicht gelesen werden: ' + err.message })
       }
       const mime = doc.ELDVD_MimeType || 'application/octet-stream'
-      const filename = encodeURIComponent(doc.ELDVD_DateinameUser || 'dokument')
       res.setHeader('Content-Type', mime)
-      res.setHeader('Content-Disposition', 'attachment; filename="' + doc.ELDVD_DateinameUser + '"')
+      res.setHeader('Content-Disposition', 'attachment; filename="' + (doc.ELDVD_DateinameUser || 'dokument') + '"')
       res.send(data)
     })
   } catch(e) {
