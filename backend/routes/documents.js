@@ -80,11 +80,10 @@ router.get('/download/:id', requireAuth, async (req, res) => {
 
     const doc = result.recordset[0]
 
-    // Dokument-SMB Config - eigene Settings, Fallback auf allgemeine SMB
     const rawServer = localDb.getSetting('doc_smb_server') || ''
     if (!rawServer) {
-      return res.status(500).json({ 
-        error: 'Dokument-Server nicht konfiguriert. Bitte unter Admin > Einstellungen den Dokument-Server eintragen.' 
+      return res.status(500).json({
+        error: 'Dokument-Server nicht konfiguriert. Bitte unter Admin > Netzlaufwerk den Dokument-Server eintragen.'
       })
     }
 
@@ -104,20 +103,27 @@ router.get('/download/:id', requireAuth, async (req, res) => {
       domain:   localDb.getSetting('doc_smb_domain') || localDb.getSetting('smb_domain') || 'WORKGROUP',
       username: localDb.getSetting('doc_smb_user') || localDb.getSetting('smb_user') || '',
       password: localDb.getSetting('doc_smb_password') || localDb.getSetting('smb_password') || '',
+      autoCloseTimeout: 0,
     })
 
-    // Pfad: \\MITARBEITER\\LD\\datei.pdf -> MITARBEITER\LD\datei.pdf
-    const filePath = doc.ELDVD_Adresse.replace(/^\\+/, '').replace(/\\\\/g, '\\')
+    // Adresse normalisieren: \\MITARBEITER\\LD\\datei.pdf -> MITARBEITER\LD\datei.pdf
+    const rawPath  = doc.ELDVD_Adresse || ''
+    const filePath = rawPath.replace(/^[\\\/]+/, '').replace(/\\\\/g, '\\')
+
+    console.log('SMB download:', host, share, '->', filePath)
 
     smb2.readFile(filePath, function(err, data) {
-      smb2.close()
+      // Verbindung sicher schließen - nur wenn smb2 initialisiert
+      try { smb2.close() } catch(closeErr) { /* ignore */ }
+
       if (err) {
         console.error('SMB read error:', err.message, 'path:', filePath)
         return res.status(500).json({ error: 'Datei nicht lesbar: ' + err.message })
       }
       const mime = doc.ELDVD_MimeType || 'application/octet-stream'
+      const filename = doc.ELDVD_DateinameUser || 'dokument'
       res.setHeader('Content-Type', mime)
-      res.setHeader('Content-Disposition', 'attachment; filename="' + (doc.ELDVD_DateinameUser || 'dokument') + '"')
+      res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
       res.send(data)
     })
   } catch(e) {
