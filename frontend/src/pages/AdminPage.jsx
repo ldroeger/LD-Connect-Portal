@@ -648,6 +648,50 @@ function SmbTab() {
           <strong>Hinweis:</strong> Der Server benötigt das Paket <code>cifs-utils</code>:<br/>
           <code style={{ background:'var(--surface)', padding:'3px 7px', borderRadius:4 }}>apt-get install -y cifs-utils</code>
         </div>
+
+        <hr style={{ border:'none', borderTop:'1px solid var(--border)', margin:'8px 0' }} />
+        <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:4, marginTop:8 }}>📁 Dokument-Server (SMB)</div>
+        <p style={{ color:'var(--text-3)', fontSize:'0.82rem', marginBottom:16 }}>
+          Zugangsdaten für Mitarbeiter-Dokumente aus Powerbird (ELDVD/ELDVV Tabellen)
+        </p>
+        <div>
+          <label style={lbl}>Server-Pfad (UNC)</label>
+          <input style={inp} value={form.doc_smb_server}
+            onChange={e => setForm(f=>({...f, doc_smb_server: e.target.value}))}
+            placeholder="//192.168.13.20/Powerbird" />
+          <div style={{ fontSize:'0.72rem', color:'var(--text-3)', marginTop:3 }}>Pfad zum Powerbird-Dokumentenverzeichnis</div>
+        </div>
+        <div>
+          <label style={lbl}>Benutzer</label>
+          <input style={inp} value={form.doc_smb_user}
+            onChange={e => setForm(f=>({...f, doc_smb_user: e.target.value}))}
+            placeholder="Administrator" />
+        </div>
+        <div>
+          <label style={lbl}>Passwort</label>
+          <input style={inp} type="password" value={form.doc_smb_password}
+            onChange={e => setForm(f=>({...f, doc_smb_password: e.target.value}))}
+            placeholder="••••••••" />
+        </div>
+        <div>
+          <label style={lbl}>Domain</label>
+          <input style={inp} value={form.doc_smb_domain}
+            onChange={e => setForm(f=>({...f, doc_smb_domain: e.target.value}))}
+            placeholder="WORKGROUP" />
+        </div>
+        <button onClick={() => {
+          import('../utils/api.js').then(({ default: api }) => {
+            Promise.all([
+              api.post('/admin/settings', { key: 'doc_smb_server',   value: form.doc_smb_server }),
+              api.post('/admin/settings', { key: 'doc_smb_user',     value: form.doc_smb_user }),
+              api.post('/admin/settings', { key: 'doc_smb_password', value: form.doc_smb_password }),
+              api.post('/admin/settings', { key: 'doc_smb_domain',   value: form.doc_smb_domain }),
+            ]).then(() => setMsg('✅ Dokument-Server gespeichert')).catch(() => setMsg('❌ Fehler beim Speichern'))
+          })
+        }} style={{ padding:'9px 18px', background:'var(--success)', color:'#fff', border:'none',
+          borderRadius:8, cursor:'pointer', fontWeight:600, marginTop:4 }}>
+          💾 Dokument-Server speichern
+        </button>
       </div>
     </div>
   )
