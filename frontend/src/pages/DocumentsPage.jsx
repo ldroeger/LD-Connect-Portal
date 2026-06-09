@@ -1,19 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import api from '../utils/api.js'
 
-// ── Kategorienamen ────────────────────────────────────────────────────────
-const CATEGORY_NAMES = {
-  'DOKU': 'Dokumente', 'doku': 'Dokumente',
-  'UASM': 'Unterschriebene Dokumente', '_uasm': 'Unterschriebene Dokumente',
-  'DRHST': 'Druckhistorie', 'drhst': 'Druckhistorie',
-  'LOHNAB': 'Lohnabrechnung', 'lohnab': 'Lohnabrechnung',
-  'VERTRAG': 'Verträge', 'vertrag': 'Verträge',
-  'ZEUGNIS': 'Zeugnisse', 'zeugnis': 'Zeugnisse',
-  'KRANKMELD': 'Krankmeldungen',
-  'URLAUB': 'Urlaubsanträge',
-  'SONSTIGES': 'Sonstiges',
-}
-const catName = (k) => CATEGORY_NAMES[k] || CATEGORY_NAMES[(k||'').toUpperCase()] || k || 'Allgemein'
+// Kategorienamen werden dynamisch vom Backend geladen (aus Powerbird ELDVK)
+const catName = (k, categories) => categories[k] || categories[(k||'').toUpperCase()] || k || 'Allgemein'
 
 // ── Datei-Icons ───────────────────────────────────────────────────────────
 const FILE_ICONS = {
@@ -150,6 +139,7 @@ function PreviewModal({ doc, onClose }) {
 // ── Hauptseite ────────────────────────────────────────────────────────────
 export default function DocumentsPage() {
   const [docs, setDocs]           = useState([])
+  const [categories, setCategories] = useState({})
   const [loading, setLoading]     = useState(true)
   const [search, setSearch]       = useState('')
   const [downloading, setDownloading] = useState(null)
@@ -161,6 +151,7 @@ export default function DocumentsPage() {
     api.get('/documents').then(r => {
       const d = r.data.documents || []
       setDocs(d)
+      setCategories(r.data.categories || {})
       // Alle Kategorien standardmäßig aufklappen
       const cats = {}
       d.forEach(doc => { cats[doc.kategorie || ''] = true })
@@ -234,7 +225,7 @@ export default function DocumentsPage() {
           </div>
         </div>
       ) : (
-        Object.entries(grouped).sort(([a],[b]) => catName(a).localeCompare(catName(b))).map(([cat, years]) => (
+        Object.entries(grouped).sort(([a],[b]) => catName(a, categories).localeCompare(catName(b, categories))).map(([cat, years]) => (
           <div key={cat} style={{ marginBottom:16 }}>
 
             {/* Kategorie-Header */}
@@ -242,7 +233,7 @@ export default function DocumentsPage() {
               alignItems:'center', padding:'10px 16px', borderRadius:openCats[cat] ? '10px 10px 0 0' : 10,
               background:'var(--primary)', color:'white', cursor:'pointer', userSelect:'none' }}>
               <span style={{ fontWeight:700 }}>
-                {catName(cat)}
+                {catName(cat, categories)}
                 <span style={{ fontWeight:400, fontSize:'0.8rem', marginLeft:8, opacity:0.8 }}>
                   ({Object.values(years).flatMap(m => Object.values(m)).flat().length} Dokumente)
                 </span>
