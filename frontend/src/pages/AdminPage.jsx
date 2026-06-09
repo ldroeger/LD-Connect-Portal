@@ -521,7 +521,7 @@ function TermineTab() {
 }
 
 function SmbTab() {
-  const [form, setForm] = React.useState({ smb_user: '', smb_password: '', smb_mount: '/mnt/smb', smb_server: '', smb_domain: 'WORKGROUP' })
+  const [form, setForm] = React.useState({ smb_user: '', smb_password: '', smb_mount: '/mnt/smb', smb_server: '', smb_domain: 'WORKGROUP', doc_smb_server: '', doc_smb_user: '', doc_smb_password: '', doc_smb_domain: 'WORKGROUP' })
   const [saving, setSaving] = React.useState(false)
   const [mounting, setMounting] = React.useState(false)
   const [status, setStatus] = React.useState(null)
@@ -538,6 +538,10 @@ function SmbTab() {
           smb_mount: s.smb_mount || '/mnt/smb',
           smb_server: s.smb_server || '',
           smb_domain: s.smb_domain || 'WORKGROUP',
+          doc_smb_server: s.doc_smb_server || '',
+          doc_smb_user: s.doc_smb_user || '',
+          doc_smb_password: s.doc_smb_password || '',
+          doc_smb_domain: s.doc_smb_domain || 'WORKGROUP',
         }))
       }).catch(() => {})
       api.get('/admin/smb-status').then(r => setStatus(r.data)).catch(() => {})
@@ -562,6 +566,11 @@ function SmbTab() {
     import('../utils/api.js').then(({ default: api }) => {
       // First save settings
       api.put('/admin/settings', form).then(() => {
+        // Dokument-SMB Settings speichern
+        await api.post('/admin/settings', { key: 'doc_smb_server', value: form.doc_smb_server }).catch(()=>{})
+        await api.post('/admin/settings', { key: 'doc_smb_user', value: form.doc_smb_user }).catch(()=>{})
+        await api.post('/admin/settings', { key: 'doc_smb_password', value: form.doc_smb_password }).catch(()=>{})
+        await api.post('/admin/settings', { key: 'doc_smb_domain', value: form.doc_smb_domain }).catch(()=>{})
         return api.post('/admin/smb-mount', { server: form.smb_server, user: form.smb_user, password: form.smb_password, domain: form.smb_domain })
       }).then(r => {
         setMsg(r.data.message || '✅ Erfolgreich gemountet')
@@ -645,10 +654,14 @@ function SmbTab() {
 }
 
 
+
+function SyncTab() {
+  return <SyncSettingsCard />
+}
+
 export default function AdminPage() {
   return (
     <>
-      <SyncSettingsCard />
       <div style={{ maxWidth:900 }}>
         <h1 style={{ fontSize:'1.2rem', fontWeight:700, marginBottom:16 }}>Administration</h1>
         <div style={{ display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap' }}>
@@ -658,6 +671,7 @@ export default function AdminPage() {
             <NavLink to="/admin/settings" style={({isActive})=>navLinkStyle(isActive)}>🔧 Verbindung & SMTP</NavLink>
             <NavLink to="/admin/termine" style={({isActive})=>navLinkStyle(isActive)}>📅 Termine</NavLink>
             <NavLink to="/admin/smb" style={({isActive})=>navLinkStyle(isActive)}>📁 Netzlaufwerk</NavLink>
+            <NavLink to="/admin/sync" style={({isActive})=>navLinkStyle(isActive)}>🔄 Powerbird Sync</NavLink>
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <Routes>
@@ -666,6 +680,7 @@ export default function AdminPage() {
               <Route path="settings" element={<SettingsAdmin />} />
               <Route path="termine" element={<TermineTab />} />
               <Route path="smb" element={<SmbTab />} />
+              <Route path="sync" element={<SyncTab />} />
             </Routes>
           </div>
         </div>
