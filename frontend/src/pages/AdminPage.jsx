@@ -706,7 +706,7 @@ function SyncTab() {
 export default function AdminPage() {
   return (
     <>
-      <div style={{ maxWidth:900 }}>
+      <div style={{ maxWidth:1400 }}>
         <h1 style={{ fontSize:'1.2rem', fontWeight:700, marginBottom:16 }}>Administration</h1>
         <div style={{ display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap' }}>
           <div style={{ width:180, flexShrink:0, background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', padding:8, boxShadow:'var(--shadow)' }}>

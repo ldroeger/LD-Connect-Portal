@@ -117,7 +117,7 @@ export default function ToolDetailPopup({ tool, onClose }) {
 
   return (
     <div style={{ position:'fixed', inset:0, padding:16, zIndex:1000, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={onClose}>
-      <div style={{ background:'var(--surface)', borderRadius:20, width:'100%', maxWidth:520, maxHeight:'90vh', overflowY:'auto', boxShadow:'0 24px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+      <div style={{ background:'var(--surface)', borderRadius:20, width:'100%', maxWidth:900, maxHeight:'90vh', overflowY:'auto', boxShadow:'0 24px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid var(--border)' }}>
           <h3 style={{ margin:0, fontSize:'1rem', color:'var(--text)' }}>Werkzeug-Details</h3>

@@ -150,7 +150,7 @@ export default function Layout() {
           </div>
           </div>
         </header>
-        <div style={{ flex:1, overflow:'auto', padding:20 }}>
+        <div style={{ flex:1, overflow:'auto', padding:'20px 28px' }}>
           <Outlet />
         </div>
       </main>

@@ -180,7 +180,7 @@ function MitarbeiterTab() {
 // ── Haupt-Komponente ──────────────────────────────────────────────────────
 export default function ManagerDashboard() {
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ maxWidth: 1800 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: '1.3rem', fontWeight: 800 }}>📊 Geschäftsführer-Dashboard</h1>
       </div>

@@ -77,7 +77,7 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? '🌅 Guten Morgen' : hour < 18 ? '☀️ Guten Tag' : '🌙 Guten Abend'
 
   return (
-    <div style={{ maxWidth:1400 }}>
+    <div style={{ maxWidth:1800 }}>
       <div style={{ marginBottom:24 }}>
         <h1 style={{ fontSize:'1.4rem', fontWeight:800 }}>
           {greeting}, {user?.name?.split(' ')[0]}!
