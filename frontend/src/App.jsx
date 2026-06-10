@@ -53,7 +53,7 @@ function AppRoutes() {
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/calendar" element={<FeatureGate feature="calendar"><CalendarPage /></FeatureGate>} />
-          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/documents" element={<FeatureGate feature="documents"><DocumentsPage /></FeatureGate>} />
           <Route path="/sick" element={<FeatureGate feature="sick"><SickPage /></FeatureGate>} />
           {features.vacation && <Route path="/vacation" element={<FeatureGate feature="vacation"><VacationPage /></FeatureGate>} />}
           {features.hours    && <Route path="/hours" element={<FeatureGate feature="hours"><HoursPage /></FeatureGate>} />}

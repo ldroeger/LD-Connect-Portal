@@ -3,64 +3,56 @@ const router   = express.Router()
 const { authMiddleware } = require('../middleware/auth')
 const pbDb     = require('../db/powerbirdDb')
 const localDb  = require('../db/localDb')
+const path     = require('path')
 
 const requireAuth = authMiddleware
 
+// GET /api/documents - eigene Dokumente abrufen
 router.get('/', requireAuth, async (req, res) => {
   try {
+    // Feature-Check
+    if (req.user.features && req.user.features.documents === false)
+      return res.status(403).json({ error: 'Funktion nicht freigeschaltet' })
     const kuerzel = req.user.powerbird_id
-    if (!kuerzel) return res.json({ documents: [], categories: {} })
+    if (!kuerzel) return res.json({ documents: [] })
 
     const pool = await pbDb.getPool()
-
     const result = await pool.request()
       .input('kuerzel', kuerzel)
       .query(`
         SELECT
-          d.ELDVD_LaufendeNr    AS id,
-          d.ELDVD_Adresse       AS adresse,
+          d.ELDVD_LaufendeNr   AS id,
+          d.ELDVD_Adresse      AS adresse,
           d.ELDVD_DateinameUser AS dateiname,
-          d.ELDVD_MimeType      AS mimeType,
-          d.ELDVD_FileSize      AS fileSize,
-          d.ELDVD_Beschreibung  AS beschreibung,
-          d.ELDVK_Kennzeichen   AS kategorieKey,
+          d.ELDVD_MimeType     AS mimeType,
+          d.ELDVD_FileSize     AS fileSize,
+          d.ELDVD_Beschreibung AS beschreibung,
+          d.ELDVK_Kennzeichen  AS kategorie,
           d.ELDVD_DokumentDatum AS datum,
-          d.ELDVD_AnlageDatum   AS angelegt
+          d.ELDVD_AnlageDatum  AS angelegt
         FROM ELDVD d
         JOIN ELDVV v ON d.ELDVD_LaufendeNr = v.ELDVD_LaufendeNr
         WHERE v.ELDVV_TargetKey = @kuerzel
           AND v.ELDVV_ObjektTyp = 3
-          AND d.ELDVD_LoeschDatum IS NULL
+          AND (d.ELDVD_LoeschDatum IS NULL)
           AND v.ELDVV_IsDeactivated = 0
         ORDER BY d.ELDVD_AnlageDatum DESC
       `)
 
-    let categories = {}
-    try {
-      const catResult = await pool.request().query(
-        "SELECT DVK_Kennzeichen, DVK_Bezeichnung FROM ELDVK WHERE DVK_Kennzeichen IS NOT NULL"
-      )
-      catResult.recordset.forEach(function(r) {
-        if (r.DVK_Kennzeichen) {
-          categories[r.DVK_Kennzeichen] = r.DVK_Bezeichnung
-          categories[r.DVK_Kennzeichen.toUpperCase()] = r.DVK_Bezeichnung
-        }
-      })
-    } catch(e) {
-      console.log('ELDVK Fehler:', e.message)
-    }
-
-    res.json({ documents: result.recordset, categories: categories })
+    res.json({ documents: result.recordset })
   } catch(e) {
     console.error('documents GET error:', e.message)
     res.status(500).json({ error: e.message })
   }
 })
 
+// GET /api/documents/download/:id - Datei via SMB herunterladen
 router.get('/download/:id', requireAuth, async (req, res) => {
   try {
+    if (req.user.features && req.user.features.documents === false)
+      return res.status(403).json({ error: 'Funktion nicht freigeschaltet' })
     const kuerzel = req.user.powerbird_id
-    if (!kuerzel) return res.status(403).json({ error: 'Kein Powerbird-Kuerzel' })
+    if (!kuerzel) return res.status(403).json({ error: 'Kein Powerbird-Kürzel' })
 
     const pool = await pbDb.getPool()
     const result = await pool.request()
@@ -80,54 +72,35 @@ router.get('/download/:id', requireAuth, async (req, res) => {
 
     const doc = result.recordset[0]
 
-    const rawServer = localDb.getSetting('doc_smb_server') || ''
-    if (!rawServer) {
-      return res.status(500).json({
-        error: 'Dokument-Server nicht konfiguriert. Bitte unter Admin > Netzlaufwerk den Dokument-Server eintragen.'
-      })
-    }
+    // SMB-Pfad aus Settings + Adresse zusammenbauen
+    const smbConfig = localDb.db.prepare(
+      "SELECT * FROM smb_configs WHERE id=1"
+    ).get()
 
-    // Pfad parsen: //host/share/sub/path oder \\host\share
-    const cleaned = rawServer.replace(/\\/g, '/').replace(/^\/+/, '')
-    const parts   = cleaned.split('/').filter(function(p) { return p.length > 0 })
-    const host    = parts[0] || ''
-    const share   = parts[1] || ''
-    // Alles nach host/share ist der Basis-Unterordner
-    const basePath = parts.slice(2).join('\\')
+    if (!smbConfig) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
 
-    if (!host || !share) {
-      return res.status(500).json({ error: 'Ungueltiger SMB-Pfad: ' + rawServer })
-    }
-
-    const SMB2 = require('@marsaud/smb2')
+    // SMB2 Client verwenden
+    const SMB2 = require('smb2')
     const smb2 = new SMB2({
-      share:    '\\\\' + host + '\\' + share,
-      domain:   localDb.getSetting('doc_smb_domain') || localDb.getSetting('smb_domain') || 'WORKGROUP',
-      username: localDb.getSetting('doc_smb_user') || localDb.getSetting('smb_user') || '',
-      password: localDb.getSetting('doc_smb_password') || localDb.getSetting('smb_password') || '',
-      autoCloseTimeout: 0,
+      share:    '\\' + smbConfig.host + '\' + smbConfig.share,
+      domain:   smbConfig.domain || '',
+      username: smbConfig.username,
+      password: smbConfig.password,
     })
 
-    // Adresse normalisieren: \\MITARBEITER\\LD\\datei.pdf -> MITARBEITER\LD\datei.pdf
-    const rawPath  = doc.ELDVD_Adresse || ''
-    const relPath  = rawPath.replace(/^[\\\/]+/, '').replace(/\\\\/g, '\\')
-    // Basispfad voranstellen falls konfiguriert
-    const filePath = basePath ? basePath + '\\' + relPath : relPath
+    // Pfad normalisieren: \MITARBEITER\LD\datei.pdf -> MITARBEITER\LD\datei.pdf
+    const filePath = doc.ELDVD_Adresse.replace(/^\\/,'').replace(/\\/g,'\\')
 
-    console.log('SMB download:', host, share, 'base:', basePath, '->', filePath)
-
-    smb2.readFile(filePath, function(err, data) {
-      // Verbindung sicher schließen - nur wenn smb2 initialisiert
-      try { smb2.close() } catch(closeErr) { /* ignore */ }
-
+    smb2.readFile(filePath, (err, data) => {
+      smb2.close()
       if (err) {
-        console.error('SMB read error:', err.message, 'path:', filePath)
-        return res.status(500).json({ error: 'Datei nicht lesbar: ' + err.message })
+        console.error('SMB read error:', err.message)
+        return res.status(500).json({ error: 'Datei konnte nicht gelesen werden: ' + err.message })
       }
       const mime = doc.ELDVD_MimeType || 'application/octet-stream'
-      const filename = doc.ELDVD_DateinameUser || 'dokument'
+      const filename = encodeURIComponent(doc.ELDVD_DateinameUser || 'dokument')
       res.setHeader('Content-Type', mime)
-      res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"')
+      res.setHeader('Content-Disposition', 'attachment; filename="' + doc.ELDVD_DateinameUser + '"')
       res.send(data)
     })
   } catch(e) {

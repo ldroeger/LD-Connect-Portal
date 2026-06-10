@@ -21,6 +21,8 @@ function userPublic(u) {
       tools_search:   u.feature_tools_search !== 0,
       show_verleih:   u.feature_show_verleih !== 0,
       werkzeuge:    u.feature_werkzeuge !== 0,
+      sick:         u.feature_sick       !== 0,
+      documents:    u.feature_documents  !== 0,
     }
   };
 }
