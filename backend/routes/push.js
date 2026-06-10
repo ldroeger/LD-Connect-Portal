@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const localDb = require('../db/localDb');
 
 // Store push tokens
@@ -101,7 +101,6 @@ try { localDb.db.exec('ALTER TABLE push_tokens ADD COLUMN last_seen INTEGER DEFA
 module.exports = { router, sendPush, getTokensForUser, getApproverTokens, getAllUserTokens, getTokensForFeature };
 
 // Debug: list registered tokens (admin only)
-const { adminMiddleware } = require('../middleware/auth');
 router.get('/tokens', adminMiddleware, (_req, res) => {
   const tokens = localDb.db.prepare(
     `SELECT pt.id, pt.token, pt.platform, u.name, u.email, pt.created_at
