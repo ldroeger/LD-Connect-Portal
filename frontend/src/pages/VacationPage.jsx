@@ -100,6 +100,22 @@ export default function VacationPage() {
         </>
       )}
 
+      {/* Hinweis Sonderurlaub */}
+      <div style={{ background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:12,
+        padding:'14px 18px', marginBottom:16, display:'flex', gap:12, alignItems:'flex-start' }}>
+        <span style={{ fontSize:'1.4rem', flexShrink:0 }}>⚠️</span>
+        <div>
+          <div style={{ fontWeight:700, fontSize:'0.9rem', color:'#92400E', marginBottom:4 }}>
+            Hinweis zu Sonderurlaub
+          </div>
+          <div style={{ fontSize:'0.84rem', color:'#92400E', lineHeight:1.6 }}>
+            Sonderurlaub (z.B. Hochzeit, Geburt, Todesfall) muss <strong>immer persönlich
+            abgestimmt</strong> und <strong>handschriftlich beantragt</strong> werden.
+            Bitte stellen Sie Sonderurlaub <strong>nicht</strong> über dieses Portal ein.
+          </div>
+        </div>
+      </div>
+
       {/* Antrag stellen */}
       <div style={card}>
         <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:14 }}>Neuen Urlaubsantrag stellen</div>

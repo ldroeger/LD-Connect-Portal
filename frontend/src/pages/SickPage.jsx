@@ -69,6 +69,21 @@ export default function SickPage() {
         </button>
       </div>
 
+      {/* Hinweis telefonische Meldung */}
+      <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:12,
+        padding:'14px 18px', marginBottom:16, display:'flex', gap:12, alignItems:'flex-start' }}>
+        <span style={{ fontSize:'1.4rem', flexShrink:0 }}>📞</span>
+        <div>
+          <div style={{ fontWeight:700, fontSize:'0.9rem', color:'#991B1B', marginBottom:4 }}>
+            Wichtiger Hinweis
+          </div>
+          <div style={{ fontSize:'0.84rem', color:'#991B1B', lineHeight:1.6 }}>
+            Bitte melden Sie sich <strong>vor jeder Krankmeldung telefonisch im Büro</strong>.
+            Die Eintragung hier ersetzt <strong>nicht</strong> die persönliche Krankmeldung.
+          </div>
+        </div>
+      </div>
+
       {/* Formular */}
       {showForm && (
         <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)',
