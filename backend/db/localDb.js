@@ -79,6 +79,9 @@ function initialize() {
     `ALTER TABLE users ADD COLUMN feature_tools INTEGER DEFAULT 1`,
     `ALTER TABLE users ADD COLUMN feature_tools_search INTEGER DEFAULT 1`,
     `ALTER TABLE users ADD COLUMN feature_show_verleih INTEGER DEFAULT 1`,
+    `ALTER TABLE users ADD COLUMN feature_sick INTEGER DEFAULT 1`,
+    `ALTER TABLE users ADD COLUMN feature_documents INTEGER DEFAULT 1`,
+    `ALTER TABLE vacation_requests ADD COLUMN note TEXT`,
   ];
   migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 

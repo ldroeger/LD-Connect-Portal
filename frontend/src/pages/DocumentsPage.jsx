@@ -55,6 +55,89 @@ function PreviewModal({ doc, onClose }) {
   )
 }
 
+
+function GridFolderView({ grouped, catName, openCats, toggleCat, openYears, toggleYear, onPreview, onDownload, downloading }) {
+  const [openMonths, setOpenMonths] = React.useState({})
+  const toggleMonth = (k) => setOpenMonths(p => ({ ...p, [k]: !p[k] }))
+
+  return (
+    <div>
+      {Object.entries(grouped).sort(([a],[b]) => catName(a).localeCompare(catName(b))).map(([cat, years]) => {
+        const totalDocs = Object.values(years).flatMap(m => Object.values(m)).flat().length
+        return (
+          <div key={cat} style={{ marginBottom:16 }}>
+            {/* Kategorie-Ordner */}
+            <div onClick={() => toggleCat(cat)}
+              style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
+                background:'var(--surface)', border:'1px solid var(--border)', borderRadius: openCats[cat] ? '10px 10px 0 0' : 10,
+                cursor:'pointer', userSelect:'none', boxShadow:'var(--shadow)' }}>
+              <span style={{ fontSize:'1.4rem' }}>{openCats[cat] ? '📂' : '📁'}</span>
+              <span style={{ fontWeight:700, flex:1 }}>{catName(cat)}</span>
+              <span style={{ fontSize:'0.78rem', color:'var(--text-3)', background:'var(--surface-2)',
+                padding:'2px 8px', borderRadius:20, border:'1px solid var(--border)' }}>{totalDocs}</span>
+              <span style={{ color:'var(--text-3)', fontSize:'0.8rem' }}>{openCats[cat] ? '▲' : '▼'}</span>
+            </div>
+
+            {openCats[cat] && (
+              <div style={{ border:'1px solid var(--border)', borderTop:'none', borderRadius:'0 0 10px 10px',
+                background:'var(--surface-2)', padding:'12px 12px 4px' }}>
+                {Object.entries(years).sort(([a],[b]) => parseInt(b)-parseInt(a)).map(([year, months]) => {
+                  const yearKey = cat+'_'+year
+                  const yearDocs = Object.values(months).flat()
+                  return (
+                    <div key={year} style={{ marginBottom:8 }}>
+                      {/* Jahr-Ordner */}
+                      <div onClick={() => toggleYear(yearKey)}
+                        style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px',
+                          background:'var(--surface)', borderRadius: openYears[yearKey] ? '8px 8px 0 0' : 8,
+                          border:'1px solid var(--border)', cursor:'pointer', userSelect:'none' }}>
+                        <span style={{ fontSize:'1.1rem' }}>{openYears[yearKey] ? '📂' : '📁'}</span>
+                        <span style={{ fontWeight:600, fontSize:'0.88rem', flex:1 }}>📅 {year}</span>
+                        <span style={{ fontSize:'0.75rem', color:'var(--text-3)' }}>({yearDocs.length})</span>
+                        <span style={{ color:'var(--text-3)', fontSize:'0.75rem' }}>{openYears[yearKey] ? '▲' : '▼'}</span>
+                      </div>
+
+                      {openYears[yearKey] && (
+                        <div style={{ border:'1px solid var(--border)', borderTop:'none',
+                          borderRadius:'0 0 8px 8px', background:'var(--surface)', padding:'8px 8px 4px' }}>
+                          {Object.entries(months).sort(([a],[b]) => MONTHS.indexOf(b)-MONTHS.indexOf(a)).map(([month, mdocs]) => {
+                            const monthKey = cat+'_'+year+'_'+month
+                            return (
+                              <div key={month} style={{ marginBottom:6 }}>
+                                {/* Monat-Label */}
+                                <div onClick={() => toggleMonth(monthKey)}
+                                  style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 8px',
+                                    cursor:'pointer', borderRadius:6, userSelect:'none',
+                                    background: openMonths[monthKey] !== false ? 'transparent' : 'var(--surface-2)' }}>
+                                  <span style={{ fontSize:'0.85rem' }}>{openMonths[monthKey] === false ? '📁' : '📂'}</span>
+                                  <span style={{ fontSize:'0.78rem', fontWeight:600, color:'var(--text-2)', flex:1 }}>{month}</span>
+                                  <span style={{ fontSize:'0.72rem', color:'var(--text-3)' }}>({mdocs.length})</span>
+                                </div>
+                                {openMonths[monthKey] !== false && (
+                                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:8, padding:'6px 4px 4px' }}>
+                                    {mdocs.map(doc => (
+                                      <GridTile key={doc.id} doc={doc} onPreview={onPreview}
+                                        onDownload={onDownload} downloading={downloading} catName={() => month} />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function GridTile({ doc, onPreview, onDownload, downloading, catName }) {
   return (
     <div onClick={() => canPreview(doc.mimeType) ? onPreview(doc) : onDownload(doc)}
@@ -90,7 +173,7 @@ export default function DocumentsPage() {
   const [categories, setCategories] = useState({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState('')
-  const [view, setView]       = useState('list')
+  const [view, setView]       = useState('grid')
   const [downloading, setDownloading] = useState(null)
   const [preview, setPreview] = useState(null)
   const [openCats, setOpenCats]   = useState({})
@@ -177,12 +260,12 @@ export default function DocumentsPage() {
           <div style={{ fontWeight:600 }}>Keine Dokumente vorhanden</div>
         </div>
       ) : view === 'grid' ? (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px,1fr))', gap:16 }}>
-          {filtered.map(doc => (
-            <GridTile key={doc.id} doc={doc} onPreview={setPreview}
-              onDownload={download} downloading={downloading} catName={catName} />
-          ))}
-        </div>
+        <GridFolderView
+          grouped={grouped} catName={catName}
+          openCats={openCats} toggleCat={toggleCat}
+          openYears={openYears} toggleYear={toggleYear}
+          onPreview={setPreview} onDownload={download} downloading={downloading}
+        />
       ) : (
         Object.entries(grouped).sort(([a],[b]) => catName(a).localeCompare(catName(b))).map(([cat, years]) => {
           const totalDocs = Object.values(years).flatMap(m => Object.values(m)).flat().length

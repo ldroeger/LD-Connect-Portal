@@ -217,7 +217,7 @@ async function syncPowerbirdVacation(pool) {
         const status = fehlzeitArt === 17 ? 'pending' : 'approved'
         localDb.db.prepare(`
           INSERT INTO vacation_requests
-            (user_id, from_date, to_date, status, note, created_at, updated_at)
+            (user_id, from_date, to_date, status, reason, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `).run(u.id, fromDate, toDate, status,
           'Direkt in Powerbird eingetragen (FehlzeitArt ' + fehlzeitArt + ')')

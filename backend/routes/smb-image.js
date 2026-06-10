@@ -9,7 +9,13 @@ router.get('/image', async (req, res) => {
 
     const smbUser   = localDb.getSetting('smb_user') || ''
     const smbPass   = localDb.getSetting('smb_password') || ''
-    const smbServer = localDb.getSetting('smb_server') || ''
+    // smb_host + smb_server für Werkzeugbilder
+    const smbHost   = localDb.getSetting('smb_host') || ''
+    let smbServer   = localDb.getSetting('smb_server') || ''
+    // Falls smb_server leer aber smb_host gesetzt: Fehler
+    if (!smbServer && smbHost) {
+      return res.status(503).json({ error: 'Werkzeug-Freigabe nicht konfiguriert (smb_server fehlt)' })
+    }
     const smbDomain = localDb.getSetting('smb_domain') || 'WORKGROUP'
 
     if (!smbServer) return res.status(503).json({ error: 'SMB nicht konfiguriert' })
@@ -40,6 +46,7 @@ router.get('/image', async (req, res) => {
     }
 
     if (!filePath) return res.status(400).json({ error: 'Leerer Dateipfad aus: ' + imgPath })
+    console.log('SMB image request - server:', smbServer, 'host:', host, 'share:', share, 'file:', filePath)
 
     const SMB2 = require('@marsaud/smb2')
     const smb2Client = new SMB2({
