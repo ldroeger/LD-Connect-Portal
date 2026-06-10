@@ -215,11 +215,20 @@ async function syncPowerbirdVacation(pool) {
 
         // Neu aus Powerbird → als approved anlegen
         const status = fehlzeitArt === 17 ? 'pending' : 'approved'
+        // Arbeitstage berechnen (Mo-Fr)
+        const d1 = new Date(fromDate), d2 = new Date(toDate)
+        let days = 0
+        for (let d = new Date(d1); d <= d2; d.setDate(d.getDate()+1)) {
+          const wd = d.getDay()
+          if (wd !== 0 && wd !== 6) days++
+        }
+        if (days === 0) days = 1
+
         localDb.db.prepare(`
           INSERT INTO vacation_requests
-            (user_id, from_date, to_date, status, reason, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-        `).run(u.id, fromDate, toDate, status,
+            (user_id, from_date, to_date, days, status, reason, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `).run(u.id, fromDate, toDate, days, status,
           'Direkt in Powerbird eingetragen (FehlzeitArt ' + fehlzeitArt + ')')
         newCount++
       }

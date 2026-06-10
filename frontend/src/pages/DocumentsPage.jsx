@@ -9,16 +9,17 @@ const FILE_ICONS = {
   'application/vnd.ms-excel': '📊',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '📊',
 }
-const fileIcon = (mime) => FILE_ICONS[mime] || '📎'
+const fileIcon  = (mime) => FILE_ICONS[mime] || '📎'
 const canPreview = (mime) => mime && (mime.startsWith('image/') || mime === 'application/pdf')
-const fmtSize = (b) => { if (!b) return ''; const n=parseInt(b); if(n<1024) return n+' B'; if(n<1024*1024) return Math.round(n/1024)+' KB'; return Math.round(n/1024/1024*10)/10+' MB' }
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—'
-const MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
+const fmtSize   = (b) => { if (!b) return ''; const n=parseInt(b); if(n<1024) return n+' B'; if(n<1024*1024) return Math.round(n/1024)+' KB'; return Math.round(n/1024/1024*10)/10+' MB' }
+const fmtDate   = (d) => d ? new Date(d).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—'
+const MONTHS    = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
 
+// ── Vorschau-Modal ─────────────────────────────────────────────────────
 function PreviewModal({ doc, onClose }) {
-  const [url, setUrl] = useState(null)
+  const [url, setUrl]       = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError]   = useState(null)
   useEffect(() => {
     let objUrl = null
     api.get('/documents/download/' + doc.id, { responseType: 'blob' })
@@ -26,21 +27,21 @@ function PreviewModal({ doc, onClose }) {
       .catch(e => { setError(e.message); setLoading(false) })
     return () => { if (objUrl) window.URL.revokeObjectURL(objUrl) }
   }, [doc.id])
-  const isImage = doc.mimeType && doc.mimeType.startsWith('image/')
+  const isImage = doc.mimeType?.startsWith('image/')
   const isPdf   = doc.mimeType === 'application/pdf'
   return (
     <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', borderRadius:16, width:'min(1000px,96vw)', height:'min(85vh,750px)', display:'flex', flexDirection:'column', boxShadow:'0 24px 64px rgba(0,0,0,0.5)', overflow:'hidden' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 20px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
-          <div><div style={{ fontWeight:700, fontSize:'0.95rem' }}>{doc.dateiname}</div><div style={{ fontSize:'0.75rem', color:'var(--text-3)' }}>{fmtDate(doc.datum)} · {fmtSize(doc.fileSize)}</div></div>
+          <div><div style={{ fontWeight:700 }}>{doc.dateiname}</div><div style={{ fontSize:'0.75rem', color:'var(--text-3)' }}>{fmtDate(doc.datum)} · {fmtSize(doc.fileSize)}</div></div>
           <div style={{ display:'flex', gap:8 }}>
             {url && <a href={url} download={doc.dateiname} style={{ padding:'7px 14px', borderRadius:8, background:'var(--primary)', color:'white', textDecoration:'none', fontSize:'0.82rem', fontWeight:600 }}>⬇ Download</a>}
-            <button onClick={onClose} style={{ padding:'7px 14px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface-2)', cursor:'pointer', fontFamily:'var(--font)', fontSize:'0.82rem' }}>✕</button>
+            <button onClick={onClose} style={{ padding:'7px 14px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface-2)', cursor:'pointer', fontFamily:'var(--font)' }}>✕</button>
           </div>
         </div>
         <div style={{ flex:1, overflow:'hidden', background:'#111' }}>
           {loading && <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', color:'#fff' }}>Lädt...</div>}
-          {error   && <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', color:'#f87171' }}>Fehler: {error}</div>}
+          {error   && <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', color:'#f87171' }}>{error}</div>}
           {!loading && !error && url && (
             isImage ? <img src={url} alt={doc.dateiname} style={{ width:'100%', height:'100%', objectFit:'contain' }} />
             : isPdf  ? <iframe src={url} style={{ width:'100%', height:'100%', border:'none' }} title={doc.dateiname} />
@@ -55,146 +56,56 @@ function PreviewModal({ doc, onClose }) {
   )
 }
 
-
-function GridFolderView({ grouped, catName, openCats, toggleCat, openYears, toggleYear, onPreview, onDownload, downloading }) {
-  const [openMonths, setOpenMonths] = React.useState({})
-  const toggleMonth = (k) => setOpenMonths(p => ({ ...p, [k]: !p[k] }))
-
+// ── Explorer-Kachel ────────────────────────────────────────────────────
+function Tile({ icon, label, sub, onClick, isFolder = false, mimeType, fileSize, onDownload, downloading }) {
+  const [hov, setHov] = useState(false)
   return (
-    <div>
-      {Object.entries(grouped).sort(([a],[b]) => catName(a).localeCompare(catName(b))).map(([cat, years]) => {
-        const totalDocs = Object.values(years).flatMap(m => Object.values(m)).flat().length
-        return (
-          <div key={cat} style={{ marginBottom:16 }}>
-            {/* Kategorie-Ordner */}
-            <div onClick={() => toggleCat(cat)}
-              style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
-                background:'var(--surface)', border:'1px solid var(--border)', borderRadius: openCats[cat] ? '10px 10px 0 0' : 10,
-                cursor:'pointer', userSelect:'none', boxShadow:'var(--shadow)' }}>
-              <span style={{ fontSize:'1.4rem' }}>{openCats[cat] ? '📂' : '📁'}</span>
-              <span style={{ fontWeight:700, flex:1 }}>{catName(cat)}</span>
-              <span style={{ fontSize:'0.78rem', color:'var(--text-3)', background:'var(--surface-2)',
-                padding:'2px 8px', borderRadius:20, border:'1px solid var(--border)' }}>{totalDocs}</span>
-              <span style={{ color:'var(--text-3)', fontSize:'0.8rem' }}>{openCats[cat] ? '▲' : '▼'}</span>
-            </div>
-
-            {openCats[cat] && (
-              <div style={{ border:'1px solid var(--border)', borderTop:'none', borderRadius:'0 0 10px 10px',
-                background:'var(--surface-2)', padding:'12px 12px 4px' }}>
-                {Object.entries(years).sort(([a],[b]) => parseInt(b)-parseInt(a)).map(([year, months]) => {
-                  const yearKey = cat+'_'+year
-                  const yearDocs = Object.values(months).flat()
-                  return (
-                    <div key={year} style={{ marginBottom:8 }}>
-                      {/* Jahr-Ordner */}
-                      <div onClick={() => toggleYear(yearKey)}
-                        style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px',
-                          background:'var(--surface)', borderRadius: openYears[yearKey] ? '8px 8px 0 0' : 8,
-                          border:'1px solid var(--border)', cursor:'pointer', userSelect:'none' }}>
-                        <span style={{ fontSize:'1.1rem' }}>{openYears[yearKey] ? '📂' : '📁'}</span>
-                        <span style={{ fontWeight:600, fontSize:'0.88rem', flex:1 }}>📅 {year}</span>
-                        <span style={{ fontSize:'0.75rem', color:'var(--text-3)' }}>({yearDocs.length})</span>
-                        <span style={{ color:'var(--text-3)', fontSize:'0.75rem' }}>{openYears[yearKey] ? '▲' : '▼'}</span>
-                      </div>
-
-                      {openYears[yearKey] && (
-                        <div style={{ border:'1px solid var(--border)', borderTop:'none',
-                          borderRadius:'0 0 8px 8px', background:'var(--surface)', padding:'8px 8px 4px' }}>
-                          {Object.entries(months).sort(([a],[b]) => MONTHS.indexOf(b)-MONTHS.indexOf(a)).map(([month, mdocs]) => {
-                            const monthKey = cat+'_'+year+'_'+month
-                            return (
-                              <div key={month} style={{ marginBottom:6 }}>
-                                {/* Monat-Label */}
-                                <div onClick={() => toggleMonth(monthKey)}
-                                  style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 8px',
-                                    cursor:'pointer', borderRadius:6, userSelect:'none',
-                                    background: openMonths[monthKey] !== false ? 'transparent' : 'var(--surface-2)' }}>
-                                  <span style={{ fontSize:'0.85rem' }}>{openMonths[monthKey] === false ? '📁' : '📂'}</span>
-                                  <span style={{ fontSize:'0.78rem', fontWeight:600, color:'var(--text-2)', flex:1 }}>{month}</span>
-                                  <span style={{ fontSize:'0.72rem', color:'var(--text-3)' }}>({mdocs.length})</span>
-                                </div>
-                                {openMonths[monthKey] !== false && (
-                                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:8, padding:'6px 4px 4px' }}>
-                                    {mdocs.map(doc => (
-                                      <GridTile key={doc.id} doc={doc} onPreview={onPreview}
-                                        onDownload={onDownload} downloading={downloading} catName={() => month} />
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )
-      })}
+    <div onClick={onClick}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{ background: hov ? 'var(--surface-2)' : 'var(--surface)',
+        border:'1px solid ' + (hov ? 'var(--primary)' : 'var(--border)'),
+        borderRadius:12, padding:16, cursor:'pointer', display:'flex', flexDirection:'column',
+        alignItems:'center', gap:8, transition:'all 0.15s', minWidth:0,
+        boxShadow: hov ? '0 4px 16px rgba(0,0,0,0.12)' : 'var(--shadow)' }}>
+      <div style={{ fontSize: isFolder ? '3rem' : '2.5rem', lineHeight:1 }}>{icon}</div>
+      <div style={{ fontSize:'0.78rem', fontWeight:600, textAlign:'center', color: isFolder ? 'var(--text)' : canPreview(mimeType) ? 'var(--primary)' : 'var(--text)',
+        overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', width:'100%', wordBreak:'break-word' }}>
+        {label}
+      </div>
+      {sub && <div style={{ fontSize:'0.68rem', color:'var(--text-3)', textAlign:'center' }}>{sub}</div>}
+      {!isFolder && onDownload && (
+        <button onClick={e => { e.stopPropagation(); onDownload() }} disabled={downloading}
+          style={{ width:'100%', padding:'4px 0', borderRadius:6, border:'none',
+            background: downloading ? 'var(--surface-2)' : 'var(--primary)',
+            color: downloading ? 'var(--text)' : 'white', fontSize:'0.72rem', fontWeight:600, cursor:'pointer' }}>
+          {downloading ? '⏳' : '⬇'}
+        </button>
+      )}
     </div>
   )
 }
 
-function GridTile({ doc, onPreview, onDownload, downloading, catName }) {
-  return (
-    <div onClick={() => canPreview(doc.mimeType) ? onPreview(doc) : onDownload(doc)}
-      style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)',
-        padding:20, cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center',
-        gap:10, boxShadow:'var(--shadow)', transition:'transform 0.15s, box-shadow 0.15s' }}
-      onMouseEnter={e => { e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.15)' }}
-      onMouseLeave={e => { e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='var(--shadow)' }}>
-      <div style={{ fontSize:'3.5rem', lineHeight:1 }}>{fileIcon(doc.mimeType)}</div>
-      <div style={{ fontSize:'0.78rem', fontWeight:600, textAlign:'center', wordBreak:'break-word',
-        overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
-        color: canPreview(doc.mimeType) ? 'var(--primary)' : 'var(--text)', width:'100%' }}>
-        {doc.dateiname}
-      </div>
-      <div style={{ fontSize:'0.7rem', color:'var(--text-3)', textAlign:'center', width:'100%' }}>
-        <div style={{ fontWeight:500 }}>{catName(doc.kategorieKey || doc.kategorie)}</div>
-        <div>{fmtDate(doc.datum)}</div>
-        {doc.fileSize && <div>{fmtSize(doc.fileSize)}</div>}
-      </div>
-      <button onClick={e => { e.stopPropagation(); onDownload(doc) }} disabled={downloading === doc.id}
-        style={{ width:'100%', padding:'6px 0', borderRadius:8, border:'none',
-          background: downloading === doc.id ? 'var(--surface-2)' : 'var(--primary)',
-          color: downloading === doc.id ? 'var(--text)' : 'white',
-          fontSize:'0.78rem', fontWeight:600, cursor:'pointer' }}>
-        {downloading === doc.id ? '⏳ Lädt...' : '⬇ Download'}
-      </button>
-    </div>
-  )
-}
-
+// ── Haupt-Seite ────────────────────────────────────────────────────────
 export default function DocumentsPage() {
   const [docs, setDocs]       = useState([])
   const [categories, setCategories] = useState({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState('')
-  const [view, setView]       = useState('grid')
+  const [path, setPath]       = useState([]) // [{type:'cat',key}, {type:'year',key}, {type:'month',key}]
   const [downloading, setDownloading] = useState(null)
   const [preview, setPreview] = useState(null)
-  const [openCats, setOpenCats]   = useState({})
-  const [openYears, setOpenYears] = useState({})
 
   useEffect(() => {
     api.get('/documents').then(r => {
-      const d = r.data.documents || []
-      setDocs(d)
+      setDocs(r.data.documents || [])
       setCategories(r.data.categories || {})
-      const cats = {}
-      d.forEach(doc => { cats[doc.kategorieKey || doc.kategorie || ''] = true })
-      setOpenCats(cats)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
 
   const catName = (k) => categories[k] || categories[(k||'').toUpperCase()] || k || 'Allgemein'
 
-  const download = async (doc, e) => {
-    if (e) e.stopPropagation()
+  const download = async (doc) => {
     setDownloading(doc.id)
     try {
       const res = await api.get('/documents/download/' + doc.id, { responseType: 'blob' })
@@ -205,15 +116,9 @@ export default function DocumentsPage() {
     setDownloading(null)
   }
 
-  const filtered = docs.filter(d =>
-    !search ||
-    (d.dateiname||'').toLowerCase().includes(search.toLowerCase()) ||
-    (d.beschreibung||'').toLowerCase().includes(search.toLowerCase()) ||
-    catName(d.kategorieKey||d.kategorie).toLowerCase().includes(search.toLowerCase())
-  )
-
+  // Gruppierung
   const grouped = {}
-  filtered.forEach(doc => {
+  docs.forEach(doc => {
     const cat   = doc.kategorieKey || doc.kategorie || ''
     const dt    = new Date(doc.datum || doc.angelegt)
     const year  = isNaN(dt) ? 'Unbekannt' : String(dt.getFullYear())
@@ -224,113 +129,151 @@ export default function DocumentsPage() {
     grouped[cat][year][month].push(doc)
   })
 
-  const toggleCat  = (k) => setOpenCats(p => ({ ...p, [k]: !p[k] }))
-  const toggleYear = (k) => setOpenYears(p => ({ ...p, [k]: p[k] === false }))
+  // Aktuelle Ebene
+  const currentCat   = path.find(p => p.type === 'cat')?.key
+  const currentYear  = path.find(p => p.type === 'year')?.key
+  const currentMonth = path.find(p => p.type === 'month')?.key
+
+  const navigate = (type, key) => setPath(p => [...p, { type, key }])
+  const goBack   = () => setPath(p => p.slice(0, -1))
+  const goHome   = () => setPath([])
+
+  // Breadcrumb-Text
+  const breadcrumb = ['Alle Dokumente', currentCat ? catName(currentCat) : null, currentYear, currentMonth].filter(Boolean)
+
+  // Suchfilter
+  const searchFiltered = search
+    ? docs.filter(d => (d.dateiname||'').toLowerCase().includes(search.toLowerCase()) ||
+        catName(d.kategorieKey||d.kategorie).toLowerCase().includes(search.toLowerCase()))
+    : null
+
+  // ── Was wird angezeigt? ──
+  const renderContent = () => {
+    // Suche aktiv → alle passenden Dateien als Kacheln
+    if (searchFiltered) {
+      if (searchFiltered.length === 0) return <div style={{ textAlign:'center', padding:40, color:'var(--text-3)' }}>Keine Treffer</div>
+      return (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:12 }}>
+          {searchFiltered.map(doc => (
+            <Tile key={doc.id} icon={fileIcon(doc.mimeType)} label={doc.dateiname}
+              sub={fmtDate(doc.datum) + (doc.fileSize ? ' · ' + fmtSize(doc.fileSize) : '')}
+              onClick={() => canPreview(doc.mimeType) ? setPreview(doc) : download(doc)}
+              mimeType={doc.mimeType} fileSize={doc.fileSize}
+              onDownload={() => download(doc)} downloading={downloading === doc.id} />
+          ))}
+        </div>
+      )
+    }
+
+    // Ebene 0: Kategorien
+    if (!currentCat) {
+      const cats = Object.keys(grouped)
+      if (cats.length === 0) return <div style={{ textAlign:'center', padding:40, color:'var(--text-3)' }}>Keine Dokumente vorhanden</div>
+      return (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:12 }}>
+          {cats.sort((a,b) => catName(a).localeCompare(catName(b))).map(cat => {
+            const count = Object.values(grouped[cat]).flatMap(m => Object.values(m)).flat().length
+            return <Tile key={cat} icon="📁" label={catName(cat)} sub={count + ' Dokument' + (count!==1?'e':'')}
+              onClick={() => navigate('cat', cat)} isFolder />
+          })}
+        </div>
+      )
+    }
+
+    // Ebene 1: Jahre
+    if (!currentYear) {
+      const years = Object.keys(grouped[currentCat] || {})
+      return (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:12 }}>
+          {years.sort((a,b) => parseInt(b)-parseInt(a)).map(year => {
+            const count = Object.values(grouped[currentCat][year]).flat().length
+            return <Tile key={year} icon="📅" label={year} sub={count + ' Dokument' + (count!==1?'e':'')}
+              onClick={() => navigate('year', year)} isFolder />
+          })}
+        </div>
+      )
+    }
+
+    // Ebene 2: Monate
+    if (!currentMonth) {
+      const months = Object.keys(grouped[currentCat]?.[currentYear] || {})
+      return (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:12 }}>
+          {months.sort((a,b) => MONTHS.indexOf(b)-MONTHS.indexOf(a)).map(month => {
+            const count = (grouped[currentCat][currentYear][month] || []).length
+            return <Tile key={month} icon="📆" label={month} sub={count + ' Dokument' + (count!==1?'e':'')}
+              onClick={() => navigate('month', month)} isFolder />
+          })}
+        </div>
+      )
+    }
+
+    // Ebene 3: Dateien
+    const files = grouped[currentCat]?.[currentYear]?.[currentMonth] || []
+    return (
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:12 }}>
+        {files.map(doc => (
+          <Tile key={doc.id} icon={fileIcon(doc.mimeType)} label={doc.dateiname}
+            sub={fmtDate(doc.datum) + (doc.fileSize ? ' · ' + fmtSize(doc.fileSize) : '')}
+            onClick={() => canPreview(doc.mimeType) ? setPreview(doc) : download(doc)}
+            mimeType={doc.mimeType} fileSize={doc.fileSize}
+            onDownload={() => download(doc)} downloading={downloading === doc.id} />
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div style={{ width:'100%' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20, flexWrap:'wrap', gap:12 }}>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16, flexWrap:'wrap', gap:12 }}>
         <div>
           <h1 style={{ fontSize:'1.3rem', fontWeight:800 }}>📁 Meine Dokumente</h1>
-          <p style={{ color:'var(--text-3)', fontSize:'0.85rem', marginTop:2 }}>Dokumente die Ihnen in Powerbird hinterlegt wurden</p>
-        </div>
-        <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:'1px solid var(--border)', height:36 }}>
-          {[['list','☰ Liste'],['grid','⊞ Kacheln']].map(([v,label]) => (
-            <button key={v} onClick={() => setView(v)} style={{ padding:'0 14px', border:'none', cursor:'pointer',
-              fontFamily:'var(--font)', fontSize:'0.82rem', fontWeight: view===v ? 700 : 400,
-              background: view===v ? 'var(--primary)' : 'var(--surface-2)',
-              color: view===v ? 'white' : 'var(--text)' }}>
-              {label}
-            </button>
-          ))}
+          <p style={{ color:'var(--text-3)', fontSize:'0.85rem', marginTop:2 }}>Dokumente aus Powerbird</p>
         </div>
       </div>
 
+      {/* Suche */}
       <input type="text" value={search} onChange={e => setSearch(e.target.value)}
         placeholder="🔍 Dokumente suchen..."
-        style={{ width:'100%', padding:'10px 14px', borderRadius:10, marginBottom:20,
+        style={{ width:'100%', padding:'10px 14px', borderRadius:10, marginBottom:14,
           border:'1px solid var(--border)', background:'var(--surface)', color:'var(--text)',
           fontFamily:'var(--font)', fontSize:'0.9rem', boxSizing:'border-box' }} />
 
+      {/* Navigation-Leiste */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px',
+        background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10,
+        marginBottom:16, flexWrap:'wrap' }}>
+        {path.length > 0 && (
+          <>
+            <button onClick={goBack} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)',
+              background:'var(--surface-2)', cursor:'pointer', fontFamily:'var(--font)', fontSize:'0.82rem', fontWeight:600 }}>
+              ← Zurück
+            </button>
+            <button onClick={goHome} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--border)',
+              background:'var(--surface-2)', cursor:'pointer', fontFamily:'var(--font)', fontSize:'0.82rem' }}>
+              🏠 Alle
+            </button>
+          </>
+        )}
+        {breadcrumb.map((b, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span style={{ color:'var(--text-3)' }}>›</span>}
+            <span style={{ fontSize:'0.84rem', fontWeight: i === breadcrumb.length-1 ? 700 : 400,
+              color: i === breadcrumb.length-1 ? 'var(--text)' : 'var(--text-3)',
+              cursor: i < breadcrumb.length-1 ? 'pointer' : 'default' }}
+              onClick={() => { if (i < breadcrumb.length-1) setPath(path.slice(0, i)) }}>
+              {b}
+            </span>
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Inhalt */}
       {loading ? (
         <div style={{ textAlign:'center', padding:40, color:'var(--text-3)' }}>Lädt...</div>
-      ) : docs.length === 0 ? (
-        <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', padding:40, textAlign:'center' }}>
-          <div style={{ fontSize:'2.5rem', marginBottom:12 }}>📂</div>
-          <div style={{ fontWeight:600 }}>Keine Dokumente vorhanden</div>
-        </div>
-      ) : view === 'grid' ? (
-        <GridFolderView
-          grouped={grouped} catName={catName}
-          openCats={openCats} toggleCat={toggleCat}
-          openYears={openYears} toggleYear={toggleYear}
-          onPreview={setPreview} onDownload={download} downloading={downloading}
-        />
-      ) : (
-        Object.entries(grouped).sort(([a],[b]) => catName(a).localeCompare(catName(b))).map(([cat, years]) => {
-          const totalDocs = Object.values(years).flatMap(m => Object.values(m)).flat().length
-          return (
-            <div key={cat} style={{ marginBottom:16 }}>
-              <div onClick={() => toggleCat(cat)} style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
-                padding:'10px 16px', borderRadius: openCats[cat] ? '10px 10px 0 0' : 10,
-                background:'var(--primary)', color:'white', cursor:'pointer', userSelect:'none' }}>
-                <span style={{ fontWeight:700 }}>{catName(cat)} <span style={{ fontWeight:400, fontSize:'0.8rem', opacity:0.8 }}>({totalDocs})</span></span>
-                <span>{openCats[cat] ? '▲' : '▼'}</span>
-              </div>
-              {openCats[cat] && (
-                <div style={{ background:'var(--surface)', borderRadius:'0 0 10px 10px', border:'1px solid var(--border)', borderTop:'none', overflow:'hidden' }}>
-                  {Object.entries(years).sort(([a],[b]) => parseInt(b)-parseInt(a)).map(([year, months]) => {
-                    const yearKey = cat+'_'+year
-                    return (
-                      <div key={year}>
-                        <div onClick={() => toggleYear(yearKey)} style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
-                          padding:'8px 16px', background:'var(--surface-2)', cursor:'pointer', borderTop:'1px solid var(--border)', userSelect:'none' }}>
-                          <span style={{ fontWeight:600, fontSize:'0.88rem' }}>📅 {year} <span style={{ fontWeight:400, color:'var(--text-3)', fontSize:'0.8rem' }}>({Object.values(months).flat().length})</span></span>
-                          <span style={{ color:'var(--text-3)', fontSize:'0.8rem' }}>{openYears[yearKey] ? '▼' : '▲'}</span>
-                        </div>
-                        {!openYears[yearKey] && Object.entries(months).sort(([a],[b]) => MONTHS.indexOf(b)-MONTHS.indexOf(a)).map(([month, mdocs]) => (
-                          <div key={month}>
-                            <div style={{ padding:'6px 24px', fontSize:'0.75rem', fontWeight:600, color:'var(--text-3)',
-                              background:'var(--surface)', borderTop:'1px solid var(--border)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                              {month} ({mdocs.length})
-                            </div>
-                            {mdocs.map((doc, i) => (
-                              <div key={doc.id} onClick={() => canPreview(doc.mimeType) && setPreview(doc)}
-                                style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px 12px 24px',
-                                  borderTop:'1px solid var(--border)', background: i%2===0?'transparent':'var(--surface-2)',
-                                  cursor: canPreview(doc.mimeType) ? 'pointer' : 'default' }}>
-                                <div style={{ fontSize:'1.6rem', flexShrink:0 }}>{fileIcon(doc.mimeType)}</div>
-                                <div style={{ flex:1, minWidth:0 }}>
-                                  <div style={{ fontWeight:600, fontSize:'0.88rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-                                    color: canPreview(doc.mimeType) ? 'var(--primary)' : 'var(--text)' }}>
-                                    {doc.dateiname}
-                                    {canPreview(doc.mimeType) && <span style={{ fontSize:'0.72rem', color:'var(--text-3)', marginLeft:8, fontWeight:400 }}>👁 Vorschau</span>}
-                                  </div>
-                                  <div style={{ fontSize:'0.73rem', color:'var(--text-3)', marginTop:2 }}>
-                                    {fmtDate(doc.datum)}{doc.fileSize ? ' · '+fmtSize(doc.fileSize) : ''}{doc.beschreibung ? ' · '+doc.beschreibung : ''}
-                                  </div>
-                                </div>
-                                <button onClick={e => download(doc,e)} disabled={downloading===doc.id}
-                                  style={{ padding:'7px 14px', borderRadius:8, border:'none',
-                                    cursor: downloading===doc.id?'wait':'pointer',
-                                    background: downloading===doc.id?'var(--surface-2)':'var(--primary)',
-                                    color: downloading===doc.id?'var(--text)':'white',
-                                    fontFamily:'var(--font)', fontSize:'0.82rem', fontWeight:600, flexShrink:0 }}>
-                                  {downloading===doc.id ? '⏳' : '⬇ Download'}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )
-        })
-      )}
+      ) : renderContent()}
+
       {preview && <PreviewModal doc={preview} onClose={() => setPreview(null)} />}
     </div>
   )
