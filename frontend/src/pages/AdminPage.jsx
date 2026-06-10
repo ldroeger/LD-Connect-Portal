@@ -25,6 +25,7 @@ const FEATURES = [
   { key:'feature_tools',         label:'Mein Werkzeug',         icon:'🔧' },
   { key:'feature_tools_search',  label:'Werkzeug suchen',       icon:'🔍' },
   { key:'feature_show_verleih',   label:'Verleih-Info sehen',    icon:'👁' },
+  { key:'feature_documents',      label:'Dokumente',             icon:'📁' },
 ]
 
 function Toggle({ checked, onChange }) {
@@ -46,6 +47,7 @@ function EditModal({ user, onClose, onSaved }) {
     feature_vacation: user.feature_vacation !== 0,
     feature_hours:        user.feature_hours       !== 0,
     feature_sick:         user.feature_sick         !== 0,
+    feature_documents:    user.feature_documents    !== 0,
     feature_news_read:    user.feature_news_read   !== 0,
     feature_news_write:   !!user.feature_news_write,
     feature_todos_read:   user.feature_todos_read  !== 0,
@@ -673,6 +675,138 @@ function SmbTab() {
 }
 
 
+
+function PushTab() {
+  const [tokens, setTokens] = React.useState([])
+  const [loading, setLoading] = React.useState(true)
+  const [msg, setMsg] = React.useState('')
+
+  const load = () => {
+    setLoading(true)
+    api.get('/push/tokens').then(r => {
+      setTokens(r.data.tokens || [])
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }
+
+  React.useEffect(() => { load() }, [])
+
+  const remove = async (id, name) => {
+    if (!window.confirm(`Gerät von "${name}" wirklich abmelden?`)) return
+    try {
+      await api.delete('/push/tokens/' + id)
+      setMsg('✅ Gerät abgemeldet')
+      load()
+    } catch(e) { setMsg('❌ Fehler: ' + e.message) }
+  }
+
+  const removeAll = async (userId, name) => {
+    if (!window.confirm(`Alle Geräte von "${name}" abmelden?`)) return
+    try {
+      await api.delete('/push/tokens/user/' + userId)
+      setMsg('✅ Alle Geräte von ' + name + ' abgemeldet')
+      load()
+    } catch(e) { setMsg('❌ Fehler: ' + e.message) }
+  }
+
+  const fmtDate = (ts) => {
+    if (!ts) return '—'
+    return new Date(ts * 1000).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+  }
+
+  const platformIcon = (p) => ({ ios:'🍎', android:'🤖', unknown:'📱' })[p] || '📱'
+
+  // Nach Nutzer gruppieren
+  const byUser = {}
+  tokens.forEach(t => {
+    if (!byUser[t.name]) byUser[t.name] = { name: t.name, email: t.email, userId: t.user_id, devices: [] }
+    byUser[t.name].devices.push(t)
+  })
+
+  return (
+    <div>
+      {msg && <div style={{ padding:'10px 14px', borderRadius:8, marginBottom:16, fontSize:'0.85rem',
+        background: msg.startsWith('✅') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+        color: msg.startsWith('✅') ? 'var(--success)' : 'var(--error)',
+        border: '1px solid ' + (msg.startsWith('✅') ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') }}>{msg}</div>}
+
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+        <div>
+          <div style={{ fontWeight:700, fontSize:'1rem' }}>📱 Registrierte Push-Geräte</div>
+          <div style={{ fontSize:'0.82rem', color:'var(--text-3)', marginTop:2 }}>
+            {tokens.length} Gerät{tokens.length !== 1 ? 'e' : ''} von {Object.keys(byUser).length} Nutzer{Object.keys(byUser).length !== 1 ? 'n' : ''}
+          </div>
+        </div>
+        <button onClick={load} style={{ padding:'7px 14px', borderRadius:8, border:'1px solid var(--border)',
+          background:'var(--surface-2)', cursor:'pointer', fontFamily:'var(--font)', fontSize:'0.82rem', fontWeight:600 }}>
+          🔄 Aktualisieren
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign:'center', padding:40, color:'var(--text-3)' }}>Lädt...</div>
+      ) : tokens.length === 0 ? (
+        <div style={{ textAlign:'center', padding:40, color:'var(--text-3)', background:'var(--surface-2)',
+          borderRadius:12, border:'1px solid var(--border)' }}>
+          <div style={{ fontSize:'2rem', marginBottom:8 }}>📵</div>
+          Keine Push-Geräte registriert
+        </div>
+      ) : (
+        Object.values(byUser).map(u => (
+          <div key={u.name} style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)',
+            marginBottom:12, overflow:'hidden', boxShadow:'var(--shadow)' }}>
+            {/* User Header */}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+              padding:'12px 16px', background:'var(--surface-2)', borderBottom:'1px solid var(--border)' }}>
+              <div>
+                <span style={{ fontWeight:700 }}>👤 {u.name}</span>
+                <span style={{ fontSize:'0.78rem', color:'var(--text-3)', marginLeft:8 }}>{u.email}</span>
+                <span style={{ marginLeft:8, fontSize:'0.78rem', background:'var(--surface)', border:'1px solid var(--border)',
+                  borderRadius:20, padding:'2px 8px', color:'var(--text-2)' }}>
+                  {u.devices.length} Gerät{u.devices.length !== 1 ? 'e' : ''}
+                </span>
+              </div>
+              <button onClick={() => removeAll(u.devices[0]?.user_id, u.name)}
+                style={{ padding:'5px 12px', borderRadius:6, border:'1px solid #EF4444',
+                  background:'rgba(239,68,68,0.08)', color:'#EF4444', cursor:'pointer',
+                  fontFamily:'var(--font)', fontSize:'0.78rem', fontWeight:600 }}>
+                Alle abmelden
+              </button>
+            </div>
+
+            {/* Geräte-Liste */}
+            {u.devices.map((d, i) => (
+              <div key={d.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px',
+                borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
+                <div style={{ fontSize:'1.4rem', flexShrink:0 }}>{platformIcon(d.platform)}</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:600, fontSize:'0.85rem', textTransform:'capitalize' }}>
+                    {d.platform === 'ios' ? 'iPhone / iPad' : d.platform === 'android' ? 'Android' : 'Unbekanntes Gerät'}
+                  </div>
+                  <div style={{ fontSize:'0.72rem', color:'var(--text-3)', marginTop:2, fontFamily:'monospace',
+                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {d.token.substring(0, 40)}...
+                  </div>
+                  <div style={{ fontSize:'0.72rem', color:'var(--text-3)', marginTop:1 }}>
+                    Registriert: {fmtDate(d.created_at)}
+                    {d.last_seen && d.last_seen !== d.created_at ? ' · Zuletzt aktiv: ' + fmtDate(d.last_seen) : ''}
+                  </div>
+                </div>
+                <button onClick={() => remove(d.id, u.name)}
+                  style={{ padding:'5px 12px', borderRadius:6, border:'none',
+                    background:'#EF4444', color:'white', cursor:'pointer',
+                    fontFamily:'var(--font)', fontSize:'0.78rem', fontWeight:600, flexShrink:0 }}>
+                  Abmelden
+                </button>
+              </div>
+            ))}
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
 function SyncTab() {
   return <SyncSettingsCard />
 }
@@ -690,6 +824,7 @@ export default function AdminPage() {
             <NavLink to="/admin/termine" style={({isActive})=>navLinkStyle(isActive)}>📅 Termine</NavLink>
             <NavLink to="/admin/smb" style={({isActive})=>navLinkStyle(isActive)}>📁 Netzlaufwerk</NavLink>
             <NavLink to="/admin/sync" style={({isActive})=>navLinkStyle(isActive)}>🔄 Powerbird Sync</NavLink>
+            <NavLink to="/admin/push" style={({isActive})=>navLinkStyle(isActive)}>📱 Push-Geräte</NavLink>
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <Routes>
@@ -699,6 +834,7 @@ export default function AdminPage() {
               <Route path="termine" element={<TermineTab />} />
               <Route path="smb" element={<SmbTab />} />
               <Route path="sync" element={<SyncTab />} />
+              <Route path="push" element={<PushTab />} />
             </Routes>
           </div>
         </div>

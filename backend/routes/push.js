@@ -10,8 +10,10 @@ localDb.db.exec(`
     token TEXT NOT NULL UNIQUE,
     platform TEXT,
     created_at INTEGER DEFAULT (unixepoch()),
+    last_seen INTEGER DEFAULT (unixepoch()),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+  -- Migration: last_seen Spalte hinzufügen falls nicht vorhanden
 `);
 
 // Register push token
@@ -20,9 +22,9 @@ router.post('/register', authMiddleware, (req, res) => {
   if (!token) return res.status(400).json({ error: 'Token erforderlich' });
   try {
     localDb.db.prepare(`
-      INSERT INTO push_tokens (user_id, token, platform)
-      VALUES (?, ?, ?)
-      ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id, platform=excluded.platform
+      INSERT INTO push_tokens (user_id, token, platform, last_seen)
+      VALUES (?, ?, ?, unixepoch())
+      ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id, platform=excluded.platform, last_seen=unixepoch()
     `).run(req.user.id, token, platform || 'unknown');
     res.json({ success: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -76,6 +78,25 @@ function getTokensForFeature(feature) {
      WHERE u.is_active = 1 AND u.${feature} != 0`
   ).all().map(r => r.token)
 }
+
+// DELETE /api/push/tokens/:id - Token abmelden (Admin)
+router.delete('/tokens/:id', adminMiddleware, (req, res) => {
+  try {
+    localDb.db.prepare('DELETE FROM push_tokens WHERE id = ?').run(parseInt(req.params.id))
+    res.json({ success: true })
+  } catch(e) { res.status(500).json({ error: e.message }) }
+})
+
+// DELETE /api/push/tokens/user/:userId - Alle Tokens eines Users abmelden (Admin)
+router.delete('/tokens/user/:userId', adminMiddleware, (req, res) => {
+  try {
+    const info = localDb.db.prepare('DELETE FROM push_tokens WHERE user_id = ?').run(parseInt(req.params.userId))
+    res.json({ success: true, deleted: info.changes })
+  } catch(e) { res.status(500).json({ error: e.message }) }
+})
+
+// Migration: last_seen Spalte
+try { localDb.db.exec('ALTER TABLE push_tokens ADD COLUMN last_seen INTEGER DEFAULT (unixepoch())') } catch(e) {}
 
 module.exports = { router, sendPush, getTokensForUser, getApproverTokens, getAllUserTokens, getTokensForFeature };
 
