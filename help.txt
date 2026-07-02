@@ -27,3 +27,11 @@ console.log(JSON.stringify(all, null, 2))
 
 # Wie prüft das Backend ob Setup fertig ist?
 docker exec ld-portal-backend-1 grep -r "setup" /app/routes/ /app/server.js 2>/dev/null | grep -v ".pyc" | head -20
+
+
+docker exec ld-portal-backend-1 node -e "
+const db = require('./db/localDb')
+db.db.prepare(\"INSERT OR REPLACE INTO settings (key, value) VALUES ('setup_step', '5')\").run()
+db.db.prepare(\"INSERT OR REPLACE INTO settings (key, value) VALUES ('setup_complete', '1')\").run()
+console.log('Done')
+"
