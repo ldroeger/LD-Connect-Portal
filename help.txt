@@ -1,0 +1,15 @@
+# Prüfen welcher Admin existiert
+docker exec ld-portal-backend-1 node -e "
+const db = require('./db/localDb')
+const users = db.db.prepare('SELECT id, name, email, role FROM users').all()
+console.log('Users:', JSON.stringify(users, null, 2))
+const settings = db.db.prepare(\"SELECT key, value FROM settings WHERE key LIKE '%setup%'\").all()
+console.log('Setup-Settings:', JSON.stringify(settings, null, 2))
+"
+
+
+  docker exec ld-portal-backend-1 node -e "
+const db = require('./db/localDb')
+db.db.prepare(\"INSERT OR REPLACE INTO settings (key, value) VALUES ('setup_complete', '1')\").run()
+console.log('Setup als abgeschlossen markiert')
+"
