@@ -809,64 +809,156 @@ function PushTab() {
 
 
 function DocModeTab() {
-  const [mode, setMode]     = React.useState('powerbird')
-  const [saving, setSaving] = React.useState(false)
-  const [msg, setMsg]       = React.useState('')
+  const [mode, setMode]           = React.useState('powerbird')
+  const [rights, setRights]       = React.useState('own')
+  const [categories, setCategories] = React.useState('')
+  const [userDirs, setUserDirs]   = React.useState(false)
+  const [saving, setSaving]       = React.useState(false)
+  const [msg, setMsg]             = React.useState('')
 
   React.useEffect(() => {
     api.get('/admin/settings').then(r => {
-      setMode(r.data.settings?.doc_mode || 'powerbird')
+      const s = r.data.settings || {}
+      setMode(s.doc_mode || 'powerbird')
+      setRights(s.doc_user_rights || 'own')
+      setCategories(s.doc_categories || '')
+      setUserDirs(s.doc_smb_user_dirs === 'true')
     }).catch(() => {})
   }, [])
 
   const save = async () => {
     setSaving(true); setMsg('')
     try {
-      await api.put('/admin/settings', { doc_mode: mode })
-      setMsg('Gespeichert – Seite neu laden')
+      await api.put('/admin/settings', {
+        doc_mode: mode,
+        doc_user_rights: rights,
+        doc_categories: categories,
+        doc_smb_user_dirs: userDirs ? 'true' : 'false',
+      })
+      setMsg('Gespeichert')
     } catch(e) { setMsg('Fehler: ' + e.message) }
     setSaving(false)
   }
 
   const modes = [
-    { key:'powerbird', icon:'🗄', label:'Powerbird', desc:'Dokumente aus Powerbird-Datenbank (ELDVD/ELDVV). Erfordert Powerbird-Kuerzel pro Mitarbeiter und SMB-Freigabe.' },
-    { key:'smb',       icon:'🖥', label:'Netzlaufwerk', desc:'Direkt von SMB-Freigabe lesen, ohne Powerbird. Alle Mitarbeiter sehen die gleichen Dateien. Pfad unter Netzlaufwerk konfigurieren.' },
-    { key:'local',     icon:'☁️', label:'Eigenstaendig', desc:'Mitarbeiter laden Dokumente direkt ins Portal hoch (max. 50 MB). Privat (nur eigene) oder oeffentlich (alle). Kein Netzlaufwerk noetig.' },
+    { key:'powerbird', icon:'🗄', label:'Powerbird', desc:'Dokumente aus Powerbird-Datenbank (ELDVD/ELDVV). Erfordert Powerbird-Kuerzel und SMB-Freigabe unter Netzlaufwerk.' },
+    { key:'smb',       icon:'🖥', label:'Netzlaufwerk', desc:'Direkt von SMB-Freigabe lesen, ohne Powerbird. Optional: eigenes Unterverzeichnis pro Mitarbeiter.' },
+    { key:'local',     icon:'☁️', label:'Eigenstaendig', desc:'Dokumente direkt ins Portal hochladen. Keine externe Verbindung noetig.' },
   ]
+
+  const rightsOpts = [
+    { key:'own',        label:'Nur eigene Dokumente', desc:'Jeder Mitarbeiter sieht nur die Dokumente die fuer ihn hochgeladen wurden.' },
+    { key:'all',        label:'Alle Mitarbeiter', desc:'Alle Mitarbeiter sehen alle Dokumente. Hochladen nur durch Admins.' },
+    { key:'all_upload', label:'Alle + jeder kann hochladen', desc:'Alle sehen alle, und jeder Mitarbeiter kann selbst Dokumente hochladen.' },
+  ]
+
+  const infoBox = (txt, color='#1D4ED8', bg='#EFF6FF', border='#BFDBFE') => (
+    <div style={{ background:bg, border:`1px solid ${border}`, borderRadius:8, padding:'10px 14px', fontSize:'0.82rem', color, lineHeight:1.6, marginBottom:12 }}>
+      {txt}
+    </div>
+  )
 
   return (
     <div>
       <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:6 }}>📁 Dokument-Modus</div>
       <p style={{ color:'var(--text-3)', fontSize:'0.85rem', marginBottom:20 }}>Wie werden Dokumente fuer Mitarbeiter bereitgestellt?</p>
+
       {msg && <div style={{ padding:'10px 14px', borderRadius:8, marginBottom:16, fontSize:'0.85rem',
-        background: msg.startsWith('Gespeichert') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-        color: msg.startsWith('Gespeichert') ? 'var(--success)' : 'var(--error)',
-        border: '1px solid ' + (msg.startsWith('Gespeichert') ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') }}>{msg}</div>}
-      <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:24 }}>
+        background: msg === 'Gespeichert' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+        color: msg === 'Gespeichert' ? 'var(--success)' : 'var(--error)',
+        border: '1px solid ' + (msg === 'Gespeichert' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') }}>{msg}</div>}
+
+      {/* Modus-Auswahl */}
+      <div style={{ fontWeight:600, fontSize:'0.88rem', marginBottom:10 }}>Modus</div>
+      <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:24 }}>
         {modes.map(m => (
           <div key={m.key} onClick={() => setMode(m.key)}
-            style={{ padding:16, borderRadius:12, border:'2px solid '+(mode===m.key?'var(--primary)':'var(--border)'),
+            style={{ padding:14, borderRadius:12, border:'2px solid '+(mode===m.key?'var(--primary)':'var(--border)'),
               background: mode===m.key?'rgba(37,99,235,0.05)':'var(--surface)', cursor:'pointer',
-              display:'flex', gap:14, alignItems:'flex-start', transition:'all 0.15s' }}>
-            <div style={{ fontSize:'2rem', flexShrink:0 }}>{m.icon}</div>
+              display:'flex', gap:12, alignItems:'flex-start', transition:'all 0.15s' }}>
+            <div style={{ fontSize:'1.6rem', flexShrink:0, marginTop:2 }}>{m.icon}</div>
             <div style={{ flex:1 }}>
-              <div style={{ fontWeight:700, marginBottom:4, color:mode===m.key?'var(--primary)':'var(--text)' }}>
+              <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:3, color:mode===m.key?'var(--primary)':'var(--text)' }}>
                 {m.label}
-                {mode===m.key && <span style={{ marginLeft:8, fontSize:'0.75rem', background:'var(--primary)', color:'white', padding:'2px 8px', borderRadius:20 }}>Aktiv</span>}
+                {mode===m.key && <span style={{ marginLeft:8, fontSize:'0.72rem', background:'var(--primary)', color:'white', padding:'2px 8px', borderRadius:20 }}>Aktiv</span>}
               </div>
-              <div style={{ fontSize:'0.83rem', color:'var(--text-3)', lineHeight:1.6 }}>{m.desc}</div>
+              <div style={{ fontSize:'0.82rem', color:'var(--text-3)', lineHeight:1.5 }}>{m.desc}</div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Anleitung Netzlaufwerk */}
+      {mode === 'smb' && (
+        <div style={{ background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:12, padding:16, marginBottom:20 }}>
+          <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:10 }}>📖 Anleitung: Netzlaufwerk-Modus</div>
+          {infoBox('Die Freigabe-Einstellungen (Host, Benutzer, Passwort, Pfad) werden unter Admin → Netzlaufwerk → Mitarbeiter-Dokumente konfiguriert.')}
+          <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8 }}>Eigene Unterverzeichnisse</div>
+          <label style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', fontSize:'0.85rem', marginBottom:12 }}>
+            <input type="checkbox" checked={userDirs} onChange={e => setUserDirs(e.target.checked)} style={{ marginTop:2, flexShrink:0 }} />
+            <div>
+              <strong>Pro Mitarbeiter eigenes Verzeichnis aktivieren</strong>
+              <div style={{ color:'var(--text-3)', fontSize:'0.8rem', marginTop:2 }}>
+                Jeder Mitarbeiter sieht nur Dateien aus seinem Unterordner.<br/>
+                Ordnerstruktur: <code style={{ background:'var(--surface)', padding:'1px 5px', borderRadius:4 }}>Freigabe/Unterverzeichnis/KUERZEL/datei.pdf</code><br/>
+                Das Kuerzel entspricht dem Powerbird-Kuerzel des Mitarbeiters (z.B. LD, AR01).
+              </div>
+            </div>
+          </label>
+          {!userDirs && infoBox('Ohne eigene Verzeichnisse sehen alle Mitarbeiter alle Dateien im konfigurierten Basispfad.', '#92400E', '#FFFBEB', '#FDE68A')}
+        </div>
+      )}
+
+      {/* Anleitung Eigenstaendig */}
+      {mode === 'local' && (
+        <div style={{ background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:12, padding:16, marginBottom:20 }}>
+          <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:12 }}>📖 Anleitung: Eigenstaendig-Modus</div>
+
+          <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8 }}>Zugriffsrechte</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+            {rightsOpts.map(r => (
+              <label key={r.key} onClick={() => setRights(r.key)}
+                style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', padding:'10px 12px',
+                  borderRadius:8, border:'1px solid '+(rights===r.key?'var(--primary)':'var(--border)'),
+                  background: rights===r.key?'rgba(37,99,235,0.05)':'var(--surface)' }}>
+                <input type="radio" checked={rights===r.key} onChange={() => setRights(r.key)} style={{ marginTop:2, flexShrink:0 }} />
+                <div>
+                  <div style={{ fontWeight:600, fontSize:'0.85rem', color:rights===r.key?'var(--primary)':'var(--text)' }}>{r.label}</div>
+                  <div style={{ fontSize:'0.78rem', color:'var(--text-3)', marginTop:2 }}>{r.desc}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8 }}>Kategorien voreinstellenf</div>
+          {infoBox('Eine Kategorie pro Zeile eingeben. Diese stehen beim Hochladen zur Auswahl.')}
+          <textarea
+            value={categories}
+            onChange={e => setCategories(e.target.value)}
+            placeholder={'Lohnabrechnung
+Arbeitsvertrag
+Zeugnis
+Sonstiges'}
+            rows={6}
+            style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)',
+              background:'var(--surface)', color:'var(--text)', fontFamily:'var(--font)',
+              fontSize:'0.88rem', resize:'vertical', boxSizing:'border-box' }}
+          />
+          <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:4 }}>
+            {categories.split('\n').filter(Boolean).length} Kategorien konfiguriert
+          </div>
+        </div>
+      )}
+
       <button onClick={save} disabled={saving}
-        style={{ padding:'10px 24px', borderRadius:8, border:'none', cursor:'pointer', background:'var(--primary)',
-          color:'white', fontFamily:'var(--font)', fontWeight:700, fontSize:'0.9rem' }}>
-        {saving ? 'Speichert...' : '💾 Modus speichern'}
+        style={{ padding:'10px 24px', borderRadius:8, border:'none', cursor:'pointer',
+          background:'var(--primary)', color:'white', fontFamily:'var(--font)', fontWeight:700, fontSize:'0.9rem' }}>
+        {saving ? 'Speichert...' : '💾 Einstellungen speichern'}
       </button>
     </div>
   )
 }
+
 
 function SyncTab() {
   return <SyncSettingsCard />
