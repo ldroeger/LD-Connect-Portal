@@ -1,128 +1,206 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext.jsx'
 import api from '../utils/api.js'
+import ApptDetailPopup from '../components/ApptDetailPopup.jsx'
+import { useAuth } from '../contexts/AuthContext.jsx'
 
-const StatCard = ({ value, label, color, sub, onClick }) => (
-  <div onClick={onClick}
-    style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)',
-      padding:'20px 24px', boxShadow:'var(--shadow)', flex:1, minWidth:140,
-      cursor: onClick ? 'pointer' : 'default' }}>
-    <div style={{ fontSize:'2rem', fontWeight:800, color: color||'var(--text)' }}>{value}</div>
-    <div style={{ color:'var(--text-3)', fontSize:'0.82rem', marginTop:4 }}>{label}</div>
-    {sub && <div style={{ color:'var(--text-3)', fontSize:'0.75rem', marginTop:2 }}>{sub}</div>}
-  </div>
-)
+const fmtTime = d => { if (!d) return ''; const t = new Date(d); return `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}` }
+const fmtH = h => (h >= 0 ? '+' : '') + `${Math.round(h*100)/100}h`
 
-const QuickCard = ({ icon, label, sub, to, color, active }) => {
-  const nav = useNavigate()
+function getTextColor(hex) {
+  if (!hex) return '#ffffff'
+  const num = parseInt(hex.replace('#',''), 16)
+  const r=(num>>16)&255, g=(num>>8)&255, b=num&255
+  return (r*299+g*587+b*114)/1000 > 128 ? '#000000' : '#ffffff'
+}
+
+function StatCard({ icon, label, value, color, onClick, sub }) {
   return (
-    <div onClick={() => nav(to)}
-      style={{ background:'var(--surface)', borderRadius:14, border: active ? '2px solid '+color : '1px solid var(--border)',
-        padding:'18px 20px', boxShadow:'var(--shadow)', cursor:'pointer', display:'flex', flexDirection:'column',
-        alignItems:'flex-start', gap:8, minWidth:120, flex:1, transition:'all 0.15s' }}
-      onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'}
-      onMouseLeave={e => e.currentTarget.style.transform='none'}>
-      <div style={{ fontSize:'1.6rem' }}>{icon}</div>
-      <div style={{ fontWeight:700, fontSize:'0.88rem' }}>{label}</div>
-      {sub && <div style={{ fontSize:'0.75rem', color:'var(--text-3)' }}>{sub}</div>}
+    <div onClick={onClick} style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', padding:'18px 16px', boxShadow:'var(--shadow)', cursor:onClick?'pointer':'default', transition:'transform 0.15s, box-shadow 0.15s', flex:1, minWidth:130 }}
+      onMouseEnter={e=>{ if(onClick){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 6px 16px rgba(0,0,0,0.12)' }}}
+      onMouseLeave={e=>{ if(onClick){ e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='var(--shadow)' }}}>
+      <div style={{ fontSize:'1.4rem', marginBottom:8 }}>{icon}</div>
+      <div style={{ fontSize:'1.6rem', fontWeight:800, color:color||'var(--primary)', lineHeight:1 }}>{value}</div>
+      <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:4 }}>{label}</div>
+      {sub && <div style={{ fontSize:'0.72rem', color:'var(--text-3)', marginTop:2 }}>{sub}</div>}
+    </div>
+  )
+}
+
+function NavCard({ icon, title, desc, onClick, color }) {
+  return (
+    <div onClick={onClick} style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', padding:'16px', cursor:'pointer', transition:'all 0.15s', boxShadow:'var(--shadow)' }}
+      onMouseEnter={e=>{ e.currentTarget.style.borderColor=color; e.currentTarget.style.transform='translateY(-2px)' }}
+      onMouseLeave={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform='none' }}>
+      <div style={{ fontSize:'1.6rem', marginBottom:8 }}>{icon}</div>
+      <div style={{ fontWeight:700, fontSize:'0.9rem' }}>{title}</div>
+      <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:3 }}>{desc}</div>
     </div>
   )
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth()
-  const [stats, setStats]   = useState(null)
+  const { user, isAdmin } = useAuth()
+  const navigate = useNavigate()
   const [appointments, setAppointments] = useState([])
+  const [selectedAppt, setSelectedAppt] = useState(null)
+  const [labels, setLabels] = useState({})
+  const [saldo, setSaldo] = useState(null)
+  const [urlaubStats, setUrlaubStats] = useState(null)
   const [loading, setLoading] = useState(true)
-  const nav = useNavigate()
+  const [toolAlerts, setToolAlerts] = useState([])
+  const features = { calendar: true, vacation: true, hours: true, ...(user?.features || {}) }
 
   useEffect(() => {
+    const today = new Date().toISOString().split('T')[0]
+    if (user?.features?.tools !== false) {
+      api.get('/calendar/tools-alerts').then(r => setToolAlerts(r.data.alerts || [])).catch(() => {})
+    }
     Promise.all([
-      api.get('/dashboard/stats').catch(() => ({ data: {} })),
-      api.get('/calendar/today').catch(() => ({ data: { appointments: [] } })),
-    ]).then(([s, a]) => {
-      setStats(s.data)
-      setAppointments(a.data.appointments || [])
+      api.get(`/calendar/appointments?from=${today}&to=${today}`).catch(() => ({ data: { appointments: [] } })),
+      api.get(`/calendar/hours?year=${new Date().getFullYear()}`).catch(() => null),
+      api.get(`/vacation/stats?year=${new Date().getFullYear()}`).catch(() => null),
+      api.get('/branding/labels').catch(() => ({ data: { labels: [] } })),
+    ]).then(([apptRes, hoursRes, vacRes, labelsRes]) => {
+      setAppointments(apptRes.data.appointments || [])
+      if (hoursRes) setSaldo(hoursRes.data.total_saldo)
+      if (vacRes) setUrlaubStats(vacRes.data)
+      const map = {}
+      labelsRes.data.labels?.forEach(l => map[l.name] = l.color)
+      setLabels(map)
       setLoading(false)
     })
   }, [])
 
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? '🌅 Guten Morgen' : hour < 18 ? '🌤 Guten Tag' : '🌙 Guten Abend'
-  const firstName = user?.name?.split(' ')[0] || ''
-  const features = user?.features || {}
-  const isAdmin  = user?.role === 'admin'
-  const canApprove = user?.role === 'admin' || user?.role === 'vacation_approver'
-
-  const saldo = stats?.stundensaldo || 0
-  const hasUeberstunden = saldo > 0
+  const now = new Date()
+  const hour = now.getHours()
+  const greeting = hour < 12 ? '🌅 Guten Morgen' : hour < 18 ? '☀️ Guten Tag' : '🌙 Guten Abend'
 
   return (
-    <div style={{ width:'100%' }}>
+    <div style={{ maxWidth:'100%' }}>
       <div style={{ marginBottom:24 }}>
-        <h1 style={{ fontSize:'1.4rem', fontWeight:800 }}>{greeting}, {firstName}!</h1>
-        <div style={{ color:'var(--text-3)', fontSize:'0.85rem', marginTop:2 }}>
-          {new Date().toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
-        </div>
+        <h1 style={{ fontSize:'1.4rem', fontWeight:800 }}>
+          {greeting}, {user?.name?.split(' ')[0]}!
+        </h1>
+        <p style={{ color:'var(--text-3)', fontSize:'0.88rem', marginTop:2 }}>
+          {now.toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })}
+        </p>
       </div>
 
-      {/* Stat-Kacheln */}
-      {!loading && (
-        <div style={{ display:'flex', gap:14, marginBottom:24, flexWrap:'wrap' }}>
-          <StatCard value={appointments.length} label="Termine heute" color="var(--primary)" onClick={() => nav('/calendar')} />
-          {hasUeberstunden && (
-            <StatCard
-              value={(saldo > 0 ? '+' : '') + saldo.toFixed(1) + 'h'}
-              label="Überstunden"
-              color={saldo >= 0 ? '#10B981' : '#EF4444'}
-              onClick={() => nav('/hours')}
-            />
-          )}
-          {stats?.urlaubOffen !== undefined && (
-            <StatCard value={stats.urlaubOffen >= 0 ? stats.urlaubOffen : stats.urlaubOffen}
-              label={'Urlaub offen'} sub={'von 30 Tagen'}
-              color={stats.urlaubOffen < 0 ? '#EF4444' : 'var(--text)'}
-              onClick={() => nav('/vacation')} />
-          )}
+      <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:24 }}>
+        {features.calendar && (
+          <StatCard icon="📅" label="Termine heute" value={loading ? '...' : appointments.length}
+            color="var(--primary)" onClick={() => navigate('/calendar')} />
+        )}
+        {features.hours && saldo !== null && saldo > 0 && (
+          <StatCard icon="⏱" label="Überstunden" value={loading ? '...' : '+' + fmtH(saldo)}
+            color={'var(--success)'}
+            onClick={() => navigate('/hours')} />
+        )}
+        {features.vacation && urlaubStats?.offen_tage != null && (
+          <StatCard icon="🌴" label="Urlaub offen" value={loading ? '...' : urlaubStats.offen_tage}
+            color="var(--warning)" onClick={() => navigate('/vacation')}
+            sub={urlaubStats.anspruch ? `von ${urlaubStats.anspruch} Tagen` : null} />
+        )}
+        {features.vacation && urlaubStats?.beantragt_anz > 0 && (
+          <StatCard icon="⏳" label="Urlaubsantrag" value={urlaubStats.beantragt_anz}
+            color="#6366F1" onClick={() => navigate('/vacation')} sub="ausstehend" />
+        )}
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px,1fr))', gap:10, marginBottom:28 }}>
+        {features.calendar && <NavCard icon="📅" title="Kalender" desc="Alle Termine" onClick={() => navigate('/calendar')} color="#3B82F6" />}
+        {features.vacation && <NavCard icon="🌴" title="Urlaub" desc="Beantragen & verwalten" onClick={() => navigate('/vacation')} color="#10B981" />}
+        {features.hours && <NavCard icon="⏱" title="Stunden" desc="Zeiterfassung" onClick={() => navigate('/hours')} color="#F59E0B" />}
+        <NavCard icon="📰" title="News" desc="Neuigkeiten" onClick={() => navigate('/news')} color="#6366F1" />
+        <NavCard icon="✅" title="Aufgaben" desc="Zu erledigen" onClick={() => navigate('/todos')} color="#EC4899" />
+        {(user?.role === 'admin' || user?.role === 'vacation_approver') && (
+          <NavCard icon="✅" title="Urlaubsanträge" desc="Genehmigen" onClick={() => navigate('/vacation-approve')} color="#8B5CF6" />
+        )}
+        {isAdmin && <NavCard icon="⚙️" title="Einstellungen" desc="Administration" onClick={() => navigate('/admin')} color="#64748B" />}
+      </div>
+
+      {toolAlerts.length > 0 && (
+        <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid #f59e0b', padding:20, boxShadow:'var(--shadow)', marginBottom:20 }}>
+          <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+            🔧 Bitte folgendes Werkzeug zurückgeben
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {toolAlerts.map((a, i) => {
+              const start = new Date(a.start)
+              const diffH = Math.round((start - new Date()) / 36e5)
+              const diffText = diffH < 24 ? `in ${diffH} Stunden` : `in ${Math.round(diffH/24)} Tag${Math.round(diffH/24) !== 1 ? 'en' : ''}`
+              return (
+                <div key={i} style={{ display:'flex', gap:0, alignItems:'stretch', borderRadius:10, overflow:'hidden', border:'1px solid #fcd34d' }}>
+                  <div style={{ width:4, background:'#f59e0b', flexShrink:0 }} />
+                  <div style={{ flex:1, padding:'10px 14px', background:'#fffbeb' }}>
+                    <div style={{ fontWeight:600, fontSize:'0.9rem', color:'#78350f' }}>🔧 {a.bezeichnung}</div>
+                    <div style={{ fontSize:'0.78rem', color:'#92400e', marginTop:2 }}>
+                      Wird {diffText} benötigt · {new Date(a.start).toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' })} {new Date(a.start).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' })} Uhr
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
-      {/* Quick-Links */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(130px,1fr))', gap:12, marginBottom:28 }}>
-        {features.calendar !== false && <QuickCard icon="📅" label="Kalender" sub="Alle Termine" to="/calendar" />}
-        {features.vacation !== false && <QuickCard icon="🌴" label="Urlaub" sub="Beantragen & verwalten" to="/vacation" />}
-        {features.hours    !== false && <QuickCard icon="⏱" label="Stunden" sub="Zeiterfassung" to="/hours" />}
-        {features.news_read !== false && <QuickCard icon="📰" label="News" sub="Neuigkeiten" to="/news" />}
-        {features.todos_read !== false && <QuickCard icon="✅" label="Aufgaben" sub="Zu erledigen" to="/todos" />}
-        {canApprove && <QuickCard icon="✅" label="Urlaubsanträge" sub="Genehmigen" to="/vacation-approve" />}
-        {isAdmin && <QuickCard icon="⚙️" label="Einstellungen" sub="Administration" to="/admin" />}
-      </div>
-
-      {/* Termine heute */}
-      <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-        <div style={{ padding:'14px 20px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ fontWeight:700, fontSize:'0.95rem' }}>📅 Termine heute</div>
-          <span onClick={() => nav('/calendar')} style={{ fontSize:'0.82rem', color:'var(--primary)', cursor:'pointer', fontWeight:600 }}>Alle →</span>
-        </div>
-        {loading ? (
-          <div style={{ padding:24, color:'var(--text-3)', textAlign:'center' }}>Lädt...</div>
-        ) : appointments.length === 0 ? (
-          <div style={{ padding:24, color:'var(--text-3)', textAlign:'center', fontSize:'0.9rem' }}>Keine Termine heute</div>
-        ) : (
-          appointments.map((a, i) => (
-            <div key={i} style={{ display:'flex', gap:12, padding:'12px 20px', borderTop: i > 0 ? '1px solid var(--border)' : 'none', alignItems:'center' }}>
-              <div style={{ width:4, borderRadius:2, alignSelf:'stretch', background: a.termColor || 'var(--primary)', flexShrink:0 }} />
-              <div style={{ flex:1 }}>
-                <div style={{ fontWeight:600, fontSize:'0.9rem' }}>{a.label || a.titel || a.subject}</div>
-                <div style={{ fontSize:'0.78rem', color:'var(--text-3)', marginTop:2 }}>
-                  {a.von || a.start} – {a.bis || a.end}
-                </div>
-              </div>
+      {features.calendar && (
+        <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', padding:20, boxShadow:'var(--shadow)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <div style={{ fontWeight:700, fontSize:'1rem' }}>📅 Termine heute</div>
+            <button onClick={() => navigate('/calendar')} style={{ fontSize:'0.8rem', color:'var(--primary)', background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font)', fontWeight:600 }}>
+              Alle →
+            </button>
+          </div>
+          {loading ? (
+            <div style={{ color:'var(--text-3)', fontSize:'0.88rem' }}>Lädt...</div>
+          ) : appointments.length === 0 ? (
+            <div style={{ color:'var(--text-3)', fontSize:'0.88rem', textAlign:'center', padding:'20px 0' }}>
+              🎉 Keine Termine heute
             </div>
-          ))
-        )}
-      </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {appointments.map((a, i) => {
+                const bgColor = a.termColor || labels[a.label] || 'var(--primary)'
+                const txtColor = (a.termColor || labels[a.label]) ? getTextColor(a.termColor || labels[a.label]) : 'white'
+                return (
+                  <div key={i} onClick={() => setSelectedAppt(a)}
+                    style={{ display:'flex', gap:0, alignItems:'stretch', borderRadius:10, overflow:'hidden', border:'1px solid var(--border)', cursor:'pointer', transition:'box-shadow 0.15s' }}
+                    onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'}
+                    onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
+                    <div style={{ width:4, background:a.termColor || labels[a.label] || 'var(--primary)', flexShrink:0 }} />
+                    <div style={{ flex:1, padding:'10px 14px', background:'var(--surface-2)' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                        {a.label && (
+                          <span style={{ fontSize:'0.72rem', fontWeight:600, padding:'2px 8px', borderRadius:10, background:a.termColor || labels[a.label] || 'var(--primary)', color:txtColor }}>
+                            {a.label}
+                          </span>
+                        )}
+                        <span style={{ fontWeight:600, fontSize:'0.9rem' }}>{a.title}</span>
+                      </div>
+                      <div style={{ fontSize:'0.78rem', color:'var(--text-3)', marginTop:3 }}>
+                        {a.allDay ? 'Ganztag' : `${fmtTime(a.start)} – ${fmtTime(a.end)}`}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {selectedAppt && (
+            <ApptDetailPopup
+              recno={selectedAppt.id || selectedAppt.recno}
+              label={selectedAppt.label}
+              termColor={selectedAppt.termColor}
+              labelColors={labels}
+              onClose={() => setSelectedAppt(null)}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }

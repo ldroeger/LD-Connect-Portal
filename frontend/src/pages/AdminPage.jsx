@@ -807,6 +807,67 @@ function PushTab() {
   )
 }
 
+
+function DocModeTab() {
+  const [mode, setMode]     = React.useState('powerbird')
+  const [saving, setSaving] = React.useState(false)
+  const [msg, setMsg]       = React.useState('')
+
+  React.useEffect(() => {
+    api.get('/admin/settings').then(r => {
+      setMode(r.data.settings?.doc_mode || 'powerbird')
+    }).catch(() => {})
+  }, [])
+
+  const save = async () => {
+    setSaving(true); setMsg('')
+    try {
+      await api.put('/admin/settings', { doc_mode: mode })
+      setMsg('Gespeichert – Seite neu laden')
+    } catch(e) { setMsg('Fehler: ' + e.message) }
+    setSaving(false)
+  }
+
+  const modes = [
+    { key:'powerbird', icon:'🗄', label:'Powerbird', desc:'Dokumente aus Powerbird-Datenbank (ELDVD/ELDVV). Erfordert Powerbird-Kuerzel pro Mitarbeiter und SMB-Freigabe.' },
+    { key:'smb',       icon:'🖥', label:'Netzlaufwerk', desc:'Direkt von SMB-Freigabe lesen, ohne Powerbird. Alle Mitarbeiter sehen die gleichen Dateien. Pfad unter Netzlaufwerk konfigurieren.' },
+    { key:'local',     icon:'☁️', label:'Eigenstaendig', desc:'Mitarbeiter laden Dokumente direkt ins Portal hoch (max. 50 MB). Privat (nur eigene) oder oeffentlich (alle). Kein Netzlaufwerk noetig.' },
+  ]
+
+  return (
+    <div>
+      <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:6 }}>📁 Dokument-Modus</div>
+      <p style={{ color:'var(--text-3)', fontSize:'0.85rem', marginBottom:20 }}>Wie werden Dokumente fuer Mitarbeiter bereitgestellt?</p>
+      {msg && <div style={{ padding:'10px 14px', borderRadius:8, marginBottom:16, fontSize:'0.85rem',
+        background: msg.startsWith('Gespeichert') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+        color: msg.startsWith('Gespeichert') ? 'var(--success)' : 'var(--error)',
+        border: '1px solid ' + (msg.startsWith('Gespeichert') ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)') }}>{msg}</div>}
+      <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:24 }}>
+        {modes.map(m => (
+          <div key={m.key} onClick={() => setMode(m.key)}
+            style={{ padding:16, borderRadius:12, border:'2px solid '+(mode===m.key?'var(--primary)':'var(--border)'),
+              background: mode===m.key?'rgba(37,99,235,0.05)':'var(--surface)', cursor:'pointer',
+              display:'flex', gap:14, alignItems:'flex-start', transition:'all 0.15s' }}>
+            <div style={{ fontSize:'2rem', flexShrink:0 }}>{m.icon}</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:700, marginBottom:4, color:mode===m.key?'var(--primary)':'var(--text)' }}>
+                {m.label}
+                {mode===m.key && <span style={{ marginLeft:8, fontSize:'0.75rem', background:'var(--primary)', color:'white', padding:'2px 8px', borderRadius:20 }}>Aktiv</span>}
+              </div>
+              <div style={{ fontSize:'0.83rem', color:'var(--text-3)', lineHeight:1.6 }}>{m.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button onClick={save} disabled={saving}
+        style={{ padding:'10px 24px', borderRadius:8, border:'none', cursor:'pointer', background:'var(--primary)',
+          color:'white', fontFamily:'var(--font)', fontWeight:700, fontSize:'0.9rem' }}>
+        {saving ? 'Speichert...' : '💾 Modus speichern'}
+      </button>
+    </div>
+  )
+}
+
 function SyncTab() {
   return <SyncSettingsCard />
 }
@@ -825,6 +886,7 @@ export default function AdminPage() {
             <NavLink to="/admin/smb" style={({isActive})=>navLinkStyle(isActive)}>📁 Netzlaufwerk</NavLink>
             <NavLink to="/admin/sync" style={({isActive})=>navLinkStyle(isActive)}>🔄 Powerbird Sync</NavLink>
             <NavLink to="/admin/push" style={({isActive})=>navLinkStyle(isActive)}>📱 Push-Geräte</NavLink>
+            <NavLink to="/admin/docmode" style={({isActive})=>navLinkStyle(isActive)}>📁 Dokument-Modus</NavLink>
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <Routes>
@@ -835,6 +897,7 @@ export default function AdminPage() {
               <Route path="smb" element={<SmbTab />} />
               <Route path="sync" element={<SyncTab />} />
               <Route path="push" element={<PushTab />} />
+              <Route path="docmode" element={<DocModeTab />} />
             </Routes>
           </div>
         </div>

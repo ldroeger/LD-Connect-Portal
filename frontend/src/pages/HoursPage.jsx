@@ -1,204 +1,220 @@
-import React, { useState, useEffect } from 'react'
-import api from '../utils/api.js'
+import React, { useState, useEffect } from "react"
+import api from "../utils/api.js"
 
-const MONTH_NAMES = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
+const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"]
+const MONTHS_SHORT = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"]
+const fmtH = h => `${Math.round(h*100)/100}h`
+const fmtTime = d => { if (!d) return ""; const t = new Date(d); return `${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}` }
+const fmtDate = d => { const t = new Date(d); return `${String(t.getDate()).padStart(2,"0")}.${String(t.getMonth()+1).padStart(2,"0")}.${t.getFullYear()}` }
+const dayName = d => ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(d).getDay()]
+const saldoColor = s => s >= 0 ? "var(--success)" : "var(--error)"
+const artLabel = a => a === "P" ? "Projekt" : a === "K" ? "KDI" : ""
+const artColor = a => a === "P" ? "#6366F1" : "#F59E0B"
 
-export default function HoursPage() {
-  const [year, setYear]       = useState(new Date().getFullYear())
-  const [data, setData]       = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState(null)
-  const [days, setDays]       = useState([])
-  const [daysLoading, setDaysLoading] = useState(false)
+const S = {
+  card: { background:"var(--surface)", borderRadius:12, border:"1px solid var(--border)", padding:24, boxShadow:"var(--shadow)", marginBottom:20 },
+  stats: { display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px,1fr))", gap:16, marginBottom:20 },
+  stat: { background:"var(--surface)", borderRadius:12, border:"1px solid var(--border)", padding:18, boxShadow:"var(--shadow)", textAlign:"center" },
+  statNum: (c) => ({ fontSize:"1.8rem", fontWeight:800, color:c||"var(--primary)", lineHeight:1 }),
+  statLabel: { fontSize:"0.78rem", color:"var(--text-3)", marginTop:4 },
+  th: { textAlign:"left", padding:"8px 12px", fontSize:"0.75rem", fontWeight:600, color:"var(--text-3)", textTransform:"uppercase", letterSpacing:"0.06em", borderBottom:"1px solid var(--border)" },
+  td: { padding:"9px 12px", fontSize:"0.86rem", borderBottom:"1px solid var(--border)", verticalAlign:"top" },
+  back: { display:"inline-flex", alignItems:"center", gap:6, padding:"6px 14px", borderRadius:8, border:"1px solid var(--border)", background:"var(--surface-2)", cursor:"pointer", fontSize:"0.85rem", fontWeight:500, marginBottom:16, fontFamily:"var(--font)" },
+  badge: (c) => ({ display:"inline-block", padding:"2px 8px", borderRadius:10, fontSize:"0.75rem", fontWeight:600, background:(c||"#3B82F6")+"22", color:c||"#3B82F6", whiteSpace:"nowrap" }),
+}
 
-  // Einstellungen: welche Kacheln/Spalten anzeigen
-  const [showIst, setShowIst]   = useState(true)
+function JahresView({ year, setYear, onMonthClick }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
   const [showSoll, setShowSoll] = useState(true)
-  const [showUeber, setShowUeber] = useState(true)
-  const [showSollSpalte, setShowSollSpalte] = useState(true)
+  const [showKacheln, setShowKacheln] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const years = Array.from({length:5},(_,i)=>new Date().getFullYear()-2+i)
 
   useEffect(() => {
-    setLoading(true)
-    api.get('/hours/summary?year=' + year).then(r => {
-      setData(r.data)
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    setLoading(true); setError("")
+    api.get(`/calendar/hours?year=${year}`)
+      .then(r => { setData(r.data); setLoading(false) })
+      .catch(e => { setError(e.response?.data?.error||"Fehler"); setLoading(false) })
   }, [year])
 
-  const toggleMonth = async (monthNum) => {
-    if (expanded === monthNum) { setExpanded(null); return }
-    setExpanded(monthNum)
-    setDaysLoading(true)
-    try {
-      const r = await api.get('/hours/days?year=' + year + '&month=' + monthNum)
-      setDays(r.data.days || [])
-    } catch(e) { setDays([]) }
-    setDaysLoading(false)
-  }
-
-  const years = []
-  for (let y = new Date().getFullYear(); y >= 2020; y--) years.push(y)
-
-  const totalIst   = data?.months?.reduce((s,m) => s + (m.ist||0), 0) || 0
-  const totalSoll  = data?.months?.reduce((s,m) => s + (m.soll||0), 0) || 0
-  const totalSaldo = totalIst - totalSoll
-  const hasUeber   = totalSaldo > 0
-
-  const card = { background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)',
-    padding:'20px 28px', boxShadow:'var(--shadow)', textAlign:'center', flex:1 }
-
   return (
-    <div style={{ width:'100%' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, flexWrap:'wrap', gap:12 }}>
-        <div>
-          <h1 style={{ fontSize:'1.3rem', fontWeight:800 }}>⏱ Stundenkonto</h1>
-          <p style={{ color:'var(--text-3)', fontSize:'0.85rem', marginTop:2 }}>Monatliche Auswertung aus Powerbird</p>
-        </div>
-        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-          <label style={{ fontSize:'0.85rem', fontWeight:600 }}>Jahr</label>
-          <select value={year} onChange={e => setYear(parseInt(e.target.value))}
-            style={{ padding:'7px 12px', borderRadius:8, border:'1px solid var(--border)',
-              background:'var(--surface)', color:'var(--text)', fontFamily:'var(--font)', fontSize:'0.88rem' }}>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          {/* Einstellungen-Button */}
-          <div style={{ position:'relative' }}>
-            <button onClick={() => setSettingsOpen(s => !s)}
-              style={{ padding:'7px 12px', borderRadius:8, border:'1px solid var(--border)',
-                background: settingsOpen ? 'var(--primary)' : 'var(--surface-2)',
-                color: settingsOpen ? 'white' : 'var(--text)',
-                cursor:'pointer', fontFamily:'var(--font)', fontSize:'0.82rem', fontWeight:600 }}>
-              ⚙ Ansicht
-            </button>
-            {settingsOpen && (
-              <div style={{ position:'absolute', right:0, top:40, background:'var(--surface)', border:'1px solid var(--border)',
-                borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.15)', padding:16, zIndex:100, minWidth:200 }}>
-                <div style={{ fontWeight:700, fontSize:'0.85rem', marginBottom:10 }}>Kacheln anzeigen</div>
-                {[['showIst','Ist-Stunden',showIst,setShowIst],['showSoll','Soll-Stunden',showSoll,setShowSoll],
-                  ['showUeber','Überstunden-Saldo',showUeber,setShowUeber]].map(([k,l,v,s]) => (
-                  <label key={k} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, fontSize:'0.85rem', cursor:'pointer' }}>
-                    <input type="checkbox" checked={v} onChange={e => s(e.target.checked)} />
-                    {l}
-                  </label>
-                ))}
-                <div style={{ fontWeight:700, fontSize:'0.85rem', marginBottom:10, marginTop:12, borderTop:'1px solid var(--border)', paddingTop:10 }}>Spalten anzeigen</div>
-                <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:'0.85rem', cursor:'pointer' }}>
-                  <input type="checkbox" checked={showSollSpalte} onChange={e => setShowSollSpalte(e.target.checked)} />
-                  Soll-Stunden Spalte
-                </label>
-              </div>
-            )}
-          </div>
+    <div>
+      <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:20 }}>
+        <label style={{ fontSize:"0.85rem", fontWeight:600 }}>Jahr</label>
+        <select style={{ padding:"7px 12px", borderRadius:8, border:"1px solid var(--border)", fontFamily:"var(--font)", fontSize:"0.9rem" }} value={year} onChange={e=>setYear(+e.target.value)}>
+          {years.map(y=><option key={y} value={y}>{y}</option>)}
+        </select>
+        {loading && <span style={{ color:"var(--text-3)", fontSize:"0.85rem" }}>Lädt...</span>}
+        <div style={{ position:"relative", marginLeft:"auto" }}>
+          <button onClick={() => setSettingsOpen(s => !s)} style={{ padding:"7px 12px", borderRadius:8, border:"1px solid var(--border)", background: settingsOpen ? "var(--primary)" : "var(--surface-2)", color: settingsOpen ? "white" : "var(--text)", cursor:"pointer", fontFamily:"var(--font)", fontSize:"0.82rem", fontWeight:600 }}>⚙ Ansicht</button>
+          {settingsOpen && (
+            <div style={{ position:"absolute", right:0, top:40, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:12, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", padding:16, zIndex:100, minWidth:200 }}>
+              <div style={{ fontWeight:700, fontSize:"0.85rem", marginBottom:10 }}>Kacheln</div>
+              <label style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, fontSize:"0.85rem", cursor:"pointer" }}><input type="checkbox" checked={showKacheln} onChange={e => setShowKacheln(e.target.checked)} />Statistik-Kacheln</label>
+              <div style={{ fontWeight:700, fontSize:"0.85rem", marginBottom:10, marginTop:12, borderTop:"1px solid var(--border)", paddingTop:10 }}>Spalten</div>
+              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:"0.85rem", cursor:"pointer" }}><input type="checkbox" checked={showSoll} onChange={e => setShowSoll(e.target.checked)} />Soll-Stunden</label>
+            </div>
+          )}
         </div>
       </div>
+      {error && <div style={{ background:"rgba(239,68,68,0.12)",border:"1px solid #FECACA",color:"#DC2626",padding:"10px 14px",borderRadius:8,fontSize:"0.85rem",marginBottom:16 }}>{error}</div>}
+      {data && <>
+        {showKacheln && <div style={S.stats}>
+          <div style={S.stat}><div style={S.statNum()}>{fmtH(data.total_ist)}</div><div style={S.statLabel}>Ist {year}</div></div>
+          <div style={S.stat}><div style={S.statNum("var(--text-2)")}>{fmtH(data.total_soll)}</div><div style={S.statLabel}>Soll {year}</div></div>
+          {data.total_saldo > 0 && <div style={S.stat}><div style={S.statNum(saldoColor(data.total_saldo))}>+{fmtH(data.total_saldo)}</div><div style={S.statLabel}>Überstunden {year}</div></div>}
+        </div>}
+        <div style={S.card}>
+          <div style={{ fontWeight:700, fontSize:"1rem", marginBottom:16 }}>Monatsübersicht – Monat anklicken für Tagesdetails</div>
+          {data.months.length === 0
+            ? <div style={{ color:"var(--text-3)", textAlign:"center", padding:"20px 0" }}>Keine Daten für {year}.</div>
+            : <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr>
+                  <th style={S.th}>Monat</th>
+                  <th style={{ ...S.th, textAlign:"right" }}>Ist</th>
+                  {showSoll && <th style={{ ...S.th, textAlign:"right" }}>Soll</th>}
+                  <th style={{ ...S.th, textAlign:"right" }}>Überstunden</th>
+                </tr></thead>
+                <tbody>
+                  {data.months.map((m,i) => {
+                    const monatStr = String(m.monat)
+                    const monatNum = parseInt(monatStr.slice(5,7)) || parseInt(monatStr.slice(4,6)) || (i+1)
+                    const sal = m.saldo || (m.ist - m.soll)
+                    return (
+                      <tr key={i} onClick={() => onMonthClick(monatNum)} style={{ cursor:"pointer" }}
+                        onMouseEnter={e=>e.currentTarget.style.background="var(--primary-light)"}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        <td style={{ ...S.td, fontWeight:600, color:"var(--primary)" }}>{MONTHS[monatNum-1]} {year} →</td>
+                        <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace" }}>{fmtH(m.ist)}</td>
+                        {showSoll && <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", color:"var(--text-3)" }}>{fmtH(m.soll)}</td>}
+                        <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", fontWeight:600, color:saldoColor(sal) }}>{sal>=0?"+":""}{fmtH(Math.round(sal*10)/10)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>}
+        </div>
+      </>}
+    </div>
+  )
+}
 
-      {/* Kacheln */}
-      {(showIst || showSoll || (showUeber && hasUeber)) && (
-        <div style={{ display:'flex', gap:16, marginBottom:24, flexWrap:'wrap' }}>
-          {showIst && (
-            <div style={card}>
-              <div style={{ fontSize:'2rem', fontWeight:800, color:'var(--primary)' }}>{totalIst.toFixed(1)}h</div>
-              <div style={{ color:'var(--text-3)', fontSize:'0.82rem', marginTop:4 }}>Ist {year}</div>
-            </div>
-          )}
-          {showSoll && (
-            <div style={card}>
-              <div style={{ fontSize:'2rem', fontWeight:800, color:'var(--text)' }}>{totalSoll}h</div>
-              <div style={{ color:'var(--text-3)', fontSize:'0.82rem', marginTop:4 }}>Soll {year}</div>
-            </div>
-          )}
-          {showUeber && hasUeber && (
-            <div style={card}>
-              <div style={{ fontSize:'2rem', fontWeight:800, color: totalSaldo >= 0 ? '#10B981' : '#EF4444' }}>
-                {totalSaldo >= 0 ? '+' : ''}{totalSaldo.toFixed(1)}h
+function MonatsView({ year, month, onBack }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [openDay, setOpenDay] = useState(null)
+
+  useEffect(() => {
+    setLoading(true); setError("")
+    api.get(`/calendar/hours/detail?year=${year}&month=${month}`)
+      .then(r => { setData(r.data); setLoading(false) })
+      .catch(e => { setError(e.response?.data?.error||"Fehler"); setLoading(false) })
+  }, [year, month])
+
+  const byWeek = {}
+  if (data) {
+    data.tage.forEach(d => {
+      const dt = new Date(d.tag)
+      const jan1 = new Date(dt.getFullYear(), 0, 1)
+      const kw = Math.ceil(((dt - jan1) / 86400000 + jan1.getDay() + 1) / 7)
+      if (!byWeek[kw]) byWeek[kw] = []
+      byWeek[kw].push(d)
+    })
+  }
+
+  return (
+    <div>
+      <button style={S.back} onClick={onBack}>← {year} Jahresübersicht</button>
+      <h2 style={{ fontSize:"1.2rem", fontWeight:700, marginBottom:4 }}>{MONTHS[month-1]} {year}</h2>
+      {loading && <p style={{ color:"var(--text-3)", fontSize:"0.9rem", marginBottom:16 }}>Lädt...</p>}
+      {error && <div style={{ background:"rgba(239,68,68,0.12)",border:"1px solid #FECACA",color:"#DC2626",padding:"10px 14px",borderRadius:8,fontSize:"0.85rem",marginBottom:16 }}>{error}</div>}
+      {data && <>
+        {showKacheln && <div style={S.stats}>
+          <div style={S.stat}><div style={S.statNum()}>{fmtH(data.total)}</div><div style={S.statLabel}>Gesamt {MONTHS_SHORT[month-1]}</div></div>
+          <div style={S.stat}><div style={S.statNum("var(--text-2)")}>{data.tage.length}</div><div style={S.statLabel}>Arbeitstage</div></div>
+          {data.saldo != null && data.saldo > 0 && <div style={S.stat}><div style={S.statNum("var(--success)")}>+{fmtH(data.saldo)}</div><div style={S.statLabel}>Überstunden</div></div>}
+        </div>
+
+        {Object.keys(byWeek).length === 0
+          ? <div style={S.card}><div style={{ color:"var(--text-3)", textAlign:"center", padding:"20px 0" }}>Keine Arbeitstage in {MONTHS[month-1]} {year}.</div></div>
+          : Object.entries(byWeek).map(([kw, tage]) => (
+            <div key={kw} style={S.card}>
+              <div style={{ fontWeight:700, fontSize:"0.95rem", marginBottom:12, color:"var(--text-2)", display:"flex", justifyContent:"space-between" }}>
+                <span>KW {kw}</span>
+                <span style={{ fontFamily:"monospace", color:"var(--primary)" }}>{fmtH(tage.reduce((s,d)=>s+d.gesamt,0))} gesamt</span>
               </div>
-              <div style={{ color:'var(--text-3)', fontSize:'0.82rem', marginTop:4 }}>Überstunden {year}</div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {loading ? (
-        <div style={{ textAlign:'center', padding:40, color:'var(--text-3)' }}>Lädt...</div>
-      ) : !data?.months?.length ? (
-        <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', padding:40, textAlign:'center', color:'var(--text-3)' }}>
-          Keine Daten für {year}
-        </div>
-      ) : (
-        <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-          <div style={{ padding:'14px 20px', borderBottom:'1px solid var(--border)', fontWeight:700, fontSize:'0.9rem' }}>
-            Monatsübersicht — Monat anklicken für Tagesdetails
-          </div>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
-            <thead>
-              <tr style={{ background:'var(--surface-2)', fontSize:'0.78rem', color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.05em' }}>
-                <th style={{ padding:'10px 20px', textAlign:'left', fontWeight:600 }}>Monat</th>
-                <th style={{ padding:'10px 16px', textAlign:'right', fontWeight:600 }}>Ist</th>
-                {showSollSpalte && <th style={{ padding:'10px 16px', textAlign:'right', fontWeight:600 }}>Soll</th>}
-                <th style={{ padding:'10px 16px', textAlign:'right', fontWeight:600 }}>Überstunden</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.months.map((m, i) => {
-                const saldo = (m.ist || 0) - (m.soll || 0)
-                const isExp = expanded === m.month
-                return (
-                  <React.Fragment key={m.month}>
-                    <tr onClick={() => toggleMonth(m.month)}
-                      style={{ borderTop:'1px solid var(--border)', cursor:'pointer',
-                        background: isExp ? 'var(--primary-light,rgba(37,99,235,0.06))' : i%2===0?'transparent':'var(--surface-2)' }}>
-                      <td style={{ padding:'12px 20px', fontWeight:600, fontSize:'0.9rem', color:'var(--primary)' }}>
-                        {MONTH_NAMES[(m.month||1)-1]} {year} →
-                      </td>
-                      <td style={{ padding:'12px 16px', textAlign:'right', fontWeight:500 }}>{(m.ist||0).toFixed(2)}h</td>
-                      {showSollSpalte && <td style={{ padding:'12px 16px', textAlign:'right', color:'var(--text-3)' }}>{m.soll||0}h</td>}
-                      <td style={{ padding:'12px 16px', textAlign:'right', fontWeight:700,
-                        color: saldo >= 0 ? '#10B981' : '#EF4444' }}>
-                        {saldo >= 0 ? '+' : ''}{saldo.toFixed(1)}h
-                      </td>
-                    </tr>
-                    {isExp && (
-                      <tr>
-                        <td colSpan={showSollSpalte ? 4 : 3} style={{ padding:0, background:'var(--surface)' }}>
-                          {daysLoading ? (
-                            <div style={{ padding:'16px 20px', color:'var(--text-3)', fontSize:'0.85rem' }}>Lädt...</div>
-                          ) : days.length === 0 ? (
-                            <div style={{ padding:'16px 20px', color:'var(--text-3)', fontSize:'0.85rem' }}>Keine Tagesdaten</div>
-                          ) : (
-                            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
-                              <thead>
-                                <tr style={{ background:'var(--surface-2)' }}>
-                                  <th style={{ padding:'6px 28px', textAlign:'left', color:'var(--text-3)', fontWeight:600 }}>Tag</th>
-                                  <th style={{ padding:'6px 16px', textAlign:'right', color:'var(--text-3)', fontWeight:600 }}>Beginn</th>
-                                  <th style={{ padding:'6px 16px', textAlign:'right', color:'var(--text-3)', fontWeight:600 }}>Ende</th>
-                                  <th style={{ padding:'6px 16px', textAlign:'right', color:'var(--text-3)', fontWeight:600 }}>Stunden</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {days.map((d,j) => (
-                                  <tr key={j} style={{ borderTop:'1px solid var(--border)', background: j%2===0?'transparent':'var(--surface-2)' }}>
-                                    <td style={{ padding:'6px 28px', color:'var(--text-2)' }}>
-                                      {new Date(d.datum||d.date).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})}
-                                    </td>
-                                    <td style={{ padding:'6px 16px', textAlign:'right', color:'var(--text-3)' }}>{d.von||d.start||'—'}</td>
-                                    <td style={{ padding:'6px 16px', textAlign:'right', color:'var(--text-3)' }}>{d.bis||d.end||'—'}</td>
-                                    <td style={{ padding:'6px 16px', textAlign:'right', fontWeight:500 }}>{(d.stunden||d.hours||0).toFixed(2)}h</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
+              <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr>
+                  <th style={S.th}>Tag</th>
+                  <th style={{ ...S.th, textAlign:"right" }}>Stunden</th>
+                  <th style={S.th}>Details</th>
+                </tr></thead>
+                <tbody>
+                  {tage.map((d) => (
+                    <React.Fragment key={d.tag}>
+                      <tr
+                        style={{ cursor: d.eintraege.length > 0 ? "pointer" : "default", background: openDay===d.tag ? "var(--primary-light)" : "transparent" }}
+                        onClick={() => d.eintraege.length > 0 && setOpenDay(openDay===d.tag ? null : d.tag)}
+                        onMouseEnter={e=>{ if(d.eintraege.length > 0 && openDay!==d.tag) e.currentTarget.style.background="var(--surface-2)" }}
+                        onMouseLeave={e=>{ if(openDay!==d.tag) e.currentTarget.style.background="transparent" }}>
+                        <td style={{ ...S.td, fontWeight:600 }}>
+                          <span style={{ color:"var(--text-3)", marginRight:8, fontSize:"0.82rem" }}>{dayName(d.tag)}</span>
+                          {fmtDate(d.tag)}
+                        </td>
+                        <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", fontWeight:700, color: d.gesamt > 0 ? "var(--primary)" : "var(--text-3)" }}>
+                          {d.gesamt > 0 ? fmtH(d.gesamt) : "–"}
+                        </td>
+                        <td style={{ ...S.td, color:"var(--text-3)", fontSize:"0.82rem" }}>
+                          {d.eintraege.length > 0 ? `${d.eintraege.length} Buchung${d.eintraege.length!==1?"en":""} ${openDay===d.tag ? "▲" : "▼"}` : "Keine Buchungen"}
                         </td>
                       </tr>
-                    )}
-                  </React.Fragment>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                      {openDay === d.tag && d.eintraege.map((e, j) => (
+                        <tr key={j} style={{ background:"var(--surface-2)" }}>
+                          <td style={{ ...S.td, paddingLeft:32, fontSize:"0.83rem", color:"var(--text-2)", fontFamily:"monospace" }}>
+                            {e.von && e.bis ? `${fmtTime(e.von)} – ${fmtTime(e.bis)}` : "–"}
+                          </td>
+                          <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", fontSize:"0.83rem", color:"var(--text-2)" }}>{fmtH(e.stunden)}</td>
+                          <td style={{ ...S.td, fontSize:"0.83rem" }}>
+                            <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                              <div style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center" }}>
+                                {e.art && <span style={S.badge(artColor(e.art))}>{artLabel(e.art)}</span>}
+                                {e.nr && <span style={{ fontFamily:"monospace", fontWeight:600, color:"var(--text)" }}>{e.nr}</span>}
+                              </div>
+                              {e.kunde && <div style={{ color:"var(--text)", fontWeight:500 }}>👤 {e.kunde}</div>}
+                              {e.kommission && <div style={{ color:"var(--text-2)" }}>📋 {e.kommission}</div>}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))
+        }
+      </>}
+    </div>
+  )
+}
+
+export default function HoursPage() {
+  const [year, setYear] = useState(new Date().getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState(null)
+
+  return (
+    <div style={{ maxWidth:'100%' }}>
+      <h1 style={{ fontSize:"1.3rem", fontWeight:700, marginBottom:4 }}>⏱ Stundenkonto</h1>
+      <p style={{ color:"var(--text-3)", fontSize:"0.85rem", marginBottom:24 }}>
+        {selectedMonth ? `${MONTHS[selectedMonth-1]} ${year} – Tagesdetails` : "Monatliche Auswertung aus Powerbird"}
+      </p>
+      {selectedMonth === null
+        ? <JahresView year={year} setYear={y=>{setYear(y);setSelectedMonth(null)}} onMonthClick={m=>setSelectedMonth(m)} />
+        : <MonatsView year={year} month={selectedMonth} onBack={()=>setSelectedMonth(null)} />
+      }
     </div>
   )
 }
