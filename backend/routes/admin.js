@@ -28,7 +28,8 @@ router.put('/settings', adminMiddleware, (req, res) => {
   try {
     const allowed = ['calendar_range_days', 'app_url', 'display_ip', 'company_name', 'primary_color', 'logo_url',
     'doc_smb_server', 'doc_smb_user', 'doc_smb_password', 'doc_smb_domain',
-      'smb_host', 'smb_user', 'smb_password', 'smb_mount', 'smb_domain',
+      'smb_host', 'smb_user', 'smb_password', 'smb_mount', 'smb_domain', 'smb_server',
+      'doc_mode', 'doc_smb_subpath',
       'db_host', 'db_port', 'db_name', 'db_user', 'db_encrypt', 'db_trust_cert',
       'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from'];
     
