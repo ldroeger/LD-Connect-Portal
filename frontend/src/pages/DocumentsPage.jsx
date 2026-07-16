@@ -78,12 +78,17 @@ export default function DocumentsPage() {
   const [preview, setPreview] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
-  const [isPublicUpload, setIsPublicUpload] = useState(false)
-  const [uploadCat, setUploadCat] = useState('Allgemein')
+  const [uploadCat, setUploadCat] = useState('')
+  const [uploadMonth, setUploadMonth] = useState('')
+  const [uploadTargetUser, setUploadTargetUser] = useState('')
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [availCategories, setAvailCategories] = useState([])
+  const [allUsers, setAllUsers] = useState([])
   const fileRef = useRef()
 
   const load = () => {
     setLoading(true)
+    api.get('/documents/categories').then(r => setAvailCategories(r.data.categories || [])).catch(() => {})
     api.get('/documents').then(r => {
       setDocs(r.data.documents || [])
       setCategories(r.data.categories || {})
@@ -113,15 +118,25 @@ export default function DocumentsPage() {
     setUploading(true); setUploadMsg('')
     const fd = new FormData()
     fd.append('file', file)
-    fd.append('is_public', isPublicUpload ? 'true' : 'false')
-    fd.append('category', uploadCat)
+    fd.append('category', uploadCat || 'Allgemein')
+    fd.append('month', uploadMonth)
+    if (uploadTargetUser) fd.append('target_user_id', uploadTargetUser)
     try {
       await api.post('/documents/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
       setUploadMsg('✅ Hochgeladen')
+      setUploadDialogOpen(false)
       load()
     } catch(err) { setUploadMsg('❌ ' + (err.response?.data?.error || err.message)) }
     setUploading(false)
     if (fileRef.current) fileRef.current.value = ''
+  }
+
+  const loadUsers = async () => {
+    if (allUsers.length > 0) return
+    try {
+      const r = await api.get('/users')
+      setAllUsers(r.data.users || r.data || [])
+    } catch(e) {}
   }
 
   const deleteDoc = async (doc) => {
@@ -200,7 +215,7 @@ export default function DocumentsPage() {
 
   const renderLocal = () => (
     <div>
-      {/* Upload-Bereich */}
+      {/* Upload erfolgt über Dialog-Button oben */}
       <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', padding:20, marginBottom:20 }}>
         <div style={{ fontWeight:700, fontSize:'0.95rem', marginBottom:12 }}>📤 Dokument hochladen</div>
         <div style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'flex-end' }}>
@@ -287,6 +302,69 @@ export default function DocumentsPage() {
         <div style={{ textAlign:'center', padding:40, color:'var(--text-3)' }}>Lädt...</div>
       ) : mode === 'local' ? renderLocal() : renderExplorer()}
 
+
+      {/* Upload-Dialog */}
+      {uploadDialogOpen && (
+        <div onClick={() => setUploadDialogOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:500, padding:16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', borderRadius:16, width:'min(500px,96vw)', boxShadow:'0 24px 64px rgba(0,0,0,0.3)', overflow:'hidden' }}>
+            <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ fontWeight:700, fontSize:'0.95rem' }}>📤 Dokument hochladen</div>
+              <button onClick={() => setUploadDialogOpen(false)} style={{ border:'none', background:'none', fontSize:'1.2rem', cursor:'pointer', color:'var(--text-2)' }}>✕</button>
+            </div>
+            <div style={{ padding:20, display:'flex', flexDirection:'column', gap:14 }}>
+              {uploadMsg && <div style={{ padding:'8px 12px', borderRadius:8, fontSize:'0.85rem',
+                background: uploadMsg.startsWith('✅') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                color: uploadMsg.startsWith('✅') ? 'var(--success)' : 'var(--error)' }}>{uploadMsg}</div>}
+
+              <div>
+                <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:5 }}>Für Mitarbeiter *</label>
+                <select value={uploadTargetUser} onChange={e => setUploadTargetUser(e.target.value)}
+                  style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1px solid var(--border)',
+                    background:'var(--surface)', fontFamily:'var(--font)', fontSize:'0.88rem' }}>
+                  <option value="">— Für mich selbst —</option>
+                  {allUsers.filter(u => u.is_active !== 0).map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:5 }}>Kategorie</label>
+                {availCategories.length > 0 ? (
+                  <select value={uploadCat} onChange={e => setUploadCat(e.target.value)}
+                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1px solid var(--border)',
+                      background:'var(--surface)', fontFamily:'var(--font)', fontSize:'0.88rem' }}>
+                    <option value="">— Kategorie wählen —</option>
+                    {availCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                ) : (
+                  <input value={uploadCat} onChange={e => setUploadCat(e.target.value)}
+                    placeholder="z.B. Lohnabrechnung"
+                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1px solid var(--border)',
+                      background:'var(--surface)', fontFamily:'var(--font)', fontSize:'0.88rem', boxSizing:'border-box' }} />
+                )}
+              </div>
+
+              <div>
+                <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:5 }}>Monat (optional)</label>
+                <input type="month" value={uploadMonth} onChange={e => setUploadMonth(e.target.value)}
+                  style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1px solid var(--border)',
+                    background:'var(--surface)', fontFamily:'var(--font)', fontSize:'0.88rem', boxSizing:'border-box' }} />
+                <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:3 }}>Wird für die Sortierung nach Jahr/Monat verwendet</div>
+              </div>
+
+              <div>
+                <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:5 }}>Datei *</label>
+                <input ref={fileRef} type="file" onChange={handleUpload} disabled={uploading}
+                  style={{ width:'100%', padding:'7px 0', fontSize:'0.85rem', cursor:'pointer' }} />
+                <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:3 }}>Max. 50 MB</div>
+              </div>
+
+              {uploading && <div style={{ textAlign:'center', color:'var(--text-3)' }}>⏳ Wird hochgeladen...</div>}
+            </div>
+          </div>
+        </div>
+      )}
       {preview && <PreviewModal doc={preview} onClose={() => setPreview(null)} />}
     </div>
   )
