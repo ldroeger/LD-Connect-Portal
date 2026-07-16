@@ -935,10 +935,7 @@ function DocModeTab() {
           <textarea
             value={categories}
             onChange={e => setCategories(e.target.value)}
-            placeholder={'Lohnabrechnung
-Arbeitsvertrag
-Zeugnis
-Sonstiges'}
+            placeholder={'Lohnabrechnung' + '\n' + 'Arbeitsvertrag' + '\n' + 'Zeugnis' + '\n' + 'Sonstiges'}
             rows={6}
             style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)',
               background:'var(--surface)', color:'var(--text)', fontFamily:'var(--font)',
