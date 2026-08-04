@@ -150,31 +150,31 @@ router.get('/', authMiddleware, async (req, res) => {
     const isAdmin       = req.user.role === 'admin'
 
     if (mode === 'local') {
-      const baseDir = getBaseDir()
+      const baseDir  = getBaseDir()
+      const kuerzel  = getUserKuerzel(req.user)
+      const canManage = isAdmin || req.user.features?.docs_manage
       let docs = []
 
-      if (rights === 'own') {
-        // Nur eigenes Verzeichnis
-        const kuerzel = getUserKuerzel(req.user)
-        docs = readLocalDocs(baseDir, kuerzel, isAdmin)
-      } else {
-        // Alle Mitarbeiter-Verzeichnisse
+      if (canManage) {
+        // Alle Verzeichnisse lesen
         if (fs.existsSync(baseDir)) {
           const dirs = fs.readdirSync(baseDir, { withFileTypes: true }).filter(d => d.isDirectory())
           for (const dir of dirs) {
             docs.push(...readLocalDocs(baseDir, dir.name, isAdmin))
           }
         }
+      } else {
+        // Nur eigenes Verzeichnis
+        docs = readLocalDocs(baseDir, kuerzel, isAdmin)
       }
 
       // Kategorien aus allen Verzeichnissen zusammenstellen
       const cats = {}
-      const configCats = getCategories()
-      configCats.forEach(c => { cats[c] = c })
+      getCategories().forEach(c => { cats[c] = c })
       docs.forEach(d => { if (d.kategorieKey) cats[d.kategorieKey] = d.kategorieKey })
 
-      return res.json({ documents: docs, categories: cats, mode: 'local', rights, canUpload, canUploadAll,
-        baseDir: isAdmin ? baseDir : undefined })
+      return res.json({ documents: docs, categories: cats, mode: 'local',
+        canUpload, canUploadAll, canManage: canManage })
     }
 
     if (mode === 'smb') {
@@ -391,6 +391,32 @@ router.delete('/local/:id', authMiddleware, (req, res) => {
     if (!isOwner && req.user.role !== 'admin') return res.status(403).json({ error: 'Kein Zugriff' })
     fs.unlinkSync(fsPath)
     res.json({ success: true })
+  } catch(e) { res.status(500).json({ error: e.message }) }
+})
+
+
+// GET /api/documents/manage/:userId - Dokumente eines anderen Users (für Admins/Manage-Rolle)
+router.get('/manage/:userId', authMiddleware, async (req, res) => {
+  try {
+    const canManage = req.user.role === 'admin' || req.user.features?.docs_manage
+    if (!canManage) return res.status(403).json({ error: 'Keine Berechtigung' })
+
+    const targetUser = localDb.db.prepare('SELECT * FROM users WHERE id = ?').get(parseInt(req.params.userId))
+    if (!targetUser) return res.status(404).json({ error: 'Benutzer nicht gefunden' })
+
+    const mode    = getMode()
+    const baseDir = getBaseDir()
+    const kuerzel = getUserKuerzel(targetUser)
+
+    if (mode === 'local') {
+      const docs = readLocalDocs(baseDir, kuerzel, true)
+      const cats = {}
+      getCategories().forEach(c => { cats[c] = c })
+      docs.forEach(d => { if (d.kategorieKey) cats[d.kategorieKey] = d.kategorieKey })
+      return res.json({ documents: docs, categories: cats, mode: 'local' })
+    }
+
+    res.json({ documents: [], categories: {}, mode })
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
 

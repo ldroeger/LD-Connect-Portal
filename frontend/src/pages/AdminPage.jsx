@@ -28,6 +28,7 @@ const FEATURES = [
   { key:'feature_documents',      label:'Dokumente ansehen',     icon:'📁' },
   { key:'feature_docs_upload',     label:'Dokumente hochladen (eigene)',   icon:'📤' },
   { key:'feature_docs_upload_all', label:'Dokumente hochladen (für alle)', icon:'📤' },
+  { key:'feature_docs_manage',     label:'Dokumente anderer Mitarbeiter verwalten', icon:'🗂' },
 ]
 
 function Toggle({ checked, onChange }) {
@@ -52,6 +53,7 @@ function EditModal({ user, onClose, onSaved }) {
     feature_documents:    user.feature_documents    !== 0,
     feature_docs_upload:     !!user.feature_docs_upload,
     feature_docs_upload_all: !!user.feature_docs_upload_all,
+    feature_docs_manage:     !!user.feature_docs_manage,
     feature_news_read:    user.feature_news_read   !== 0,
     feature_news_write:   !!user.feature_news_write,
     feature_todos_read:   user.feature_todos_read  !== 0,
@@ -921,20 +923,12 @@ function DocModeTab() {
         <div style={{ background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:12, padding:16, marginBottom:20 }}>
           <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:12 }}>📖 Anleitung: Eigenstaendig-Modus</div>
 
-          <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8 }}>Zugriffsrechte</div>
-          <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
-            {rightsOpts.map(r => (
-              <label key={r.key} onClick={() => setRights(r.key)}
-                style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', padding:'10px 12px',
-                  borderRadius:8, border:'1px solid '+(rights===r.key?'var(--primary)':'var(--border)'),
-                  background: rights===r.key?'rgba(37,99,235,0.05)':'var(--surface)' }}>
-                <input type="radio" checked={rights===r.key} onChange={() => setRights(r.key)} style={{ marginTop:2, flexShrink:0 }} />
-                <div>
-                  <div style={{ fontWeight:600, fontSize:'0.85rem', color:rights===r.key?'var(--primary)':'var(--text)' }}>{r.label}</div>
-                  <div style={{ fontSize:'0.78rem', color:'var(--text-3)', marginTop:2 }}>{r.desc}</div>
-                </div>
-              </label>
-            ))}
+          <div style={{ background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:8, padding:'10px 14px', fontSize:'0.82rem', color:'#1D4ED8', lineHeight:1.6, marginBottom:16 }}>
+            Jeder Mitarbeiter hat automatisch sein eigenes Verzeichnis (Kürzel-basiert).<br/>
+            Zugriffsrechte auf andere Mitarbeiter werden über die Benutzer-Rollen gesteuert:<br/>
+            <strong>📤 Dokumente hochladen (eigene)</strong> — nur eigenes Verzeichnis<br/>
+            <strong>📤 Dokumente hochladen (für alle)</strong> — für beliebige Mitarbeiter<br/>
+            <strong>🗂 Dokumente verwalten</strong> — Seite "Dok. verwalten" mit Vollzugriff
           </div>
 
           <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8 }}>Stammverzeichnis</div>

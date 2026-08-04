@@ -12,6 +12,7 @@ import { SetPasswordPage, ForgotPasswordPage } from './pages/AuthPages.jsx'
 import CalendarPage from './pages/CalendarPage.jsx'
 import SickPage from './pages/SickPage.jsx'
 import DocumentsPage from './pages/DocumentsPage.jsx'
+import DocumentsManagePage from './pages/DocumentsManagePage.jsx'
 import VacationPage from './pages/VacationPage.jsx'
 import VacationApprovePage from './pages/VacationApprovePage.jsx'
 import HoursPage from './pages/HoursPage.jsx'
@@ -54,6 +55,7 @@ function AppRoutes() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/calendar" element={<FeatureGate feature="calendar"><CalendarPage /></FeatureGate>} />
           <Route path="/documents" element={<FeatureGate feature="documents"><DocumentsPage /></FeatureGate>} />
+          <Route path="/documents-manage" element={<DocumentsManagePage />} />
           <Route path="/sick" element={<FeatureGate feature="sick"><SickPage /></FeatureGate>} />
           {features.vacation && <Route path="/vacation" element={<FeatureGate feature="vacation"><VacationPage /></FeatureGate>} />}
           {features.hours    && <Route path="/hours" element={<FeatureGate feature="hours"><HoursPage /></FeatureGate>} />}

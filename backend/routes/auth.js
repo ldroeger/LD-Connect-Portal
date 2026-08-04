@@ -25,6 +25,7 @@ function userPublic(u) {
       documents:         u.feature_documents       !== 0,
       docs_upload:       u.feature_docs_upload      !== 0,
       docs_upload_all:   u.feature_docs_upload_all  !== 0,
+      docs_manage:       u.feature_docs_manage      !== 0,
     }
   };
 }

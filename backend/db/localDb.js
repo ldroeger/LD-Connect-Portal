@@ -38,6 +38,7 @@ function initialize() {
       feature_show_verleih INTEGER DEFAULT 1,
       feature_docs_upload INTEGER DEFAULT 0,
       feature_docs_upload_all INTEGER DEFAULT 0,
+      feature_docs_manage INTEGER DEFAULT 0,
       reset_token TEXT,
       reset_token_expires INTEGER,
       created_at INTEGER DEFAULT (unixepoch())
@@ -85,6 +86,7 @@ function initialize() {
     `ALTER TABLE users ADD COLUMN feature_documents INTEGER DEFAULT 1`,
     `ALTER TABLE users ADD COLUMN feature_docs_upload INTEGER DEFAULT 0`,
     `ALTER TABLE users ADD COLUMN feature_docs_upload_all INTEGER DEFAULT 0`,
+    `ALTER TABLE users ADD COLUMN feature_docs_manage INTEGER DEFAULT 0`,
     `ALTER TABLE vacation_requests ADD COLUMN note TEXT`,
   ];
   migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
