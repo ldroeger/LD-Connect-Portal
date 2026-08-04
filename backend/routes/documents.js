@@ -71,33 +71,22 @@ function readLocalDocs(baseDir, kuerzel, isAdmin) {
 }
 
 // ── Upload Storage: BASEDIR/KUERZEL/KATEGORIE/ ────────────────────────────
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const baseDir  = getBaseDir()
-    const kuerzel  = req.uploadKuerzel || getUserKuerzel(req.user)
-    const category = (req.body.category || 'Allgemein').replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_')
-    const dir = pathMod.join(baseDir, kuerzel, category)
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    cb(null, dir)
-  },
-  filename: (req, file, cb) => {
-    // Originaldateinamen behalten, bei Kollision Timestamp voranstellen
-    const dir      = pathMod.join(
-      getBaseDir(),
-      req.uploadKuerzel || getUserKuerzel(req.user),
-      (req.body.category || 'Allgemein').replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_')
-    )
-    const target = pathMod.join(dir, file.originalname)
-    if (fs.existsSync(target)) {
-      const ext  = pathMod.extname(file.originalname)
-      const base = pathMod.basename(file.originalname, ext)
-      cb(null, base + '_' + Date.now() + ext)
-    } else {
-      cb(null, file.originalname)
-    }
+// Memory Storage - Dateien werden nach dem Middleware-Stack manuell gespeichert
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 20 } })
+
+function saveFile(buffer, originalname, kuerzel, category, baseDir) {
+  const safeCategory = (category || 'Allgemein').replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_')
+  const dir = pathMod.join(baseDir, kuerzel, safeCategory)
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+  let filename = originalname
+  if (fs.existsSync(pathMod.join(dir, filename))) {
+    const ext  = pathMod.extname(filename)
+    const base = pathMod.basename(filename, ext)
+    filename   = base + '_' + Date.now() + ext
   }
-})
-const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024, files: 20 } })
+  fs.writeFileSync(pathMod.join(dir, filename), buffer)
+  return filename
+}
 
 // ── SMB Client ────────────────────────────────────────────────────────────
 function getSmbClient() {
@@ -322,58 +311,37 @@ router.get('/download/:id', authMiddleware, async (req, res) => {
 })
 
 // ── POST /api/documents/upload ────────────────────────────────────────────
-// Kürzel für Zielverzeichnis vor multer setzen
-router.post('/upload', authMiddleware, (req, res, next) => {
-  const canUpload = req.user.role === 'admin' || req.user.features?.docs_upload || req.user.features?.docs_upload_all
-  if (!canUpload) return res.status(403).json({ error: 'Keine Upload-Berechtigung' })
-  next()
-}, (req, res, next) => {
-  // Ziel-Kürzel setzen (wird von multer.destination genutzt)
-  const canUploadAll = req.user.role === 'admin' || req.user.features?.docs_upload_all
-  const targetIds    = req.body.target_user_ids ? req.body.target_user_ids.split(',').map(s => s.trim()).filter(Boolean) : []
-  // Für den ersten Target-User das Kürzel setzen (mehrere werden in der upload-Schleife gesetzt)
-  if (canUploadAll && targetIds.length > 0) {
-    const targetUser = localDb.db.prepare('SELECT * FROM users WHERE id = ?').get(parseInt(targetIds[0]))
-    if (targetUser) req.uploadKuerzel = getUserKuerzel(targetUser)
-  }
-  if (!req.uploadKuerzel) req.uploadKuerzel = getUserKuerzel(req.user)
-  next()
-}, upload.array('files', 20), async (req, res) => {
+router.post('/upload', authMiddleware, upload.array('files', 20), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Keine Datei' })
 
+    const canUpload    = req.user.role === 'admin' || req.user.features?.docs_upload || req.user.features?.docs_upload_all
+    if (!canUpload) return res.status(403).json({ error: 'Keine Upload-Berechtigung' })
+
     const canUploadAll = req.user.role === 'admin' || req.user.features?.docs_upload_all
-    const category     = (req.body.category || 'Allgemein').replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_')
+    const category     = req.body.category || 'Allgemein'
     const baseDir      = getBaseDir()
-    let targetIds      = req.body.target_user_ids ? req.body.target_user_ids.split(',').map(s => s.trim()).filter(Boolean) : []
 
-    if (!canUploadAll || targetIds.length === 0) {
-      // Nur für sich selbst hochladen
-      // Dateien sind bereits am richtigen Ort dank multer
-      return res.json({ success: true, count: req.files.length })
+    // Ziel-User bestimmen
+    let targetKuerzels = []
+    if (canUploadAll && req.body.target_user_ids) {
+      const ids = req.body.target_user_ids.split(',').map(s => s.trim()).filter(Boolean)
+      for (const id of ids) {
+        const u = localDb.db.prepare('SELECT * FROM users WHERE id = ?').get(parseInt(id))
+        if (u) targetKuerzels.push(getUserKuerzel(u))
+      }
     }
+    // Fallback: eigenes Verzeichnis
+    if (targetKuerzels.length === 0) targetKuerzels = [getUserKuerzel(req.user)]
 
-    // Für mehrere Personen: Dateien in die jeweiligen Verzeichnisse kopieren
     let count = 0
-    for (const targetIdStr of targetIds) {
-      const targetUser = localDb.db.prepare('SELECT * FROM users WHERE id = ?').get(parseInt(targetIdStr))
-      if (!targetUser) continue
-      const targetKuerzel = getUserKuerzel(targetUser)
-      const targetDir     = pathMod.join(baseDir, targetKuerzel, category)
-      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true })
-
+    for (const kuerzel of targetKuerzels) {
       for (const file of req.files) {
-        // Datei aus dem ersten Upload-Ziel in weitere Ziele kopieren
-        const destPath = pathMod.join(targetDir, file.filename)
-        if (file.path !== destPath) {
-          fs.copyFileSync(file.path, destPath)
-        }
+        saveFile(file.buffer, file.originalname, kuerzel, category, baseDir)
         count++
       }
     }
 
-    // Original-Dateien löschen wenn sie nicht im Ziel des ersten Users lagen
-    // (multer hat sie im Verzeichnis des ersten Users gespeichert)
     res.json({ success: true, count })
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
