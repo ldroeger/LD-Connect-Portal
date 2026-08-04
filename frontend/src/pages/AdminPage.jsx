@@ -816,6 +816,7 @@ function DocModeTab() {
   const [mode, setMode]           = React.useState('powerbird')
   const [rights, setRights]       = React.useState('own')
   const [categories, setCategories] = React.useState('')
+  const [baseDir, setBaseDir]         = React.useState('/data/documents')
   const [userDirs, setUserDirs]   = React.useState(false)
   const [saving, setSaving]       = React.useState(false)
   const [msg, setMsg]             = React.useState('')
@@ -826,6 +827,7 @@ function DocModeTab() {
       setMode(s.doc_mode || 'powerbird')
       setRights(s.doc_user_rights || 'own')
       setCategories(s.doc_categories || '')
+      setBaseDir(s.doc_local_basedir || '/data/documents')
       setUserDirs(s.doc_smb_user_dirs === 'true')
     }).catch(() => {})
   }, [])
@@ -838,6 +840,7 @@ function DocModeTab() {
         doc_user_rights: rights,
         doc_categories: categories,
         doc_smb_user_dirs: userDirs ? 'true' : 'false',
+        doc_local_basedir: baseDir,
       })
       setMsg('Gespeichert')
     } catch(e) { setMsg('Fehler: ' + e.message) }
@@ -934,7 +937,18 @@ function DocModeTab() {
             ))}
           </div>
 
-          <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8 }}>Kategorien voreinstellenf</div>
+          <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8 }}>Stammverzeichnis</div>
+          <div style={{ background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:8, padding:'10px 14px', fontSize:'0.82rem', color:'#1D4ED8', lineHeight:1.6, marginBottom:8 }}>
+            Dateipfad im Docker-Container. Struktur: <code style={{ background:'rgba(37,99,235,0.1)', padding:'1px 5px', borderRadius:4 }}>STAMM/KUERZEL/KATEGORIE/datei.pdf</code><br/>
+            Dateien die manuell in diesem Verzeichnis abgelegt werden, erscheinen automatisch im Portal.
+          </div>
+          <input value={baseDir} onChange={e => setBaseDir(e.target.value)}
+            placeholder="/data/documents"
+            style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1px solid var(--border)',
+              background:'var(--surface)', color:'var(--text)', fontFamily:'monospace',
+              fontSize:'0.88rem', boxSizing:'border-box', marginBottom:16 }} />
+
+          <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8 }}>Kategorien voreingestellt</div>
           {infoBox('Eine Kategorie pro Zeile eingeben. Diese stehen beim Hochladen zur Auswahl.')}
           <textarea
             value={categories}

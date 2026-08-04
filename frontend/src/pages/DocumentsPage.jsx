@@ -141,8 +141,9 @@ export default function DocumentsPage() {
 
   const deleteDoc = async (doc) => {
     if (!window.confirm('Dokument wirklich löschen?')) return
-    const localId = doc.id.replace('local_', '')
-    try { await api.delete('/documents/local/' + localId); load() }
+    // local_fs_ IDs: base64-kodierten Pfad extrahieren
+    const fsId = doc.id.replace('local_fs_', '')
+    try { await api.delete('/documents/local/' + encodeURIComponent(fsId)); load() }
     catch(err) { alert('Fehler: ' + (err.response?.data?.error || err.message)) }
   }
 
