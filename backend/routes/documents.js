@@ -144,18 +144,9 @@ router.get('/', authMiddleware, async (req, res) => {
       const canManage = isAdmin || req.user.features?.docs_manage
       let docs = []
 
-      if (canManage) {
-        // Alle Verzeichnisse lesen
-        if (fs.existsSync(baseDir)) {
-          const dirs = fs.readdirSync(baseDir, { withFileTypes: true }).filter(d => d.isDirectory())
-          for (const dir of dirs) {
-            docs.push(...readLocalDocs(baseDir, dir.name, isAdmin))
-          }
-        }
-      } else {
-        // Nur eigenes Verzeichnis
-        docs = readLocalDocs(baseDir, kuerzel, isAdmin)
-      }
+      // /documents zeigt IMMER nur das eigene Verzeichnis
+      // Für andere Verzeichnisse → /documents-manage
+      docs = readLocalDocs(baseDir, kuerzel, isAdmin)
 
       // Kategorien aus allen Verzeichnissen zusammenstellen
       const cats = {}
