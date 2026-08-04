@@ -167,7 +167,7 @@ async function syncPowerbirdVacation(pool) {
           SELECT RecNo, Termin_Start, Termin_Ende, TER_FehlzeitArt,
                  Geloescht, TER_UrlaubsantragLfdNr
           FROM HWTER
-          WHERE Termin_ResourceName = @uid
+          WHERE UPPER(Termin_ResourceName) = UPPER(@uid)
             AND TER_FehlzeitArt IN (17, 18, 19)
             AND Termin_Start >= DATEADD(year, -2, GETDATE())
           ORDER BY Termin_Start DESC

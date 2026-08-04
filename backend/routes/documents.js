@@ -33,11 +33,12 @@ function getUserFeatures(userId) {
   // Immer frisch aus DB lesen damit Änderungen sofort wirken
   const u = localDb.db.prepare('SELECT feature_docs_upload, feature_docs_upload_all, feature_docs_manage, feature_documents, role FROM users WHERE id = ?').get(userId)
   if (!u) return {}
+  // NULL oder 0 = kein Recht; nur explizit 1 = Recht vorhanden
   return {
-    documents:       u.feature_documents       !== 0,
-    docs_upload:     u.feature_docs_upload     !== 0,
-    docs_upload_all: u.feature_docs_upload_all !== 0,
-    docs_manage:     u.feature_docs_manage     !== 0,
+    documents:       u.feature_documents       === 1,
+    docs_upload:     u.feature_docs_upload     === 1,
+    docs_upload_all: u.feature_docs_upload_all === 1,
+    docs_manage:     u.feature_docs_manage     === 1,
     role:            u.role,
   }
 }

@@ -28,7 +28,7 @@ router.get('/appointments', authMiddleware, async (req, res) => {
          CONVERT(varchar(19), Termin_Ende, 120) AS Termin_Ende, Termin_Length,
               Termin_ResourceName, Termin_Info, Termin_Label, Preset, Status, TER_FehlzeitArt, Termin_Color
        FROM HWTER
-       WHERE Termin_ResourceName = @uid
+       WHERE UPPER(Termin_ResourceName) = UPPER(@uid)
          AND Termin_Start >= @from AND Termin_Start <= @to
          AND (Geloescht IS NULL OR Geloescht = 0)
        ORDER BY Termin_Start ASC`,
@@ -64,7 +64,7 @@ router.get('/vacation', authMiddleware, async (req, res) => {
          CONVERT(varchar(19), Termin_Start, 120) AS Termin_Start,
          CONVERT(varchar(19), Termin_Ende, 120) AS Termin_Ende, Termin_Length, Termin_Label, Preset, TER_FehlzeitArt
        FROM HWTER
-       WHERE Termin_ResourceName = @uid AND YEAR(Termin_Start) = @year
+       WHERE UPPER(Termin_ResourceName) = UPPER(@uid) AND YEAR(Termin_Start) = @year
          AND (Geloescht IS NULL OR Geloescht = 0)
          AND (Termin_Label LIKE '%Urlaub%' OR Termin_Label LIKE '%Ferien%' OR
               Termin_Label LIKE '%Abwesend%' OR TER_KurzinfoTermin LIKE '%Urlaub%' OR
@@ -86,7 +86,7 @@ router.get('/hours', authMiddleware, async (req, res) => {
     const r = await pbDb.query(
       `SELECT ZKT_Monat, ZKT_StundenIst, ZKT_StundenSoll, ZKT_StundenSaldo, ZKT_StundenVortrag
        FROM LOZKT
-       WHERE ZKT_MitarbeiterNr = @uid
+       WHERE UPPER(ZKT_MitarbeiterNr) = UPPER(@uid)
          AND LEFT(CAST(ZKT_Monat AS VARCHAR(10)), 4) = @year
        ORDER BY ZKT_Monat ASC`,
       { uid: req.user.powerbird_id, year }
@@ -190,7 +190,7 @@ router.get('/hours/detail', authMiddleware, async (req, res) => {
     try {
       const sr = await pbDb.query(
         `SELECT ZKT_StundenSaldo, ZKT_StundenIst, ZKT_StundenSoll FROM LOZKT
-         WHERE ZKT_MitarbeiterNr = @uid AND LEFT(CAST(ZKT_Monat AS VARCHAR(10)), 7) = @monat`,
+         WHERE UPPER(ZKT_MitarbeiterNr) = UPPER(@uid) AND LEFT(CAST(ZKT_Monat AS VARCHAR(10)), 7) = @monat`,
         { uid: req.user.powerbird_id, monat: monatKey }
       );
       if (sr.recordset[0]) {
@@ -450,7 +450,7 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
          AND NOT EXISTS (
            SELECT 1 FROM HWTER m
            WHERE m.Termin_ResourceArt = 'Mitarbeiter'
-             AND LTRIM(RTRIM(ISNULL(m.Termin_ResourceName,''))) = @uid
+             AND UPPER(LTRIM(RTRIM(ISNULL(m.Termin_ResourceName,'')))) = UPPER(@uid)
              AND CONVERT(date, m.Termin_Start) = CONVERT(date, h.Termin_Start)
              AND ISNULL(m.Geloescht, 0) = 0
          )

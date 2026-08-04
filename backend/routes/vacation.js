@@ -45,7 +45,7 @@ async function autoApprovePendingRequests(powerbird_id, user_id) {
     // Get all vacation dates from Powerbird (entries with Urlaub label)
     const r = await pbDb.query(
       `SELECT Termin_Start, Termin_Ende FROM HWTER
-       WHERE Termin_ResourceName = @uid
+       WHERE UPPER(Termin_ResourceName) = UPPER(@uid)
          AND (Geloescht IS NULL OR Geloescht = 0)
          AND Termin_Label LIKE '%Urlaub%'
          AND TER_FehlzeitArt IN (18, 19)
@@ -124,7 +124,7 @@ async function getUrlaubFromLOURL(powerbird_id, year) {
               URL_UrlaubGenommen, URL_UrlaubGenehmigt, URL_UrlaubBeantragt,
               URL_UrlaubOffen, URL_UrlaubGeplant, URL_Verfall
        FROM LOURL
-       WHERE URL_MitarbeiterNr = @uid AND URL_Jahr = @year
+       WHERE UPPER(URL_MitarbeiterNr) = UPPER(@uid) AND URL_Jahr = @year
        ORDER BY URL_Periode DESC`,
       { uid: powerbird_id, year: parseInt(year) }
     );
@@ -166,7 +166,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
     try {
       const r = await pbDb.query(
         `SELECT Termin_Start, Termin_Ende, Termin_Label FROM HWTER
-         WHERE Termin_ResourceName = @uid
+         WHERE UPPER(Termin_ResourceName) = UPPER(@uid)
            AND YEAR(Termin_Start) = @year
            AND (Geloescht IS NULL OR Geloescht = 0)
            AND Termin_Label LIKE '%Urlaub%'
@@ -231,7 +231,7 @@ router.post('/request', authMiddleware, async (req, res) => {
     try {
       const tr = await pbDb.query(
         `SELECT Termin_Label, TER_KurzinfoTermin, Termin_Start FROM HWTER
-         WHERE Termin_ResourceName = @uid
+         WHERE UPPER(Termin_ResourceName) = UPPER(@uid)
            AND Termin_Start >= @from AND Termin_Start <= @to
            AND (Geloescht IS NULL OR Geloescht = 0)
          ORDER BY Termin_Start ASC`,
