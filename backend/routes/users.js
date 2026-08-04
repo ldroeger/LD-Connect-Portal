@@ -12,7 +12,7 @@ router.get('/', adminMiddleware, (_req, res) =>
       feature_calendar,feature_vacation,feature_hours,
       feature_news_read,feature_news_write,feature_todos_read,feature_todos_create,
       feature_tools,feature_tools_search,feature_show_verleih,
-      feature_sick,feature_documents,
+      feature_sick,feature_documents,feature_docs_upload,feature_docs_upload_all,
       created_at FROM users ORDER BY name`
   ).all() })
 );
@@ -47,7 +47,7 @@ router.put('/:id', adminMiddleware, async (req, res) => {
       feature_news_read, feature_news_write,
       feature_todos_read, feature_todos_create,
       feature_tools, feature_tools_search, feature_show_verleih,
-      feature_sick, feature_documents,
+      feature_sick, feature_documents, feature_docs_upload, feature_docs_upload_all,
     } = req.body;
 
     const emailChanged = email && email.toLowerCase().trim() !== existing.email;
@@ -69,8 +69,10 @@ router.put('/:id', adminMiddleware, async (req, res) => {
         feature_tools        = COALESCE(?, feature_tools),
         feature_tools_search = COALESCE(?, feature_tools_search),
         feature_show_verleih = COALESCE(?, feature_show_verleih),
-        feature_sick         = COALESCE(?, feature_sick),
-        feature_documents    = COALESCE(?, feature_documents)
+        feature_sick             = COALESCE(?, feature_sick),
+        feature_documents        = COALESCE(?, feature_documents),
+        feature_docs_upload      = COALESCE(?, feature_docs_upload),
+        feature_docs_upload_all  = COALESCE(?, feature_docs_upload_all)
       WHERE id = ?
     `).run(
       name        ?? null,
@@ -88,8 +90,10 @@ router.put('/:id', adminMiddleware, async (req, res) => {
       feature_tools        !== undefined ? (feature_tools        ? 1 : 0) : null,
       feature_tools_search !== undefined ? (feature_tools_search ? 1 : 0) : null,
       feature_show_verleih !== undefined ? (feature_show_verleih ? 1 : 0) : null,
-      feature_sick         !== undefined ? (feature_sick         ? 1 : 0) : null,
-      feature_documents    !== undefined ? (feature_documents    ? 1 : 0) : null,
+      feature_sick             !== undefined ? (feature_sick             ? 1 : 0) : null,
+      feature_documents        !== undefined ? (feature_documents        ? 1 : 0) : null,
+      feature_docs_upload      !== undefined ? (feature_docs_upload      ? 1 : 0) : null,
+      feature_docs_upload_all  !== undefined ? (feature_docs_upload_all  ? 1 : 0) : null,
       userId
     );
 

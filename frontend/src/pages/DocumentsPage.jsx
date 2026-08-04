@@ -354,10 +354,17 @@ export default function DocumentsPage() {
               </div>
 
               <div>
-                <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:5 }}>Datei *</label>
-                <input ref={fileRef} type="file" onChange={handleUpload} disabled={uploading}
+                <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:5 }}>
+                  Dateien *
+                  <span style={{ fontWeight:400, color:'var(--text-3)', marginLeft:6, fontSize:'0.78rem' }}>
+                    (mehrere auswählbar)
+                  </span>
+                </label>
+                <input ref={fileRef} type="file" multiple onChange={handleUpload} disabled={uploading}
                   style={{ width:'100%', padding:'7px 0', fontSize:'0.85rem', cursor:'pointer' }} />
-                <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:3 }}>Max. 50 MB</div>
+                <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:3 }}>
+                  Max. 20 Dateien, je max. 50 MB
+                </div>
               </div>
 
               {uploading && <div style={{ textAlign:'center', color:'var(--text-3)' }}>⏳ Wird hochgeladen...</div>}

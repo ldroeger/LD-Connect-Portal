@@ -48,7 +48,7 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + '_' + file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_'))
   }
 })
-const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } })
+const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024, files: 20 } })
 
 // ── Hilfsfunktion: SMB Verzeichnis lesen ─────────────────────────────────
 function getSmbClient() {
@@ -132,8 +132,10 @@ router.get('/', authMiddleware, async (req, res) => {
       }))
       const cats = {}
       getCategories().forEach(c => { cats[c] = c })
+      const userCanUpload    = req.user.role === 'admin' || req.user.features?.docs_upload || req.user.features?.docs_upload_all || ['all_upload','own'].includes(rights)
+      const userCanUploadAll = req.user.role === 'admin' || req.user.features?.docs_upload_all
       return res.json({ documents, categories: cats, mode: 'local', rights,
-        canUpload: ['all_upload','own'].includes(rights) || req.user.role === 'admin' })
+        canUpload: userCanUpload, canUploadAll: userCanUploadAll })
     }
 
     if (mode === 'smb') {
@@ -175,7 +177,10 @@ router.get('/', authMiddleware, async (req, res) => {
         }
       } catch(e) { console.log('SMB readdir error:', e.message) }
       try { smb2.close() } catch(e) {}
-      return res.json({ documents, categories: { 'Meine Dokumente':'Meine Dokumente', 'Netzlaufwerk':'Netzlaufwerk' }, mode: 'smb' })
+      const userCanUploadSmb    = req.user.role === 'admin' || req.user.features?.docs_upload || req.user.features?.docs_upload_all
+      const userCanUploadAllSmb = req.user.role === 'admin' || req.user.features?.docs_upload_all
+      return res.json({ documents, categories: { 'Meine Dokumente':'Meine Dokumente', 'Netzlaufwerk':'Netzlaufwerk' }, mode: 'smb',
+        canUpload: userCanUploadSmb, canUploadAll: userCanUploadAllSmb })
     }
 
     // ── Powerbird-Modus ───────────────────────────────────────────────────
@@ -268,26 +273,46 @@ router.get('/download/:id', authMiddleware, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
 
-// ── POST /api/documents/upload ────────────────────────────────────────────
-router.post('/upload', authMiddleware, upload.single('file'), (req, res) => {
+// ── POST /api/documents/upload (mehrere Dateien + mehrere Personen) ─────────
+router.post('/upload', authMiddleware, upload.array('files', 20), (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'Keine Datei' })
-    const rights = localDb.getSetting('doc_user_rights') || 'own'
-    const canUpload = rights === 'own' || rights === 'all_upload' || req.user.role === 'admin'
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Keine Datei' })
+
+    const canUpload = req.user.role === 'admin' || req.user.features?.docs_upload || req.user.features?.docs_upload_all
     if (!canUpload) return res.status(403).json({ error: 'Keine Upload-Berechtigung' })
 
-    const targetUserId = req.body.target_user_id ? parseInt(req.body.target_user_id) : req.user.id
-    const category     = req.body.category || 'Allgemein'
-    const month        = req.body.month || null
-    const isPublic     = (rights === 'all' || rights === 'all_upload') ? 1 : 0
+    const canUploadAll = req.user.role === 'admin' || req.user.features?.docs_upload_all
+    const category  = req.body.category || 'Allgemein'
+    const month     = req.body.month || null
+    const rights    = localDb.getSetting('doc_user_rights') || 'own'
+    const isPublic  = (rights === 'all' || rights === 'all_upload') ? 1 : 0
 
-    localDb.db.prepare(`
+    // target_user_ids: kommagetrennte IDs oder einzelne ID
+    let targetIds = []
+    if (req.body.target_user_ids) {
+      targetIds = req.body.target_user_ids.split(',').map(id => parseInt(id.trim())).filter(Boolean)
+    }
+    if (targetIds.length === 0) targetIds = [req.user.id]
+
+    // Prüfen ob Upload für andere erlaubt
+    if (!canUploadAll) {
+      targetIds = [req.user.id]
+    }
+
+    const stmt = localDb.db.prepare(`
       INSERT INTO local_documents (user_id, target_user_id, filename, original_name, mime_type, file_size, category, month, is_public)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(req.user.id, targetUserId, req.file.filename, req.file.originalname,
-       req.file.mimetype, req.file.size, category, month, isPublic)
+    `)
 
-    res.json({ success: true })
+    let count = 0
+    for (const file of req.files) {
+      for (const targetId of targetIds) {
+        stmt.run(req.user.id, targetId, file.filename, file.originalname, file.mimetype, file.size, category, month, isPublic)
+        count++
+      }
+    }
+
+    res.json({ success: true, count })
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
 

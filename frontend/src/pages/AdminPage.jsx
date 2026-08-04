@@ -25,7 +25,9 @@ const FEATURES = [
   { key:'feature_tools',         label:'Mein Werkzeug',         icon:'🔧' },
   { key:'feature_tools_search',  label:'Werkzeug suchen',       icon:'🔍' },
   { key:'feature_show_verleih',   label:'Verleih-Info sehen',    icon:'👁' },
-  { key:'feature_documents',      label:'Dokumente',             icon:'📁' },
+  { key:'feature_documents',      label:'Dokumente ansehen',     icon:'📁' },
+  { key:'feature_docs_upload',     label:'Dokumente hochladen (eigene)',   icon:'📤' },
+  { key:'feature_docs_upload_all', label:'Dokumente hochladen (für alle)', icon:'📤' },
 ]
 
 function Toggle({ checked, onChange }) {
@@ -48,6 +50,8 @@ function EditModal({ user, onClose, onSaved }) {
     feature_hours:        user.feature_hours       !== 0,
     feature_sick:         user.feature_sick         !== 0,
     feature_documents:    user.feature_documents    !== 0,
+    feature_docs_upload:     !!user.feature_docs_upload,
+    feature_docs_upload_all: !!user.feature_docs_upload_all,
     feature_news_read:    user.feature_news_read   !== 0,
     feature_news_write:   !!user.feature_news_write,
     feature_todos_read:   user.feature_todos_read  !== 0,
