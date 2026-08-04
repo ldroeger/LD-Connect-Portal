@@ -47,7 +47,7 @@ router.put('/:id', adminMiddleware, async (req, res) => {
       feature_news_read, feature_news_write,
       feature_todos_read, feature_todos_create,
       feature_tools, feature_tools_search, feature_show_verleih,
-      feature_sick, feature_documents, feature_docs_upload, feature_docs_upload_all,
+      feature_sick, feature_documents, feature_docs_upload, feature_docs_upload_all, feature_docs_manage,
     } = req.body;
 
     const emailChanged = email && email.toLowerCase().trim() !== existing.email;

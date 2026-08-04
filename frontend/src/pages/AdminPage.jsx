@@ -533,9 +533,10 @@ function SmbTab() {
   const [user, setUser]       = React.useState('')
   const [pass, setPass]       = React.useState('')
   const [domain, setDomain]   = React.useState('WORKGROUP')
-  const [toolShare, setToolShare]   = React.useState('')
-  const [docShare, setDocShare]     = React.useState('')
-  const [docSubpath, setDocSubpath] = React.useState('')
+  const [toolShare, setToolShare]     = React.useState('')
+  const [toolSubpath, setToolSubpath] = React.useState('')
+  const [docShare, setDocShare]       = React.useState('')
+  const [docSubpath, setDocSubpath]   = React.useState('')
   const [saving, setSaving]   = React.useState(false)
   const [testTool, setTestTool] = React.useState(null)
   const [testDoc, setTestDoc]   = React.useState(null)
@@ -556,6 +557,7 @@ function SmbTab() {
       const srv = s.smb_server || ''
       const srvParts = srv.replace(/\\/g,'/').replace(/^\/+/,'').split('/').filter(Boolean)
       setToolShare(srvParts[1] || '')
+      setToolSubpath(srvParts.slice(2).join('/') || '')
       // Dokument-Share
       const docSrv = s.doc_smb_server || ''
       const docParts = docSrv.replace(/\\/g,'/').replace(/^\/+/,'').split('/').filter(Boolean)
@@ -567,7 +569,7 @@ function SmbTab() {
   const save = async () => {
     setSaving(true); setMsg('')
     try {
-      const toolServer = host && toolShare ? '//' + host + '/' + toolShare : ''
+      const toolServer = host && toolShare ? '//' + host + '/' + toolShare + (toolSubpath ? '/' + toolSubpath : '') : ''
       const docServer  = host && docShare  ? '//' + host + '/' + docShare + (docSubpath ? '/' + docSubpath : '') : ''
       await api.put('/admin/settings', {
         smb_host:         host,
@@ -575,6 +577,7 @@ function SmbTab() {
         smb_password:     pass,
         smb_domain:       domain,
         smb_server:       toolServer,
+        smb_tool_subpath: toolSubpath,
         doc_smb_server:   docServer,
         doc_smb_user:     user,
         doc_smb_password: pass,
@@ -641,7 +644,13 @@ function SmbTab() {
           🔌 Testen
         </button>
       </div>
-      {host && toolShare && <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginBottom:6 }}>Pfad: //{host}/{toolShare}</div>}
+      <div style={{ marginBottom:8 }}>
+        <div style={lbl}>Unterverzeichnis (optional)</div>
+        <input style={inp} value={toolSubpath} onChange={e=>setToolSubpath(e.target.value)} placeholder="z.B. Powerbird/Pictures" />
+      </div>
+      {host && toolShare && <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginBottom:6 }}>
+        Pfad: //{host}/{toolShare}{toolSubpath ? '/' + toolSubpath : ''}
+      </div>}
       {testTool && <div style={{ fontSize:'0.82rem', padding:'6px 10px', borderRadius:6, background:'var(--surface-2)', marginBottom:8 }}>{testTool}</div>}
 
       <hr style={{ border:'none', borderTop:'1px solid var(--border)', margin:'20px 0' }} />
@@ -902,19 +911,26 @@ function DocModeTab() {
         <div style={{ background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:12, padding:16, marginBottom:20 }}>
           <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:10 }}>📖 Anleitung: Netzlaufwerk-Modus</div>
           {infoBox('Die Freigabe-Einstellungen (Host, Benutzer, Passwort, Pfad) werden unter Admin → Netzlaufwerk → Mitarbeiter-Dokumente konfiguriert.')}
-          <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8 }}>Eigene Unterverzeichnisse</div>
-          <label style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', fontSize:'0.85rem', marginBottom:12 }}>
-            <input type="checkbox" checked={userDirs} onChange={e => setUserDirs(e.target.checked)} style={{ marginTop:2, flexShrink:0 }} />
-            <div>
-              <strong>Pro Mitarbeiter eigenes Verzeichnis aktivieren</strong>
-              <div style={{ color:'var(--text-3)', fontSize:'0.8rem', marginTop:2 }}>
-                Jeder Mitarbeiter sieht nur Dateien aus seinem Unterordner.<br/>
-                Ordnerstruktur: <code style={{ background:'var(--surface)', padding:'1px 5px', borderRadius:4 }}>Freigabe/Unterverzeichnis/KUERZEL/datei.pdf</code><br/>
-                Das Kuerzel entspricht dem Powerbird-Kuerzel des Mitarbeiters (z.B. LD, AR01).
-              </div>
-            </div>
-          </label>
-          {!userDirs && infoBox('Ohne eigene Verzeichnisse sehen alle Mitarbeiter alle Dateien im konfigurierten Basispfad.', '#92400E', '#FFFBEB', '#FDE68A')}
+          {infoBox(
+            'Die Ordnerstruktur ist fest: Freigabe/KUERZEL/KATEGORIE/datei.pdf — Kuerzel = Powerbird-Kuerzel des Mitarbeiters (z.B. LD, AR01). ' +
+            'Dateien die manuell im Netzlaufwerk abgelegt werden erscheinen automatisch im Portal.',
+            '#1D4ED8', '#EFF6FF', '#BFDBFE'
+          )}
+        </div>
+      )}
+
+      {/* Kategorien auch für SMB */}
+      {mode === 'smb' && (
+        <div style={{ background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:12, padding:16, marginBottom:20 }}>
+          <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:10 }}>📖 Netzlaufwerk-Einstellungen</div>
+          <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8 }}>Kategorien voreingestellt</div>
+          {infoBox('Eine Kategorie pro Zeile. Diese entsprechen den Unterordner-Namen im Netzlaufwerk.')}
+          <textarea value={categories} onChange={e => setCategories(e.target.value)}
+            placeholder={'Lohnabrechnung' + '\n' + 'Arbeitsvertrag' + '\n' + 'Zeugnis'}
+            rows={5}
+            style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)',
+              background:'var(--surface)', color:'var(--text)', fontFamily:'var(--font)',
+              fontSize:'0.88rem', resize:'vertical', boxSizing:'border-box' }} />
         </div>
       )}
 
