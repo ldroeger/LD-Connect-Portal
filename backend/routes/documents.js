@@ -29,6 +29,19 @@ function getMimeType(filename) {
   return map[ext] || 'application/octet-stream'
 }
 
+function getUserFeatures(userId) {
+  // Immer frisch aus DB lesen damit Änderungen sofort wirken
+  const u = localDb.db.prepare('SELECT feature_docs_upload, feature_docs_upload_all, feature_docs_manage, feature_documents, role FROM users WHERE id = ?').get(userId)
+  if (!u) return {}
+  return {
+    documents:       u.feature_documents       !== 0,
+    docs_upload:     u.feature_docs_upload     !== 0,
+    docs_upload_all: u.feature_docs_upload_all !== 0,
+    docs_manage:     u.feature_docs_manage     !== 0,
+    role:            u.role,
+  }
+}
+
 function getUserKuerzel(user) {
   // Powerbird-Kürzel bevorzugen, sonst Name bereinigt, sonst ID
   if (user.powerbird_id) return user.powerbird_id
@@ -72,7 +85,21 @@ function readLocalDocs(baseDir, kuerzel, isAdmin) {
 
 // ── Upload Storage: BASEDIR/KUERZEL/KATEGORIE/ ────────────────────────────
 // Memory Storage - Dateien werden nach dem Middleware-Stack manuell gespeichert
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 20 } })
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024, files: 20 }  // 100MB pro Datei
+}).array('files', 20)
+
+const uploadMiddleware = (req, res, next) => {
+  upload(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Datei zu groß (max. 100 MB pro Datei)' })
+      if (err.code === 'LIMIT_FILE_COUNT') return res.status(413).json({ error: 'Zu viele Dateien (max. 20)' })
+      return res.status(400).json({ error: err.message })
+    }
+    next()
+  })
+}
 
 function saveFile(buffer, originalname, kuerzel, category, baseDir) {
   const safeCategory = (category || 'Allgemein').replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_')
@@ -134,14 +161,15 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const mode          = getMode()
     const rights        = localDb.getSetting('doc_user_rights') || 'own'
-    const canUpload     = req.user.role === 'admin' || req.user.features?.docs_upload || req.user.features?.docs_upload_all
-    const canUploadAll  = req.user.role === 'admin' || req.user.features?.docs_upload_all
-    const isAdmin       = req.user.role === 'admin'
+    const freshFeatures = getUserFeatures(req.user.id)
+    const isAdmin       = req.user.role === 'admin' || freshFeatures.role === 'admin'
+    const canUpload     = isAdmin || freshFeatures.docs_upload || freshFeatures.docs_upload_all
+    const canUploadAll  = isAdmin || freshFeatures.docs_upload_all
 
     if (mode === 'local') {
       const baseDir  = getBaseDir()
       const kuerzel  = getUserKuerzel(req.user)
-      const canManage = isAdmin || req.user.features?.docs_manage
+      const canManage = isAdmin || freshFeatures.docs_manage
       let docs = []
 
       // /documents zeigt IMMER nur das eigene Verzeichnis
@@ -302,14 +330,15 @@ router.get('/download/:id', authMiddleware, async (req, res) => {
 })
 
 // ── POST /api/documents/upload ────────────────────────────────────────────
-router.post('/upload', authMiddleware, upload.array('files', 20), async (req, res) => {
+router.post('/upload', authMiddleware, uploadMiddleware, async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Keine Datei' })
 
-    const canUpload    = req.user.role === 'admin' || req.user.features?.docs_upload || req.user.features?.docs_upload_all
+    const freshFeat    = getUserFeatures(req.user.id)
+    const isAdminUp    = req.user.role === 'admin' || freshFeat.role === 'admin'
+    const canUpload    = isAdminUp || freshFeat.docs_upload || freshFeat.docs_upload_all
     if (!canUpload) return res.status(403).json({ error: 'Keine Upload-Berechtigung' })
-
-    const canUploadAll = req.user.role === 'admin' || req.user.features?.docs_upload_all
+    const canUploadAll = isAdminUp || freshFeat.docs_upload_all
     const category     = req.body.category || 'Allgemein'
     const baseDir      = getBaseDir()
 
@@ -357,7 +386,8 @@ router.delete('/local/:id', authMiddleware, (req, res) => {
 // GET /api/documents/manage/:userId - Dokumente eines anderen Users (für Admins/Manage-Rolle)
 router.get('/manage/:userId', authMiddleware, async (req, res) => {
   try {
-    const canManage = req.user.role === 'admin' || req.user.features?.docs_manage
+    const freshFeatM = getUserFeatures(req.user.id)
+    const canManage  = req.user.role === 'admin' || freshFeatM.role === 'admin' || freshFeatM.docs_manage
     if (!canManage) return res.status(403).json({ error: 'Keine Berechtigung' })
 
     const targetUser = localDb.db.prepare('SELECT * FROM users WHERE id = ?').get(parseInt(req.params.userId))

@@ -1,5 +1,9 @@
 # Ersetzen Sie "portal.droeger.eu" mit Ihrer Domain
 portal.droeger.eu {
+    request_body {
+        max_size 200MB
+    }
+
     reverse_proxy frontend:80
     
     # Automatisches HTTPS via Let's Encrypt
