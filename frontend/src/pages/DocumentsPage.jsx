@@ -38,20 +38,35 @@ function TextPreview({ url }) {
 }
 
 function PreviewModal({ doc, onClose }) {
-  const [url, setUrl] = useState(null)
-  const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    let u = null
-    api.get('/documents/download/'+encodeURIComponent(doc.id)+'?inline=true',{responseType:'blob'})
-      .then(r=>{ u=URL.createObjectURL(new Blob([r.data],{type:doc.mimeType||'application/octet-stream'})); setUrl(u); setLoading(false) })
-      .catch(()=>setLoading(false))
-    return ()=>{ if(u) URL.revokeObjectURL(u) }
-  },[doc.id])
+  const [blobUrl, setBlobUrl] = useState(null)
+  const [loading, setLoading]  = useState(true)
+  const [error, setError]      = useState(null)
+
   const isImg   = doc.mimeType?.startsWith('image/')
   const isPdf   = doc.mimeType === 'application/pdf'
   const isText  = doc.mimeType === 'text/plain' || doc.mimeType === 'text/csv'
   const isVideo = doc.mimeType?.startsWith('video/')
   const isAudio = doc.mimeType?.startsWith('audio/')
+
+  // Direkter API-URL mit Token im Header geht nicht per iframe/video src
+  // Wir laden als Blob und erstellen Object-URL mit korrektem MIME-Type
+  useEffect(() => {
+    let u = null
+    setLoading(true); setError(null)
+    api.get('/documents/download/'+encodeURIComponent(doc.id)+'?inline=true', { responseType:'blob' })
+      .then(r => {
+        // MIME-Type aus Response-Header nehmen, nicht aus doc.mimeType
+        const mime = r.headers['content-type'] || doc.mimeType || 'application/octet-stream'
+        const blob = new Blob([r.data], { type: mime })
+        u = URL.createObjectURL(blob)
+        setBlobUrl(u)
+        setLoading(false)
+      })
+      .catch(e => { setError(e.message); setLoading(false) })
+    return () => { if (u) URL.revokeObjectURL(u) }
+  }, [doc.id])
+
+  const url = blobUrl
   return (
     <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.75)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
       <div onClick={e=>e.stopPropagation()} style={{background:'var(--surface)',borderRadius:16,width:'min(1000px,96vw)',height:'min(85vh,750px)',display:'flex',flexDirection:'column',boxShadow:'0 24px 64px rgba(0,0,0,0.5)',overflow:'hidden'}}>
@@ -63,14 +78,33 @@ function PreviewModal({ doc, onClose }) {
           </div>
         </div>
         <div style={{flex:1,overflow:'hidden',background:'#111'}}>
-          {loading&&<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#fff'}}>Lädt...</div>}
-          {!loading&&url&&(
+          {loading && (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',flexDirection:'column',gap:12,color:'#fff'}}>
+              <div style={{width:40,height:40,border:'3px solid rgba(255,255,255,0.3)',borderTop:'3px solid white',borderRadius:'50%',animation:'spin 1s linear infinite'}}/>
+              <div>Lädt...</div>
+            </div>
+          )}
+          {error && (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#f87171',flexDirection:'column',gap:8}}>
+              <div style={{fontSize:'2rem'}}>⚠️</div>
+              <div>Fehler beim Laden: {error}</div>
+            </div>
+          )}
+          {!loading && !error && url && (
             isImg   ? <img src={url} alt={doc.dateiname} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
             : isPdf ? <iframe src={url} style={{width:'100%',height:'100%',border:'none'}} title={doc.dateiname}/>
-            : isVideo ? <video src={url} controls style={{width:'100%',height:'100%',background:'#000'}}/>
-            : isAudio ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',flexDirection:'column',gap:16}}><div style={{fontSize:'4rem'}}>🎵</div><audio src={url} controls style={{width:'80%'}}/></div>
+            : isVideo ? <video src={url} controls autoPlay style={{width:'100%',height:'100%',background:'#000'}}/>
+            : isAudio ? (
+                <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',flexDirection:'column',gap:16}}>
+                  <div style={{fontSize:'4rem'}}>🎵</div>
+                  <div style={{color:'white',fontWeight:600}}>{doc.dateiname}</div>
+                  <audio src={url} controls autoPlay style={{width:'80%'}}/>
+                </div>
+              )
             : isText  ? <TextPreview url={url}/>
-            : <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%'}}><a href={url} download={doc.dateiname} style={{padding:'10px 24px',borderRadius:10,background:'var(--primary)',color:'white',textDecoration:'none',fontWeight:600}}>⬇ Herunterladen</a></div>
+            : <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%'}}>
+                <a href={url} download={doc.dateiname} style={{padding:'10px 24px',borderRadius:10,background:'var(--primary)',color:'white',textDecoration:'none',fontWeight:600}}>⬇ Herunterladen</a>
+              </div>
           )}
         </div>
       </div>
