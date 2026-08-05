@@ -68,19 +68,36 @@ function PreviewModal({ doc, onClose }) {
     let objUrl = null
     setLoading(true); setError(null)
 
-    api.get('/documents/download/'+encodeURIComponent(doc.id)+'?inline=true', { responseType:'arraybuffer' })
-      .then(r => {
-        // MIME-Type explizit setzen - für PDF zwingend application/pdf
-        const mime = doc.mimeType || getMimeFromName(doc.dateiname)
-        const blob = new Blob([r.data], { type: mime })
-        objUrl = URL.createObjectURL(blob)
-        setUrl(objUrl)
-        setLoading(false)
-      })
-      .catch(e => { setError(e.message); setLoading(false) })
+    if (isPdf) {
+      // PDF: direkt als Object-URL mit fetch (kein axios) damit MIME stimmt
+      const token = localStorage.getItem('token') || ''
+      fetch('/api/documents/download/' + encodeURIComponent(doc.id) + '?inline=true', {
+        headers: { Authorization: 'Bearer ' + token }
+      }).then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status)
+          return r.blob()
+        }).then(blob => {
+          // Neuen Blob mit explizitem PDF MIME-Type erstellen
+          const pdfBlob = new Blob([blob], { type: 'application/pdf' })
+          objUrl = URL.createObjectURL(pdfBlob)
+          setUrl(objUrl)
+          setLoading(false)
+      }).catch(e => { setError(e.message); setLoading(false) })
+    } else {
+      // Bilder, Video, Audio, Text: normaler Blob-Download
+      api.get('/documents/download/'+encodeURIComponent(doc.id)+'?inline=true', { responseType:'arraybuffer' })
+        .then(r => {
+          const mime = doc.mimeType || getMimeFromName(doc.dateiname)
+          const blob = new Blob([r.data], { type: mime })
+          objUrl = URL.createObjectURL(blob)
+          setUrl(objUrl)
+          setLoading(false)
+        })
+        .catch(e => { setError(e.message); setLoading(false) })
+    }
 
     return () => { if (objUrl) URL.revokeObjectURL(objUrl) }
-  }, [doc.id])
+  }, [doc.id, isPdf])
   return (
     <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.75)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
       <div onClick={e=>e.stopPropagation()} style={{background:'var(--surface)',borderRadius:16,width:'min(1000px,96vw)',height:'min(85vh,750px)',display:'flex',flexDirection:'column',boxShadow:'0 24px 64px rgba(0,0,0,0.5)',overflow:'hidden'}}>
