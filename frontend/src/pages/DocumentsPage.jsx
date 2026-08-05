@@ -8,10 +8,34 @@ const ICONS = {
   'application/vnd.ms-excel':'📊','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'📊',
 }
 const fileIcon   = (m) => ICONS[m] || '📎'
-const canPreview = (m) => m && (m.startsWith('image/') || m === 'application/pdf')
+const canPreview = (m) => m && (
+  m.startsWith('image/') ||
+  m === 'application/pdf' ||
+  m === 'text/plain' ||
+  m === 'text/csv' ||
+  m === 'text/html' ||
+  m.startsWith('video/') ||
+  m.startsWith('audio/')
+)
 const fmtSize    = (b) => { if (!b) return ''; const n=parseInt(b); if(n<1024) return n+' B'; if(n<1048576) return Math.round(n/1024)+' KB'; return Math.round(n/1048576*10)/10+' MB' }
 const fmtDate    = (d) => d ? new Date(d).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—'
 const MONTHS     = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
+
+
+function TextPreview({ url }) {
+  const [text, setText] = React.useState('')
+  const [loading, setLoading] = React.useState(true)
+  React.useEffect(() => {
+    fetch(url).then(r => r.text()).then(t => { setText(t); setLoading(false) }).catch(() => setLoading(false))
+  }, [url])
+  if (loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#fff'}}>Lädt...</div>
+  return (
+    <pre style={{width:'100%',height:'100%',overflow:'auto',padding:20,margin:0,color:'#e2e8f0',
+      fontFamily:'monospace',fontSize:'0.85rem',lineHeight:1.6,background:'#1e1e1e',whiteSpace:'pre-wrap',wordBreak:'break-word'}}>
+      {text}
+    </pre>
+  )
+}
 
 function PreviewModal({ doc, onClose }) {
   const [url, setUrl] = useState(null)
@@ -23,8 +47,11 @@ function PreviewModal({ doc, onClose }) {
       .catch(()=>setLoading(false))
     return ()=>{ if(u) URL.revokeObjectURL(u) }
   },[doc.id])
-  const isImg = doc.mimeType?.startsWith('image/')
-  const isPdf = doc.mimeType==='application/pdf'
+  const isImg   = doc.mimeType?.startsWith('image/')
+  const isPdf   = doc.mimeType === 'application/pdf'
+  const isText  = doc.mimeType === 'text/plain' || doc.mimeType === 'text/csv'
+  const isVideo = doc.mimeType?.startsWith('video/')
+  const isAudio = doc.mimeType?.startsWith('audio/')
   return (
     <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.75)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
       <div onClick={e=>e.stopPropagation()} style={{background:'var(--surface)',borderRadius:16,width:'min(1000px,96vw)',height:'min(85vh,750px)',display:'flex',flexDirection:'column',boxShadow:'0 24px 64px rgba(0,0,0,0.5)',overflow:'hidden'}}>
@@ -37,7 +64,14 @@ function PreviewModal({ doc, onClose }) {
         </div>
         <div style={{flex:1,overflow:'hidden',background:'#111'}}>
           {loading&&<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#fff'}}>Lädt...</div>}
-          {!loading&&url&&(isImg?<img src={url} alt={doc.dateiname} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:isPdf?<iframe src={url} style={{width:'100%',height:'100%',border:'none'}} title={doc.dateiname}/>:<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%'}}><a href={url} download={doc.dateiname} style={{padding:'10px 24px',borderRadius:10,background:'var(--primary)',color:'white',textDecoration:'none',fontWeight:600}}>⬇ Herunterladen</a></div>)}
+          {!loading&&url&&(
+            isImg   ? <img src={url} alt={doc.dateiname} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+            : isPdf ? <iframe src={url} style={{width:'100%',height:'100%',border:'none'}} title={doc.dateiname}/>
+            : isVideo ? <video src={url} controls style={{width:'100%',height:'100%',background:'#000'}}/>
+            : isAudio ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',flexDirection:'column',gap:16}}><div style={{fontSize:'4rem'}}>🎵</div><audio src={url} controls style={{width:'80%'}}/></div>
+            : isText  ? <TextPreview url={url}/>
+            : <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%'}}><a href={url} download={doc.dateiname} style={{padding:'10px 24px',borderRadius:10,background:'var(--primary)',color:'white',textDecoration:'none',fontWeight:600}}>⬇ Herunterladen</a></div>
+          )}
         </div>
       </div>
     </div>

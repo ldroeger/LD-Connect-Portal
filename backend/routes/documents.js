@@ -25,6 +25,9 @@ function getMimeType(filename) {
     xls:'application/vnd.ms-excel',
     xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     txt:'text/plain', csv:'text/csv', zip:'application/zip',
+    mp4:'video/mp4', mov:'video/quicktime', avi:'video/x-msvideo', mkv:'video/x-matroska',
+    mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', m4a:'audio/mp4',
+    webm:'video/webm',
   }
   return map[ext] || 'application/octet-stream'
 }
