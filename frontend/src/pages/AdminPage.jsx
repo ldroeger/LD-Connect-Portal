@@ -41,7 +41,7 @@ function Toggle({ checked, onChange }) {
 
 function EditModal({ user, onClose, onSaved }) {
   const [docMode, setDocMode] = useState('powerbird')
-  useEffect(() => { api.get('/admin/settings').then(r => setDocMode(r.data?.settings?.doc_mode || 'powerbird')).catch(()=>{}) }, [])
+  useEffect(() => { api.get('/admin/settings').then(r => { const s = r.data?.settings || r.data || {}; setDocMode(s.doc_mode || 'powerbird') }).catch(()=>{}) }, [])
   const [form, setForm] = useState({
     name: user.name,
     email: user.email,
@@ -148,6 +148,8 @@ function EditModal({ user, onClose, onSaved }) {
 }
 
 function UserAdmin() {
+  const [docMode, setDocMode] = useState('powerbird')
+  useEffect(() => { api.get('/admin/settings').then(r => { const s = r.data?.settings || r.data || {}; setDocMode(s.doc_mode || 'powerbird') }).catch(()=>{}) }, [])
   const [users, setUsers] = useState([])
   const [form, setForm] = useState({ name:'', email:'', powerbird_id:'', role:'user' })
   const [loading, setLoading] = useState(false)
