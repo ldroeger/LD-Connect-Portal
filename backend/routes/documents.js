@@ -116,6 +116,35 @@ function saveFile(buffer, originalname, kuerzel, category, baseDir) {
   return filename
 }
 
+
+// ── SMB Schreiben ─────────────────────────────────────────────────────────
+function smbWriteFile(smb2, filePath, buffer) {
+  return new Promise((resolve, reject) => {
+    smb2.writeFile(filePath, buffer, (err) => {
+      if (err) reject(err); else resolve()
+    })
+  })
+}
+
+function smbMkdir(smb2, dirPath) {
+  return new Promise((resolve) => {
+    smb2.mkdir(dirPath, (err) => { resolve() }) // Fehler ignorieren (existiert bereits)
+  })
+}
+
+async function smbSaveFile(smb2, buffer, originalname, kuerzel, category, basePath) {
+  const safeCategory = (category || 'Allgemein').replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_')
+  // Ordner anlegen: basePath\kuerzel und basePath\kuerzel\kategorie
+  const kuerzelPath  = basePath ? basePath + '\\' + kuerzel : kuerzel
+  const categoryPath = kuerzelPath + '\\' + safeCategory
+  await smbMkdir(smb2, kuerzelPath)
+  await smbMkdir(smb2, categoryPath)
+  // Dateiname: Original behalten
+  const filePath = categoryPath + '\\' + originalname
+  await smbWriteFile(smb2, filePath, buffer)
+  return filePath
+}
+
 // ── SMB Client ────────────────────────────────────────────────────────────
 function getSmbClient() {
   const rawServer = localDb.getSetting('doc_smb_server') || ''
@@ -365,11 +394,31 @@ router.post('/upload', authMiddleware, uploadMiddleware, async (req, res) => {
     // Fallback: eigenes Verzeichnis
     if (targetKuerzels.length === 0) targetKuerzels = [getUserKuerzel(req.user)]
 
+    const mode = getMode()
     let count = 0
-    for (const kuerzel of targetKuerzels) {
-      for (const file of req.files) {
-        saveFile(file.buffer, file.originalname, kuerzel, category, baseDir)
-        count++
+
+    if (mode === 'smb') {
+      // SMB-Upload: direkt ins Netzlaufwerk schreiben
+      const smbInfo = getSmbClient()
+      if (!smbInfo) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
+      const { smb2, basePath } = smbInfo
+      try {
+        for (const kuerzel of targetKuerzels) {
+          for (const file of req.files) {
+            await smbSaveFile(smb2, file.buffer, file.originalname, kuerzel, category, basePath)
+            count++
+          }
+        }
+      } finally {
+        try { smb2.close() } catch(e) {}
+      }
+    } else {
+      // Lokaler Modus: ins Dateisystem schreiben
+      for (const kuerzel of targetKuerzels) {
+        for (const file of req.files) {
+          saveFile(file.buffer, file.originalname, kuerzel, category, baseDir)
+          count++
+        }
       }
     }
 
