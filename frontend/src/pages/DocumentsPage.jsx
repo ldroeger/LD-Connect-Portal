@@ -123,7 +123,18 @@ function PreviewModal({ doc, onClose }) {
           )}
           {!loading && !error && url && (
             isImg   ? <img src={url} alt={doc.dateiname} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
-            : isPdf ? <iframe src={url} style={{width:'100%',height:'100%',border:'none'}} title={doc.dateiname}/>
+            : isPdf ? (
+              <object data={url} type="application/pdf" style={{width:'100%',height:'100%'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',flexDirection:'column',gap:16,color:'white'}}>
+                  <div style={{fontSize:'3rem'}}>📄</div>
+                  <div>PDF kann nicht angezeigt werden</div>
+                  <a href={url} target="_blank" rel="noreferrer"
+                    style={{padding:'10px 20px',borderRadius:8,background:'var(--primary)',color:'white',textDecoration:'none',fontWeight:600}}>
+                    🔗 In neuem Tab öffnen
+                  </a>
+                </div>
+              </object>
+            )
             : isVideo ? <video src={url} controls autoPlay style={{width:'100%',height:'100%',background:'#000'}}/>
             : isAudio ? (
                 <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',flexDirection:'column',gap:16}}>
