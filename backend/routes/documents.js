@@ -135,6 +135,17 @@ function getSmbClient() {
   return { smb2, host, share, basePath }
 }
 
+
+// GET /api/documents/my-rights - Rechte frisch aus DB ohne Admin-Override
+router.get('/my-rights', authMiddleware, (req, res) => {
+  const f = getUserFeatures(req.user.id)
+  res.json({
+    canUpload:    f.docs_upload || f.docs_upload_all,
+    canUploadAll: f.docs_upload_all,
+    canManage:    f.docs_manage,
+  })
+})
+
 // ── GET /api/documents/categories ────────────────────────────────────────
 router.get('/categories', authMiddleware, (req, res) => {
   const cats = getCategories()
