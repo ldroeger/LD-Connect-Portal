@@ -485,10 +485,56 @@ router.get('/manage/:userId', authMiddleware, async (req, res) => {
       const cats = {}
       getCategories().forEach(c => { cats[c] = c })
       docs.forEach(d => { if (d.kategorieKey) cats[d.kategorieKey] = d.kategorieKey })
-      return res.json({ documents: docs, categories: cats, mode: 'local' })
+      return res.json({ documents: docs, categories: cats, mode: 'local', canUpload: true, canUploadAll: true })
     }
 
-    res.json({ documents: [], categories: {}, mode })
+    if (mode === 'smb') {
+      const smbInfo = getSmbClient()
+      if (!smbInfo) return res.json({ documents: [], categories: {}, mode: 'smb', canUpload: true, canUploadAll: true })
+      const { smb2, basePath } = smbInfo
+
+      const tryReaddir = (p) => new Promise((resolve) => {
+        smb2.readdir(p || '', (err, files) => { resolve(err ? null : (files || [])) })
+      })
+
+      const documents = []
+      const allCats   = {}
+
+      try {
+        const userPath   = basePath ? basePath + '\\' + kuerzel : kuerzel
+        const catEntries = await tryReaddir(userPath)
+
+        if (catEntries !== null) {
+          for (const catName of catEntries) {
+            const catPath  = userPath + '\\' + catName
+            const catFiles = await tryReaddir(catPath)
+            if (catFiles !== null) {
+              allCats[catName] = catName
+              for (const file of catFiles) {
+                const filePath   = catPath + '\\' + file
+                const innerCheck = await tryReaddir(filePath)
+                if (innerCheck === null) {
+                  documents.push({
+                    id:           'smb_' + Buffer.from(filePath).toString('base64'),
+                    dateiname:    file,
+                    mimeType:     getMimeType(file),
+                    kategorieKey: catName,
+                    datum:        new Date().toISOString(),
+                    smbPath:      filePath,
+                  })
+                }
+              }
+            }
+          }
+        }
+      } catch(e) { console.log('SMB manage readdir error:', e.message) }
+      try { smb2.close() } catch(e) {}
+
+      getCategories().forEach(c => { allCats[c] = c })
+      return res.json({ documents, categories: allCats, mode: 'smb', canUpload: true, canUploadAll: true })
+    }
+
+    res.json({ documents: [], categories: {}, mode, canUpload: true, canUploadAll: true })
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
 
