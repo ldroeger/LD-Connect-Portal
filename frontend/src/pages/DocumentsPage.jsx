@@ -18,7 +18,7 @@ function PreviewModal({ doc, onClose }) {
   const [loading, setLoading] = useState(true)
   useEffect(() => {
     let u = null
-    api.get('/documents/download/'+doc.id,{responseType:'blob'})
+    api.get('/documents/download/'+encodeURIComponent(doc.id)+'?inline=true',{responseType:'blob'})
       .then(r=>{ u=URL.createObjectURL(new Blob([r.data],{type:doc.mimeType||'application/octet-stream'})); setUrl(u); setLoading(false) })
       .catch(()=>setLoading(false))
     return ()=>{ if(u) URL.revokeObjectURL(u) }
@@ -205,7 +205,7 @@ export default function DocumentsPage() {
   const download = async (doc) => {
     setDownloading(doc.id)
     try {
-      const res = await api.get('/documents/download/'+doc.id,{responseType:'blob'})
+      const res = await api.get('/documents/download/'+encodeURIComponent(doc.id),{responseType:'blob'})
       const url = URL.createObjectURL(new Blob([res.data]))
       const a=document.createElement('a'); a.href=url; a.download=doc.dateiname; a.click()
       URL.revokeObjectURL(url)

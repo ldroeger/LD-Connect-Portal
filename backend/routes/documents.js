@@ -338,6 +338,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
 // ── GET /api/documents/download/:id ──────────────────────────────────────
 router.get('/download/:id', authMiddleware, async (req, res) => {
+  const inline = req.query.inline === 'true'  // ?inline=true für Vorschau
   try {
     if (req.user.features && req.user.features.documents === false)
       return res.status(403).json({ error: 'Funktion nicht freigeschaltet' })
@@ -350,8 +351,10 @@ router.get('/download/:id', authMiddleware, async (req, res) => {
       // Sicherheitscheck: Datei muss im Basis-Verzeichnis liegen
       const baseDir = getBaseDir()
       if (!fsPath.startsWith(baseDir)) return res.status(403).json({ error: 'Zugriff verweigert' })
+      const fname = pathMod.basename(fsPath)
+      const safeName = encodeURIComponent(fname)
       res.setHeader('Content-Type', getMimeType(fsPath))
-      res.setHeader('Content-Disposition', 'attachment; filename="' + pathMod.basename(fsPath) + '"')
+      res.setHeader('Content-Disposition', (inline ? 'inline' : 'attachment') + '; filename="' + fname + '"; filename*=UTF-8\'\'' + safeName)
       return fs.createReadStream(fsPath).pipe(res)
     }
 
@@ -364,8 +367,10 @@ router.get('/download/:id', authMiddleware, async (req, res) => {
       smb2.readFile(smbPath, (err, data) => {
         try { smb2.close() } catch(e2) {}
         if (err) return res.status(500).json({ error: err.message })
+        const smbFname = pathMod.basename(smbPath)
+        const safeSmbName = encodeURIComponent(smbFname)
         res.setHeader('Content-Type', getMimeType(smbPath))
-        res.setHeader('Content-Disposition', 'attachment; filename="' + pathMod.basename(smbPath) + '"')
+        res.setHeader('Content-Disposition', (inline ? 'inline' : 'attachment') + '; filename="' + smbFname + '"; filename*=UTF-8\'\'' + safeSmbName)
         res.send(data)
       })
       return
@@ -389,8 +394,10 @@ router.get('/download/:id', authMiddleware, async (req, res) => {
     smb2.readFile(filePath, (err, data) => {
       try { smb2.close() } catch(e2) {}
       if (err) return res.status(500).json({ error: err.message })
+      const pbFname   = doc.ELDVD_DateinameUser || 'dokument'
+      const safePbName = encodeURIComponent(pbFname)
       res.setHeader('Content-Type', doc.ELDVD_MimeType || 'application/octet-stream')
-      res.setHeader('Content-Disposition', 'attachment; filename="' + doc.ELDVD_DateinameUser + '"')
+      res.setHeader('Content-Disposition', (inline ? 'inline' : 'attachment') + '; filename="' + pbFname + '"; filename*=UTF-8\'\'' + safePbName)
       res.send(data)
     })
   } catch(e) { res.status(500).json({ error: e.message }) }
