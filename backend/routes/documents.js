@@ -230,55 +230,77 @@ router.get('/', authMiddleware, async (req, res) => {
       const smbInfo = getSmbClient()
       if (!smbInfo) return res.json({ documents: [], categories: {}, mode: 'smb', canUpload: false, canUploadAll: false })
       const { smb2, basePath } = smbInfo
-      const useUserDirs = localDb.getSetting('doc_smb_user_dirs') === 'true'
       const kuerzel = getUserKuerzel(req.user)
 
-      const readdir = (p) => new Promise((resolve, reject) => {
-        smb2.readdir(p || '', (err, files) => { if (err) reject(err); else resolve(files || []) })
+      // Hilfsfunktion: Verzeichnis lesen, gibt [] bei Fehler zurück
+      const tryReaddir = (p) => new Promise((resolve) => {
+        smb2.readdir(p || '', (err, files) => { resolve(err ? null : (files || [])) })
       })
 
       const documents = []
+      const allCats   = {}
+
       try {
-        if (useUserDirs) {
-          // KUERZEL/KATEGORIE/datei - gleiche Struktur wie lokal
-          const userPath = basePath ? basePath + '\\' + kuerzel : kuerzel
-          let catDirs = []
-          try { catDirs = await readdir(userPath) } catch(e) {}
-          for (const catOrFile of catDirs) {
-            const catPath = userPath + '\\' + catOrFile
-            try {
-              const files = await readdir(catPath)
-              for (const file of files) {
-                const filePath = catPath + '\\' + file
-                documents.push({
-                  id: 'smb_' + Buffer.from(filePath).toString('base64'),
-                  dateiname: file, mimeType: getMimeType(file),
-                  kategorieKey: catOrFile, datum: new Date().toISOString(), smbPath: filePath,
-                })
+        // Struktur: basePath\KUERZEL\KATEGORIE\datei
+        const userPath = basePath ? basePath + '\\' + kuerzel : kuerzel
+        const catEntries = await tryReaddir(userPath)
+
+        if (catEntries !== null) {
+          // Eigenes Verzeichnis vorhanden → Kategorie-Ebene lesen
+          for (const catName of catEntries) {
+            const catPath  = userPath + '\\' + catName
+            const catFiles = await tryReaddir(catPath)
+
+            if (catFiles !== null) {
+              // catName ist ein Ordner (Kategorie)
+              allCats[catName] = catName
+              for (const file of catFiles) {
+                // Nur Dateien (nicht Unterordner)
+                const filePath   = catPath + '\\' + file
+                const innerCheck = await tryReaddir(filePath)
+                if (innerCheck === null) {
+                  // ist eine Datei
+                  documents.push({
+                    id:           'smb_' + Buffer.from(filePath).toString('base64'),
+                    dateiname:    file,
+                    mimeType:     getMimeType(file),
+                    kategorieKey: catName,
+                    datum:        new Date().toISOString(),
+                    smbPath:      filePath,
+                  })
+                }
               }
-            } catch(e) {
-              // Ist eine Datei, keine Unterordner
-              documents.push({
-                id: 'smb_' + Buffer.from(catPath).toString('base64'),
-                dateiname: catOrFile, mimeType: getMimeType(catOrFile),
-                kategorieKey: 'Netzlaufwerk', datum: new Date().toISOString(), smbPath: catPath,
-              })
             }
+            // catName ist eine Datei direkt im KUERZEL-Ordner → ignorieren oder als Sonstiges
           }
         } else {
-          const files = await readdir(basePath || '')
-          for (const file of files) {
-            const filePath = basePath ? basePath + '\\' + file : file
-            documents.push({
-              id: 'smb_' + Buffer.from(filePath).toString('base64'),
-              dateiname: file, mimeType: getMimeType(file),
-              kategorieKey: 'Netzlaufwerk', datum: new Date().toISOString(), smbPath: filePath,
-            })
+          // Kein eigenes Verzeichnis → Basispfad flach lesen als Fallback
+          const rootFiles = await tryReaddir(basePath || '')
+          if (rootFiles) {
+            for (const file of rootFiles) {
+              const filePath   = basePath ? basePath + '\\' + file : file
+              const isDir      = await tryReaddir(filePath)
+              if (isDir === null) {
+                documents.push({
+                  id:           'smb_' + Buffer.from(filePath).toString('base64'),
+                  dateiname:    file,
+                  mimeType:     getMimeType(file),
+                  kategorieKey: 'Allgemein',
+                  datum:        new Date().toISOString(),
+                  smbPath:      filePath,
+                })
+              }
+            }
           }
         }
       } catch(e) { console.log('SMB readdir error:', e.message) }
       try { smb2.close() } catch(e) {}
-      return res.json({ documents, categories: { Netzlaufwerk:'Netzlaufwerk' }, mode: 'smb', canUpload, canUploadAll })
+
+      // Konfigurierte Kategorien ergänzen
+      getCategories().forEach(c => { allCats[c] = c })
+      if (!Object.keys(allCats).length) allCats['Allgemein'] = 'Allgemein'
+
+      return res.json({ documents, categories: allCats, mode: 'smb', canUpload, canUploadAll })
     }
 
     // ── Powerbird-Modus ───────────────────────────────────────────────────
