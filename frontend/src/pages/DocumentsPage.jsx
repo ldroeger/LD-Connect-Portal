@@ -22,6 +22,20 @@ const fmtDate    = (d) => d ? new Date(d).toLocaleDateString('de-DE',{day:'2-dig
 const MONTHS     = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
 
 
+
+function getMimeFromName(filename) {
+  if (!filename) return 'application/octet-stream'
+  const ext = filename.split('.').pop().toLowerCase()
+  const map = {
+    pdf:'application/pdf',
+    jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp',
+    mp4:'video/mp4', mov:'video/quicktime', avi:'video/x-msvideo', mkv:'video/x-matroska', webm:'video/webm',
+    mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', m4a:'audio/mp4',
+    txt:'text/plain', csv:'text/csv',
+  }
+  return map[ext] || 'application/octet-stream'
+}
+
 function TextPreview({ url }) {
   const [text, setText] = React.useState('')
   const [loading, setLoading] = React.useState(true)
@@ -38,35 +52,35 @@ function TextPreview({ url }) {
 }
 
 function PreviewModal({ doc, onClose }) {
-  const [blobUrl, setBlobUrl] = useState(null)
-  const [loading, setLoading]  = useState(true)
-  const [error, setError]      = useState(null)
+  const [url, setUrl]         = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
 
-  const isImg   = doc.mimeType?.startsWith('image/')
-  const isPdf   = doc.mimeType === 'application/pdf'
-  const isText  = doc.mimeType === 'text/plain' || doc.mimeType === 'text/csv'
-  const isVideo = doc.mimeType?.startsWith('video/')
-  const isAudio = doc.mimeType?.startsWith('audio/')
+  // mimeType aus doc nehmen oder aus Dateinamen ermitteln
+  const mime    = doc.mimeType || getMimeFromName(doc.dateiname)
+  const isImg   = mime.startsWith('image/')
+  const isPdf   = mime === 'application/pdf'
+  const isText  = mime === 'text/plain' || mime === 'text/csv'
+  const isVideo = mime.startsWith('video/')
+  const isAudio = mime.startsWith('audio/')
 
-  // Direkter API-URL mit Token im Header geht nicht per iframe/video src
-  // Wir laden als Blob und erstellen Object-URL mit korrektem MIME-Type
   useEffect(() => {
-    let u = null
+    let objUrl = null
     setLoading(true); setError(null)
-    api.get('/documents/download/'+encodeURIComponent(doc.id)+'?inline=true', { responseType:'blob' })
+
+    api.get('/documents/download/'+encodeURIComponent(doc.id)+'?inline=true', { responseType:'arraybuffer' })
       .then(r => {
-        // MIME-Type aus Response-Header nehmen, nicht aus doc.mimeType
-        const mime = r.headers['content-type'] || doc.mimeType || 'application/octet-stream'
+        // MIME-Type explizit setzen - für PDF zwingend application/pdf
+        const mime = doc.mimeType || getMimeFromName(doc.dateiname)
         const blob = new Blob([r.data], { type: mime })
-        u = URL.createObjectURL(blob)
-        setBlobUrl(u)
+        objUrl = URL.createObjectURL(blob)
+        setUrl(objUrl)
         setLoading(false)
       })
       .catch(e => { setError(e.message); setLoading(false) })
-    return () => { if (u) URL.revokeObjectURL(u) }
-  }, [doc.id])
 
-  const url = blobUrl
+    return () => { if (objUrl) URL.revokeObjectURL(objUrl) }
+  }, [doc.id])
   return (
     <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.75)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}}>
       <div onClick={e=>e.stopPropagation()} style={{background:'var(--surface)',borderRadius:16,width:'min(1000px,96vw)',height:'min(85vh,750px)',display:'flex',flexDirection:'column',boxShadow:'0 24px 64px rgba(0,0,0,0.5)',overflow:'hidden'}}>
