@@ -16,7 +16,9 @@ function ManageDocLink({ onNavigate, navLink }) {
   const [show, setShow] = React.useState(false)
   React.useEffect(() => {
     import('../utils/api.js').then(({ default: api }) => {
-      api.get('/documents/my-rights').then(r => setShow(r.data.canManage === true)).catch(() => {})
+      api.get('/documents/my-rights').then(r => {
+        setShow(r.data.canManage === true)
+      }).catch(() => {})
     })
   }, [])
   if (!show) return null

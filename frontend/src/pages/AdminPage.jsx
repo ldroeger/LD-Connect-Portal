@@ -26,9 +26,9 @@ const FEATURES = [
   { key:'feature_tools_search',  label:'Werkzeug suchen',       icon:'🔍' },
   { key:'feature_show_verleih',   label:'Verleih-Info sehen',    icon:'👁' },
   { key:'feature_documents',      label:'Dokumente ansehen',     icon:'📁' },
-  { key:'feature_docs_upload',     label:'Dokumente hochladen (eigene)',   icon:'📤' },
-  { key:'feature_docs_upload_all', label:'Dokumente hochladen (für alle)', icon:'📤' },
-  { key:'feature_docs_manage',     label:'Dokumente anderer Mitarbeiter verwalten', icon:'🗂' },
+  { key:'feature_docs_upload',     label:'Dokumente hochladen (eigene)',   icon:'📤', docMode: true },
+  { key:'feature_docs_upload_all', label:'Dokumente hochladen (für alle)', icon:'📤', docMode: true },
+  { key:'feature_docs_manage',     label:'Dokumente anderer verwalten',    icon:'🗂', docMode: true },
 ]
 
 function Toggle({ checked, onChange }) {
@@ -40,6 +40,8 @@ function Toggle({ checked, onChange }) {
 }
 
 function EditModal({ user, onClose, onSaved }) {
+  const [docMode, setDocMode] = useState('powerbird')
+  useEffect(() => { api.get('/admin/settings').then(r => setDocMode(r.data?.settings?.doc_mode || 'powerbird')).catch(()=>{}) }, [])
   const [form, setForm] = useState({
     name: user.name,
     email: user.email,
@@ -118,7 +120,7 @@ function EditModal({ user, onClose, onSaved }) {
         <div style={{ marginBottom:20 }}>
           <div style={{ fontWeight:600, fontSize:'0.88rem', marginBottom:12, color:'var(--text)' }}>Funktionen aktivieren</div>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {FEATURES.map(f => (
+            {FEATURES.filter(f => !f.docMode || docMode !== 'powerbird').map(f => (
               <div key={f.key} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'var(--surface-2)', borderRadius:8 }}>
                 <Toggle checked={form[f.key]} onChange={()=>setForm(ff=>({...ff,[f.key]:!ff[f.key]}))} />
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -207,7 +209,7 @@ function UserAdmin() {
                   </div>
                   {/* Feature badges */}
                   <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-                    {FEATURES.map(f => (
+                    {FEATURES.filter(f => !f.docMode || docMode !== 'powerbird').map(f => (
                       <span key={f.key} style={{ fontSize:'0.72rem', padding:'1px 7px', borderRadius:10, background:u[f.key]!==0?'var(--primary-light)':'#F1F5F9', color:u[f.key]!==0?'var(--primary)':'var(--text-3)' }}>
                         {f.icon} {f.label}
                       </span>

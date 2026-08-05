@@ -167,6 +167,10 @@ function getSmbClient() {
 
 // GET /api/documents/my-rights - Rechte frisch aus DB ohne Admin-Override
 router.get('/my-rights', authMiddleware, (req, res) => {
+  const mode = getMode()
+  if (mode === 'powerbird') {
+    return res.json({ canUpload: false, canUploadAll: false, canManage: false })
+  }
   const f = getUserFeatures(req.user.id)
   res.json({
     canUpload:    f.docs_upload || f.docs_upload_all,
@@ -396,6 +400,7 @@ router.get('/download/:id', authMiddleware, async (req, res) => {
 router.post('/upload', authMiddleware, uploadMiddleware, async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Keine Datei' })
+    if (getMode() === 'powerbird') return res.status(403).json({ error: 'Upload im Powerbird-Modus nicht verfügbar' })
 
     const freshFeat    = getUserFeatures(req.user.id)
     const canUpload    = freshFeat.docs_upload || freshFeat.docs_upload_all
@@ -469,6 +474,7 @@ router.delete('/local/:id', authMiddleware, (req, res) => {
 // GET /api/documents/manage/:userId - Dokumente eines anderen Users (für Admins/Manage-Rolle)
 router.get('/manage/:userId', authMiddleware, async (req, res) => {
   try {
+    if (getMode() === 'powerbird') return res.status(403).json({ error: 'Im Powerbird-Modus nicht verfügbar' })
     const freshFeatM = getUserFeatures(req.user.id)
     const canManage  = freshFeatM.docs_manage
     if (!canManage) return res.status(403).json({ error: 'Keine Berechtigung' })
