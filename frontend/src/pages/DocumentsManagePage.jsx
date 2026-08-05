@@ -60,9 +60,14 @@ export default function DocumentsManagePage() {
   const [uploadMsg, setUploadMsg]     = useState('')
   const fileRef = useRef()
 
-  const isAdmin = user?.role === 'admin' || user?.features?.docs_manage
+  const [isAdmin, setIsAdmin] = React.useState(false)
+  const [rightsLoading, setRightsLoading] = React.useState(true)
 
   useEffect(() => {
+    api.get('/documents/my-rights').then(r => {
+      setIsAdmin(r.data.canManage === true)
+      setRightsLoading(false)
+    }).catch(() => setRightsLoading(false))
     api.get('/users').then(r => setAllUsers(r.data.users||r.data||[])).catch(()=>{})
     api.get('/documents/categories').then(r => setAvailCats(r.data.categories||[])).catch(()=>{})
   }, [])
@@ -200,6 +205,7 @@ export default function DocumentsManagePage() {
     ))}</div>
   }
 
+  if (rightsLoading) return <div style={{textAlign:'center',padding:60,color:'var(--text-3)'}}>Prüfe Berechtigungen...</div>
   if (!isAdmin) return (
     <div style={{textAlign:'center',padding:60}}><div style={{fontSize:'3rem'}}>🔒</div><div style={{fontWeight:600,marginTop:12}}>Kein Zugriff</div></div>
   )

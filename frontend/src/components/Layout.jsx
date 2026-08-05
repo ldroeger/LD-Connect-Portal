@@ -11,6 +11,18 @@ const navLink = (active) => ({
   background: active ? 'var(--primary-light)' : 'transparent',
 })
 
+
+function ManageDocLink({ onNavigate, navLink }) {
+  const [show, setShow] = React.useState(false)
+  React.useEffect(() => {
+    import('../utils/api.js').then(({ default: api }) => {
+      api.get('/documents/my-rights').then(r => setShow(r.data.canManage === true)).catch(() => {})
+    })
+  }, [])
+  if (!show) return null
+  return <NavLink to="/documents-manage" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🗂</span><span>Dok. verwalten</span></NavLink>
+}
+
 export default function Layout() {
   const { user, logout, isAdmin } = useAuth()
   const { branding } = useBranding()
@@ -32,7 +44,7 @@ export default function Layout() {
       <NavLink to="/" end style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🏠</span><span>Dashboard</span></NavLink>
       {!!features.calendar && <NavLink to="/calendar" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📅</span><span>Kalender</span></NavLink>}
       {(user?.features?.documents !== false) && <NavLink to="/documents" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>📁</span><span>Dokumente</span></NavLink>}
-      {(user?.features?.docs_manage || user?.role === 'admin') && <NavLink to="/documents-manage" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🗂</span><span>Dok. verwalten</span></NavLink>}
+      <ManageDocLink onNavigate={onNavigate} navLink={navLink} />
       {(user?.features?.sick !== false) && <NavLink to="/sick" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🤒</span><span>Krankmeldung</span></NavLink>}
       {!!features.vacation && <NavLink to="/vacation" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🌴</span><span>Urlaubsplanung</span></NavLink>}
       {features.hours    && <NavLink to="/hours" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⏱</span><span>Stundenkonto</span></NavLink>}

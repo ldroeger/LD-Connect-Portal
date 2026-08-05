@@ -164,13 +164,13 @@ router.get('/', authMiddleware, async (req, res) => {
     const rights        = localDb.getSetting('doc_user_rights') || 'own'
     const freshFeatures = getUserFeatures(req.user.id)
     const isAdmin       = req.user.role === 'admin' || freshFeatures.role === 'admin'
-    const canUpload     = isAdmin || freshFeatures.docs_upload || freshFeatures.docs_upload_all
-    const canUploadAll  = isAdmin || freshFeatures.docs_upload_all
+    const canUpload     = freshFeatures.docs_upload || freshFeatures.docs_upload_all
+    const canUploadAll  = freshFeatures.docs_upload_all
 
     if (mode === 'local') {
       const baseDir  = getBaseDir()
       const kuerzel  = getUserKuerzel(req.user)
-      const canManage = isAdmin || freshFeatures.docs_manage
+      const canManage = freshFeatures.docs_manage
       let docs = []
 
       // /documents zeigt IMMER nur das eigene Verzeichnis
@@ -336,10 +336,9 @@ router.post('/upload', authMiddleware, uploadMiddleware, async (req, res) => {
     if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Keine Datei' })
 
     const freshFeat    = getUserFeatures(req.user.id)
-    const isAdminUp    = req.user.role === 'admin' || freshFeat.role === 'admin'
-    const canUpload    = isAdminUp || freshFeat.docs_upload || freshFeat.docs_upload_all
+    const canUpload    = freshFeat.docs_upload || freshFeat.docs_upload_all
     if (!canUpload) return res.status(403).json({ error: 'Keine Upload-Berechtigung' })
-    const canUploadAll = isAdminUp || freshFeat.docs_upload_all
+    const canUploadAll = freshFeat.docs_upload_all
     const category     = req.body.category || 'Allgemein'
     const baseDir      = getBaseDir()
 
@@ -377,7 +376,8 @@ router.delete('/local/:id', authMiddleware, (req, res) => {
     // Nur Admin oder Eigentümer (Kürzel im Pfad prüfen)
     const kuerzel = getUserKuerzel(req.user)
     const isOwner = fsPath.includes(pathMod.sep + kuerzel + pathMod.sep)
-    if (!isOwner && req.user.role !== 'admin') return res.status(403).json({ error: 'Kein Zugriff' })
+    const freshFeatDel = getUserFeatures(req.user.id)
+    if (!isOwner && !freshFeatDel.docs_manage) return res.status(403).json({ error: 'Kein Zugriff' })
     fs.unlinkSync(fsPath)
     res.json({ success: true })
   } catch(e) { res.status(500).json({ error: e.message }) }
@@ -388,7 +388,7 @@ router.delete('/local/:id', authMiddleware, (req, res) => {
 router.get('/manage/:userId', authMiddleware, async (req, res) => {
   try {
     const freshFeatM = getUserFeatures(req.user.id)
-    const canManage  = req.user.role === 'admin' || freshFeatM.role === 'admin' || freshFeatM.docs_manage
+    const canManage  = freshFeatM.docs_manage
     if (!canManage) return res.status(403).json({ error: 'Keine Berechtigung' })
 
     const targetUser = localDb.db.prepare('SELECT * FROM users WHERE id = ?').get(parseInt(req.params.userId))
