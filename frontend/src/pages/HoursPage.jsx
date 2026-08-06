@@ -28,7 +28,7 @@ function JahresView({ year, setYear, onMonthClick }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [showSoll, setShowSoll]       = useState(true)
-  const [showKacheln, setShowKacheln] = useState(true)
+  const [showKacheln, setShowKacheln] = useState(true)  // aus Admin-Einstellungen
 
   // Anzeigeoptionen aus Admin-Einstellungen laden
   useEffect(() => {
@@ -55,17 +55,10 @@ function JahresView({ year, setYear, onMonthClick }) {
           {years.map(y=><option key={y} value={y}>{y}</option>)}
         </select>
         {loading && <span style={{ color:"var(--text-3)", fontSize:"0.85rem" }}>Lädt...</span>}
-        <div style={{ position:"relative", marginLeft:"auto" }}>
-          <button onClick={() => setSettingsOpen(s => !s)} style={{ padding:"7px 12px", borderRadius:8, border:"1px solid var(--border)", background: settingsOpen ? "var(--primary)" : "var(--surface-2)", color: settingsOpen ? "white" : "var(--text)", cursor:"pointer", fontFamily:"var(--font)", fontSize:"0.82rem", fontWeight:600 }}>⚙ Ansicht</button>
-          {settingsOpen && (
-            <div style={{ position:"absolute", right:0, top:40, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:12, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", padding:16, zIndex:100, minWidth:200 }}>
-              <div style={{ fontWeight:700, fontSize:"0.85rem", marginBottom:10 }}>Kacheln</div>
-              <label style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, fontSize:"0.85rem", cursor:"pointer" }}><input type="checkbox" checked={showKacheln} onChange={e => setShowKacheln(e.target.checked)} />Statistik-Kacheln</label>
-              <div style={{ fontWeight:700, fontSize:"0.85rem", marginBottom:10, marginTop:12, borderTop:"1px solid var(--border)", paddingTop:10 }}>Spalten</div>
-              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:"0.85rem", cursor:"pointer" }}><input type="checkbox" checked={showSoll} onChange={e => setShowSoll(e.target.checked)} />Soll-Stunden</label>
-            </div>
-          )}
-        </div>
+        <button onClick={() => { setData(null); setLoading(true); api.get(`/calendar/hours?year=${year}`).then(r=>{setData(r.data);setLoading(false)}).catch(()=>setLoading(false)) }}
+          style={{ padding:"7px 12px", borderRadius:8, border:"1px solid var(--border)", background:"var(--surface-2)", cursor:"pointer", fontFamily:"var(--font)", fontSize:"0.82rem" }} title="Neu laden">
+          🔄
+        </button>
       </div>
       {error && <div style={{ background:"rgba(239,68,68,0.12)",border:"1px solid #FECACA",color:"#DC2626",padding:"10px 14px",borderRadius:8,fontSize:"0.85rem",marginBottom:16 }}>{error}</div>}
       {data && <>
