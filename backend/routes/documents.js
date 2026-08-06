@@ -99,8 +99,20 @@ function readLocalDocs(baseDir, kuerzel, isAdmin) {
 // Memory Storage - Dateien werden nach dem Middleware-Stack manuell gespeichert
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024, files: 20 }  // 100MB pro Datei
+  limits: { fileSize: 100 * 1024 * 1024, files: 20 }
 }).array('files', 20)
+
+// Dateiname von Latin-1 nach UTF-8 konvertieren (multer-Bug mit Umlauten)
+function fixFilename(name) {
+  try {
+    // Prüfen ob es Latin-1 encoded UTF-8 ist
+    const buf = Buffer.from(name, 'latin1')
+    const utf8 = buf.toString('utf8')
+    // Wenn gültig und unterschiedlich → war falsch kodiert
+    if (utf8 !== name && /[äöüÄÖÜß]/.test(utf8)) return utf8
+  } catch(e) {}
+  return name
+}
 
 const uploadMiddleware = (req, res, next) => {
   upload(req, res, (err) => {
@@ -114,6 +126,7 @@ const uploadMiddleware = (req, res, next) => {
 }
 
 function saveFile(buffer, originalname, kuerzel, category, baseDir) {
+  originalname = fixFilename(originalname)
   // Nur Windows-ungültige Zeichen entfernen, Umlaute und Sonderzeichen erlauben
   const safeCategory = (category || 'Allgemein').replace(/[\/:*?"<>|]/g, '_').trim()
   const dir = pathMod.join(baseDir, kuerzel, safeCategory)
@@ -145,6 +158,7 @@ function smbMkdir(smb2, dirPath) {
 }
 
 async function smbSaveFile(smb2, buffer, originalname, kuerzel, category, basePath) {
+  originalname = fixFilename(originalname)
   // Nur Windows-ungültige Zeichen entfernen
   const safeCategory = (category || 'Allgemein').replace(/[\/:*?"<>|]/g, '_').trim()
   // Ordner anlegen: basePath\kuerzel und basePath\kuerzel\kategorie
@@ -489,18 +503,23 @@ router.post('/upload', authMiddleware, uploadMiddleware, async (req, res) => {
     const baseDir      = getBaseDir()
 
     // Ziel-User bestimmen
+    const mode = getMode()
     let targetKuerzels = []
     if (canUploadAll && req.body.target_user_ids) {
       const ids = req.body.target_user_ids.split(',').map(s => s.trim()).filter(Boolean)
       for (const id of ids) {
         const u = localDb.db.prepare('SELECT * FROM users WHERE id = ?').get(parseInt(id))
-        if (u) targetKuerzels.push(getUserKuerzel(u))
+        if (u) {
+          // SMB: Ordner nach Name, Lokal: Kürzel
+          targetKuerzels.push(mode === 'smb' ? getUserFolderName(u) : getUserKuerzel(u))
+        }
       }
     }
     // Fallback: eigenes Verzeichnis
-    if (targetKuerzels.length === 0) targetKuerzels = [getUserKuerzel(req.user)]
+    if (targetKuerzels.length === 0) {
+      targetKuerzels = [mode === 'smb' ? getUserFolderName(req.user) : getUserKuerzel(req.user)]
+    }
 
-    const mode = getMode()
     let count = 0
 
     if (mode === 'smb') {
