@@ -592,7 +592,12 @@ router.delete('/smb/:id', authMiddleware, async (req, res) => {
     await new Promise((resolve, reject) => {
       smb2.unlink(smbPath, (err) => {
         try { smb2.close() } catch(e) {}
-        if (err) reject(err); else resolve()
+        // STATUS_PENDING ist ein bekannter SMB2-Bug - Datei wurde trotzdem gelöscht
+        if (err && err.code !== 'STATUS_PENDING' && !err.message?.includes('0x00000103')) {
+          reject(err)
+        } else {
+          resolve()
+        }
       })
     })
     res.json({ success: true })
