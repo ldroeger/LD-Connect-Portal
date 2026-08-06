@@ -586,13 +586,25 @@ router.delete('/smb/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung' })
 
     const smbPath = Buffer.from(req.params.id, 'base64').toString()
+    console.log('[SMB DELETE] path:', JSON.stringify(smbPath))
     const smbInfo = getSmbClient()
     if (!smbInfo) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
     const { smb2 } = smbInfo
+
+    // Erst prüfen ob Datei existiert
+    const exists = await new Promise(resolve => {
+      smb2.exists(smbPath, (err, ex) => resolve(!err && ex))
+    })
+    console.log('[SMB DELETE] exists:', exists)
+
+    if (!exists) {
+      try { smb2.close() } catch(e) {}
+      return res.status(404).json({ error: 'Datei nicht auf dem Server gefunden: ' + smbPath })
+    }
+
     await new Promise((resolve, reject) => {
       smb2.unlink(smbPath, (err) => {
         try { smb2.close() } catch(e) {}
-        // STATUS_PENDING ist ein bekannter SMB2-Bug - Datei wurde trotzdem gelöscht
         if (err && err.code !== 'STATUS_PENDING' && !err.message?.includes('0x00000103')) {
           reject(err)
         } else {
