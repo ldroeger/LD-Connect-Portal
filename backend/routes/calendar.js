@@ -562,6 +562,7 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
         ausgabe:     w.AusgabeAm,
         rueckgabe:   w.RueckgabeAm,
         verliehAn,
+        mieter: verliehAn,
         mitgenommenVon: w.MitgenommenName || w.MitgenommenVon,
       }
     })
