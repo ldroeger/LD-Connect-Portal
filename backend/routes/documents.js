@@ -232,7 +232,7 @@ router.post('/create-folders', authMiddleware, async (req, res) => {
           results.push({ user: u.name, folder: folderName, ok: false, error: e.message })
         }
       }
-      try { smb2.close() } catch(e) {}
+      try { smb2.disconnect() } catch(e) {}
     } else if (mode === 'local') {
       const baseDir = getBaseDir()
       for (const u of users) {
@@ -386,7 +386,7 @@ router.get('/', authMiddleware, async (req, res) => {
           }
         }
       } catch(e) { console.log('SMB readdir error:', e.message) }
-      try { smb2.close() } catch(e) {}
+      try { smb2.disconnect() } catch(e) {}
 
       // Konfigurierte Kategorien ergänzen
       getCategories().forEach(c => { allCats[c] = c })
@@ -537,7 +537,7 @@ router.post('/upload', authMiddleware, uploadMiddleware, async (req, res) => {
           }
         }
       } finally {
-        try { smb2.close() } catch(e) {}
+        try { smb2.disconnect() } catch(e) {}
       }
     } else {
       // Lokaler Modus: ins Dateisystem schreiben
@@ -702,7 +702,7 @@ router.get('/manage/:userId', authMiddleware, async (req, res) => {
           }
         }
       } catch(e) { console.log('SMB manage readdir error:', e.message) }
-      try { smb2.close() } catch(e) {}
+      try { smb2.disconnect() } catch(e) {}
 
       getCategories().forEach(c => { allCats[c] = c })
       return res.json({ documents, categories: allCats, mode: 'smb', canUpload: true, canUploadAll: true })
