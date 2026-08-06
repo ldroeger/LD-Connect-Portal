@@ -70,33 +70,54 @@ function JahresView({ year, setYear, onMonthClick }) {
         )}
         <div style={S.card}>
           <div style={{ fontWeight:700, fontSize:"1rem", marginBottom:16 }}>Monatsübersicht – Monat anklicken für Tagesdetails</div>
-          {data.months.length === 0
-            ? <div style={{ color:"var(--text-3)", textAlign:"center", padding:"20px 0" }}>Keine Daten für {year}.</div>
-            : <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                <thead><tr>
-                  <th style={S.th}>Monat</th>
-                  <th style={{ ...S.th, textAlign:"right" }}>Ist</th>
-                  {showSoll && <th style={{ ...S.th, textAlign:"right" }}>Soll</th>}
-                  <th style={{ ...S.th, textAlign:"right" }}>Überstunden</th>
-                </tr></thead>
-                <tbody>
-                  {data.months.map((m,i) => {
-                    const monatStr = String(m.monat)
-                    const monatNum = parseInt(monatStr.slice(5,7)) || parseInt(monatStr.slice(4,6)) || (i+1)
-                    const sal = m.saldo || (m.ist - m.soll)
-                    return (
-                      <tr key={i} onClick={() => onMonthClick(monatNum)} style={{ cursor:"pointer" }}
-                        onMouseEnter={e=>e.currentTarget.style.background="var(--primary-light)"}
-                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                        <td style={{ ...S.td, fontWeight:600, color:"var(--primary)" }}>{MONTHS[monatNum-1]} {year} →</td>
-                        <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace" }}>{fmtH(m.ist)}</td>
-                        {showSoll && <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", color:"var(--text-3)" }}>{fmtH(m.soll)}</td>}
-                        <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", fontWeight:600, color: sal > 0 ? "var(--success)" : "var(--text-3)" }}>{sal > 0 ? "+" + fmtH(Math.round(sal*10)/10) : "0h"}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>}
+          {(() => {
+              // Alle 12 Monate anzeigen, fehlende mit 0 auffüllen
+              const byMonth = {}
+              data.months.forEach(m => {
+                const s = String(m.monat)
+                const num = parseInt(s.slice(5,7)) || parseInt(s.slice(4,6))
+                if (num) byMonth[num] = m
+              })
+              const allMonths = Array.from({length:12},(_,i)=>i+1)
+              const now = new Date()
+              const currentYear = now.getFullYear()
+              const currentMonth = now.getMonth()+1
+              return (
+                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                  <thead><tr>
+                    <th style={S.th}>Monat</th>
+                    <th style={{ ...S.th, textAlign:"right" }}>Ist</th>
+                    {showSoll && <th style={{ ...S.th, textAlign:"right" }}>Soll</th>}
+                    <th style={{ ...S.th, textAlign:"right" }}>Überstunden</th>
+                  </tr></thead>
+                  <tbody>
+                    {allMonths.map(num => {
+                      // Zukünftige Monate ausblenden
+                      if (parseInt(year) === currentYear && num > currentMonth) return null
+                      const m = byMonth[num] || { ist:0, soll:0, saldo:0 }
+                      const sal = m.saldo || (m.ist - m.soll)
+                      const isEmpty = !byMonth[num]
+                      return (
+                        <tr key={num}
+                          onClick={() => !isEmpty && onMonthClick(num)}
+                          style={{ cursor: isEmpty ? "default" : "pointer", opacity: isEmpty ? 0.45 : 1 }}
+                          onMouseEnter={e=>{ if(!isEmpty) e.currentTarget.style.background="var(--primary-light)" }}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          <td style={{ ...S.td, fontWeight:600, color: isEmpty ? "var(--text-3)" : "var(--primary)" }}>
+                            {MONTHS[num-1]} {year} {!isEmpty && "→"}
+                          </td>
+                          <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace" }}>{isEmpty ? "–" : fmtH(m.ist)}</td>
+                          {showSoll && <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", color:"var(--text-3)" }}>{isEmpty ? "–" : fmtH(m.soll)}</td>}
+                          <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", fontWeight:600, color: sal > 0 ? "var(--success)" : "var(--text-3)" }}>
+                            {isEmpty ? "–" : sal > 0 ? "+"+fmtH(Math.round(sal*10)/10) : "0h"}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )
+            })()}
         </div>
       </>}
     </div>
