@@ -608,6 +608,8 @@ function SmbTab() {
       // Dokument-Share
       const docSrv = s.doc_smb_server || ''
       const docParts = docSrv.replace(/\\/g,'/').replace(/^\/+/,'').split('/').filter(Boolean)
+      // Eigene Doc-Credentials
+      if (s.doc_smb_host) { setDocOwnCreds(true); setDocHost(s.doc_smb_host || ''); setDocUser(s.doc_smb_user || ''); setDocDomain(s.doc_smb_domain || '') }
       setDocShare(docParts[1] || '')
       setDocSubpath(docParts.slice(2).join('/') || '')
     }).catch(() => {})
@@ -626,9 +628,11 @@ function SmbTab() {
         smb_server:       toolServer,
         smb_tool_subpath: toolSubpath,
         doc_smb_server:   docServer,
-        doc_smb_user:     user,
-        doc_smb_password: pass,
-        doc_smb_domain:   domain,
+        // Eigene Doc-Credentials wenn aktiviert, sonst leer (= Werkzeug-Creds verwenden)
+        doc_smb_host:     docOwnCreds ? docHost   : '',
+        doc_smb_user:     docOwnCreds ? docUser   : '',
+        doc_smb_password: docOwnCreds ? docPass   : '',
+        doc_smb_domain:   docOwnCreds ? docDomain : '',
       })
       setMsg('✅ Gespeichert')
     } catch(e) { setMsg('❌ Fehler: ' + e.message) }
@@ -704,11 +708,14 @@ function SmbTab() {
 
       {/* Dokument-Freigabe */}
       <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:8 }}>📁 Mitarbeiter-Dokumente</div>
-      <div style={{ fontSize:'0.82rem', color:'var(--text-3)', marginBottom:10 }}>Freigabe für Powerbird-Dokumente (ELDVD/ELDVV)</div>
+      <div style={{ fontSize:'0.82rem', color:'var(--text-3)', marginBottom:10 }}>
+        Eigene SMB-Freigabe für Mitarbeiter-Dokumente (Netzlaufwerk-Modus)
+      </div>
+
       <div style={{ display:'flex', gap:10, alignItems:'flex-end', marginBottom:8 }}>
         <div style={{ flex:1 }}>
           <div style={lbl}>Freigabe-Name</div>
-          <input style={{...inp, marginBottom:0}} value={docShare} onChange={e=>setDocShare(e.target.value)} placeholder="Powerbird" />
+          <input style={{...inp, marginBottom:0}} value={docShare} onChange={e=>setDocShare(e.target.value)} placeholder="Dokumente" />
         </div>
         <button onClick={() => testConnection('doc')}
           style={{ padding:'9px 16px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface-2)',
@@ -716,13 +723,52 @@ function SmbTab() {
           🔌 Testen
         </button>
       </div>
-      <div style={{ marginBottom:8 }}>
-        <div style={lbl}>Dokumenten-Unterverzeichnis (optional)</div>
-        <input style={inp} value={docSubpath} onChange={e=>setDocSubpath(e.target.value)} placeholder="PB/DATA/Dokumente" />
+      <div style={{ marginBottom:12 }}>
+        <div style={lbl}>Unterverzeichnis (optional)</div>
+        <input style={inp} value={docSubpath} onChange={e=>setDocSubpath(e.target.value)} placeholder="z.B. Mitarbeiter" />
       </div>
-      {host && docShare && <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginBottom:6 }}>
-        Pfad: //{host}/{docShare}{docSubpath ? '/' + docSubpath : ''}
-      </div>}
+
+      {/* Eigene Zugangsdaten */}
+      <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:'0.88rem', marginBottom:12 }}>
+        <input type="checkbox" checked={docOwnCreds} onChange={e => setDocOwnCreds(e.target.checked)} />
+        <div>
+          <div style={{ fontWeight:600 }}>Eigene Zugangsdaten für Dokument-Server</div>
+          <div style={{ color:'var(--text-3)', fontSize:'0.78rem' }}>
+            Wenn nicht aktiviert werden die Werkzeug-Server Zugangsdaten verwendet
+          </div>
+        </div>
+      </label>
+
+      {docOwnCreds && (
+        <div style={{ background:'var(--surface-2)', borderRadius:10, padding:14, border:'1px solid var(--border)', marginBottom:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+            <div>
+              <div style={lbl}>Server / IP</div>
+              <input style={{...inp, marginBottom:0}} value={docHost} onChange={e=>setDocHost(e.target.value)} placeholder="192.168.1.100" />
+            </div>
+            <div>
+              <div style={lbl}>Domain (optional)</div>
+              <input style={{...inp, marginBottom:0}} value={docDomain} onChange={e=>setDocDomain(e.target.value)} placeholder="WORKGROUP" />
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div>
+              <div style={lbl}>Benutzername</div>
+              <input style={{...inp, marginBottom:0}} value={docUser} onChange={e=>setDocUser(e.target.value)} placeholder="smb-user" />
+            </div>
+            <div>
+              <div style={lbl}>Passwort</div>
+              <input style={{...inp, marginBottom:0}} type="password" value={docPass} onChange={e=>setDocPass(e.target.value)} placeholder="(unverändert)" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(docOwnCreds ? docHost : host) && docShare && (
+        <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginBottom:6 }}>
+          Pfad: //{docOwnCreds ? docHost : host}/{docShare}{docSubpath ? '/' + docSubpath : ''}
+        </div>
+      )}
       {testDoc && <div style={{ fontSize:'0.82rem', padding:'6px 10px', borderRadius:6, background:'var(--surface-2)', marginBottom:8 }}>{testDoc}</div>}
 
       <hr style={{ border:'none', borderTop:'1px solid var(--border)', margin:'20px 0' }} />

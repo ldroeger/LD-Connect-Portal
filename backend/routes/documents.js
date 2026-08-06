@@ -164,14 +164,26 @@ function getSmbClient() {
   if (!rawServer) return null
   const cleaned = rawServer.replace(/\\/g, '/').replace(/^\/+/, '')
   const parts   = cleaned.split('/').filter(p => p.length > 0)
-  const host = parts[0]; const share = parts[1]; const basePath = parts.slice(2).join('\\')
-  if (!host || !share) return null
+  const share   = parts[0]; const basePath = parts.slice(1).join('\\')
+  if (!share) return null
+
+  // Eigene Doc-Credentials bevorzugen, sonst Werkzeug-Credentials
+  const docHost   = localDb.getSetting('doc_smb_host') || ''
+  const host      = docHost || localDb.getSetting('smb_host') ||
+    (() => { const s = localDb.getSetting('smb_server') || ''; const p = s.replace(/\\/g,'/').replace(/^\/+/,'').split('/'); return p[0] || '' })()
+  if (!host) return null
+
+  const domain   = docHost ? (localDb.getSetting('doc_smb_domain')   || 'WORKGROUP')
+                            : (localDb.getSetting('smb_domain')       || 'WORKGROUP')
+  const username = docHost ? (localDb.getSetting('doc_smb_user')     || '')
+                            : (localDb.getSetting('smb_user')         || '')
+  const password = docHost ? (localDb.getSetting('doc_smb_password') || '')
+                            : (localDb.getSetting('smb_password')     || '')
+
   const SMB2 = require('@marsaud/smb2')
   const smb2 = new SMB2({
     share: '\\\\' + host + '\\' + share,
-    domain:   localDb.getSetting('doc_smb_domain') || 'WORKGROUP',
-    username: localDb.getSetting('doc_smb_user') || '',
-    password: localDb.getSetting('doc_smb_password') || '',
+    domain, username, password,
     autoCloseTimeout: 0,
   })
   return { smb2, host, share, basePath }
