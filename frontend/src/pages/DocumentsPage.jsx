@@ -325,12 +325,21 @@ export default function DocumentsPage() {
 
   const deleteDoc = async (doc) => {
     if (!window.confirm('Dokument wirklich löschen?')) return
-    const fsId = doc.id.replace('local_fs_','')
-    try { await api.delete('/documents/local/'+encodeURIComponent(fsId)); load() }
-    catch(err){ alert('Fehler: '+(err.response?.data?.error||err.message)) }
+    try {
+      if (doc.id.startsWith('smb_')) {
+        const smbId = doc.id.replace('smb_','')
+        await api.delete('/documents/smb/'+encodeURIComponent(smbId))
+      } else {
+        const fsId = doc.id.replace('local_fs_','')
+        await api.delete('/documents/local/'+encodeURIComponent(fsId))
+      }
+      load()
+    } catch(err){ alert('Fehler: '+(err.response?.data?.error||err.message)) }
   }
 
   const canDelete = (doc) => {
+    if (mode === 'powerbird') return false
+    if (doc.id.startsWith('smb_')) return canUpload || canUploadAll
     if (user?.role==='admin') return true
     if (!doc.kuerzel) return false
     return doc.kuerzel===(user?.powerbird_id||'')

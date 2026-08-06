@@ -553,19 +553,48 @@ router.post('/upload', authMiddleware, uploadMiddleware, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
 
-// ── DELETE /api/documents/local/:id ──────────────────────────────────────
+// ── DELETE /api/documents/local/:id (lokal) oder /api/documents/smb/:id ─
 router.delete('/local/:id', authMiddleware, (req, res) => {
   try {
-    const fsPath = Buffer.from(req.params.id, 'base64').toString()
-    const baseDir = getBaseDir()
-    if (!fsPath.startsWith(baseDir)) return res.status(403).json({ error: 'Zugriff verweigert' })
-    if (!fs.existsSync(fsPath)) return res.status(404).json({ error: 'Nicht gefunden' })
-    // Nur Admin oder Eigentümer (Kürzel im Pfad prüfen)
-    const kuerzel = getUserKuerzel(req.user)
-    const isOwner = fsPath.includes(pathMod.sep + kuerzel + pathMod.sep)
+    if (getMode() === 'powerbird') return res.status(403).json({ error: 'Im Powerbird-Modus nicht verfügbar' })
     const freshFeatDel = getUserFeatures(req.user.id)
-    if (!isOwner && !freshFeatDel.docs_manage) return res.status(403).json({ error: 'Kein Zugriff' })
-    fs.unlinkSync(fsPath)
+    const canDel = freshFeatDel.docs_manage || freshFeatDel.docs_upload || freshFeatDel.docs_upload_all
+
+    const fsPath  = Buffer.from(req.params.id, 'base64').toString()
+    const baseDir = getBaseDir()
+
+    // Lokale Datei
+    if (fsPath.startsWith(baseDir)) {
+      if (!fs.existsSync(fsPath)) return res.status(404).json({ error: 'Nicht gefunden' })
+      const kuerzel = getUserKuerzel(req.user)
+      const isOwner = fsPath.includes(pathMod.sep + kuerzel + pathMod.sep)
+      if (!isOwner && !freshFeatDel.docs_manage) return res.status(403).json({ error: 'Kein Zugriff' })
+      fs.unlinkSync(fsPath)
+      return res.json({ success: true })
+    }
+
+    return res.status(404).json({ error: 'Nicht gefunden' })
+  } catch(e) { res.status(500).json({ error: e.message }) }
+})
+
+// ── DELETE /api/documents/smb/:id ─────────────────────────────────────────
+router.delete('/smb/:id', authMiddleware, async (req, res) => {
+  try {
+    if (getMode() === 'powerbird') return res.status(403).json({ error: 'Im Powerbird-Modus nicht verfügbar' })
+    const freshFeat = getUserFeatures(req.user.id)
+    if (!freshFeat.docs_manage && !freshFeat.docs_upload && !freshFeat.docs_upload_all)
+      return res.status(403).json({ error: 'Keine Berechtigung' })
+
+    const smbPath = Buffer.from(req.params.id, 'base64').toString()
+    const smbInfo = getSmbClient()
+    if (!smbInfo) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
+    const { smb2 } = smbInfo
+    await new Promise((resolve, reject) => {
+      smb2.unlink(smbPath, (err) => {
+        try { smb2.close() } catch(e) {}
+        if (err) reject(err); else resolve()
+      })
+    })
     res.json({ success: true })
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
