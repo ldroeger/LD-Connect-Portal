@@ -575,3 +575,5 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
 })
 
 ;
+
+module.exports = router;
