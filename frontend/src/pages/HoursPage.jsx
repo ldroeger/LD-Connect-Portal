@@ -91,7 +91,7 @@ function JahresView({ year, setYear, onMonthClick }) {
                         <td style={{ ...S.td, fontWeight:600, color:"var(--primary)" }}>{MONTHS[monatNum-1]} {year} →</td>
                         <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace" }}>{fmtH(m.ist)}</td>
                         {showSoll && <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", color:"var(--text-3)" }}>{fmtH(m.soll)}</td>}
-                        <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", fontWeight:600, color:saldoColor(sal) }}>{sal>=0?"+":""}{fmtH(Math.round(sal*10)/10)}</td>
+                        <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", fontWeight:600, color: sal > 0 ? "var(--success)" : "var(--text-3)" }}>{sal > 0 ? "+" + fmtH(Math.round(sal*10)/10) : "0h"}</td>
                       </tr>
                     )
                   })}
@@ -117,7 +117,7 @@ function MonatsView({ year, month, onBack }) {
   }, [year, month])
 
   const byWeek = {}
-  if (data) {
+  if (data && data.tage) {
     data.tage.forEach(d => {
       const dt = new Date(d.tag)
       const jan1 = new Date(dt.getFullYear(), 0, 1)
@@ -134,15 +134,15 @@ function MonatsView({ year, month, onBack }) {
       {loading && <p style={{ color:"var(--text-3)", fontSize:"0.9rem", marginBottom:16 }}>Lädt...</p>}
       {error && <div style={{ background:"rgba(239,68,68,0.12)",border:"1px solid #FECACA",color:"#DC2626",padding:"10px 14px",borderRadius:8,fontSize:"0.85rem",marginBottom:16 }}>{error}</div>}
       {data && <>
-        {showKacheln && (
-          <div style={S.stats}>
-            <div style={S.stat}><div style={S.statNum()}>{fmtH(data.total)}</div><div style={S.statLabel}>Gesamt {MONTHS_SHORT[month-1]}</div></div>
-            <div style={S.stat}><div style={S.statNum("var(--text-2)")}>{data.tage.length}</div><div style={S.statLabel}>Arbeitstage</div></div>
-            {data.saldo != null && data.saldo > 0 && <div style={S.stat}><div style={S.statNum("var(--success)")}>+{fmtH(data.saldo)}</div><div style={S.statLabel}>Überstunden</div></div>}
-          </div>
-        )}
+        <div style={S.stats}>
+          <div style={S.stat}><div style={S.statNum()}>{fmtH(data.total)}</div><div style={S.statLabel}>Gesamt {MONTHS_SHORT[month-1]}</div></div>
+          <div style={S.stat}><div style={S.statNum("var(--text-2)")}>{data.tage.length}</div><div style={S.statLabel}>Arbeitstage</div></div>
+          {data.saldo != null && data.saldo > 0 && <div style={S.stat}><div style={S.statNum("var(--success)")}>+{fmtH(data.saldo)}</div><div style={S.statLabel}>Überstunden</div></div>}
+        </div>
 
-        {Object.keys(byWeek).length === 0
+        {!data?.tage?.length
+          ? <div style={S.card}><div style={{ color:"var(--text-3)", textAlign:"center", padding:"20px 0" }}>Keine Arbeitstage in {MONTHS[month-1]} {year}.</div></div>
+          : Object.keys(byWeek).length === 0
           ? <div style={S.card}><div style={{ color:"var(--text-3)", textAlign:"center", padding:"20px 0" }}>Keine Arbeitstage in {MONTHS[month-1]} {year}.</div></div>
           : Object.entries(byWeek).map(([kw, tage]) => (
             <div key={kw} style={S.card}>

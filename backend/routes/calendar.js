@@ -141,7 +141,7 @@ router.get('/hours/detail', authMiddleware, async (req, res) => {
        LEFT JOIN ELKDI k
               ON z.Projekt_KDI_Art = 'K'
              AND k.Dokument_Nummer COLLATE DATABASE_DEFAULT = z.ZEF_KDINr COLLATE DATABASE_DEFAULT
-       WHERE z.MitarbeiterNr = @uid
+       WHERE UPPER(z.MitarbeiterNr) = UPPER(@uid)
          AND z.Datum >= @from AND z.Datum <= @to
          AND z.ZeitAnzahl > 0
          AND (z.ZEF_TerminStorno IS NULL OR z.ZEF_TerminStorno = 0) AND (z.ZEF_Storniert_JN IS NULL OR z.ZEF_Storniert_JN = 0)
