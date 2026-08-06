@@ -1,5 +1,4 @@
 ﻿const router = require('express').Router();
-const toolsCache = require('../tools_cache');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const pbDb    = require('../db/powerbirdDb');
 const localDb = require('../db/localDb');
@@ -535,6 +534,8 @@ router.get('/tools-search', authMiddleware, async (req, res) => {
   try {
     const q = (req.query.q || '').trim()
     // Cache nutzen - falls leer oder veraltet, frisch laden
+    const toolsCache = (() => { try { return require('../tools_cache') } catch(e) { return null } })()
+    if (!toolsCache) return res.status(500).json({ error: 'Cache nicht verfügbar' })
     if (toolsCache.getCacheCount() === 0) {
       await toolsCache.syncTools()
     }

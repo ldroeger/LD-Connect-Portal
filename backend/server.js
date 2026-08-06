@@ -117,8 +117,8 @@ app.use((err, req, res, next) => {
 })
 
 const PORT = process.env.PORT || 3001;
-// Werkzeug-Cache Auto-Sync
-try { require('./tools_cache').startAutoSync() } catch(e) { console.error('tools-cache start error:', e.message) }
+// Werkzeug-Cache Auto-Sync (lazy - startet nur wenn tools_cache.js vorhanden)
+setTimeout(() => { try { require('./tools_cache').startAutoSync() } catch(e) { console.log('tools-cache nicht verfügbar:', e.message) } }, 5000)
 
 app.listen(PORT, () => {
   console.log(`LD Connect Backend running on port ${PORT}`)
