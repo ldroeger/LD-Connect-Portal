@@ -609,15 +609,22 @@ router.delete('/smb/:id', authMiddleware, async (req, res) => {
     const shareUNC = '//' + docHost + '/' + share
 
     await new Promise((resolve, reject) => {
-      const cmd = [
-        'smbclient', shareUNC,
-        '-U', domain + '\\' + username + '%' + password,
-        '-c', '"del \"' + smbClientPath.replace(/"/g, '\\"') + '\""'
-      ].join(' ')
-
-      exec(cmd, { timeout: 10000 }, (err, stdout, stderr) => {
-        if (err && !stderr.includes('NT_STATUS_NO_SUCH_FILE')) {
-          reject(new Error(stderr || err.message))
+      const { execFile } = require('child_process')
+      // Pfad mit Backslashes für smbclient
+      const delPath = smbPath.replace(/\\/g, '\\')
+      execFile('smbclient', [
+        shareUNC,
+        '-U', username + '%' + password,
+        '--workgroup', domain,
+        '-c', 'del "' + delPath + '"'
+      ], {
+        timeout: 10000,
+        env: { ...process.env, LANG: 'en_US.UTF-8' }
+      }, (err, stdout, stderr) => {
+        console.log('[SMB DELETE] smbclient stdout:', stdout)
+        console.log('[SMB DELETE] smbclient stderr:', stderr)
+        if (err && stderr && !stderr.includes('NT_STATUS_NO_SUCH_FILE') && !stderr.includes('deleting')) {
+          reject(new Error(stderr.trim() || err.message))
         } else {
           resolve()
         }
