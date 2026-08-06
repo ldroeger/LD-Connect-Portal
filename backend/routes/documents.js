@@ -586,50 +586,43 @@ router.delete('/smb/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung' })
 
     const smbPath = Buffer.from(req.params.id, 'base64').toString()
-    console.log('[SMB DELETE] path:', JSON.stringify(smbPath))
     const smbInfo = getSmbClient()
     if (!smbInfo) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
-    const { smb2 } = smbInfo
 
-    // Erst prüfen ob Datei existiert
-    const exists = await new Promise(resolve => {
-      smb2.exists(smbPath, (err, ex) => resolve(!err && ex))
+    const { host, share } = smbInfo
+
+    // smbclient nutzen statt smb2.unlink (umgeht STATUS_PENDING Bug)
+    const { exec } = require('child_process')
+    const docHost  = localDb.getSetting('doc_smb_host') || host
+    const username = localDb.getSetting('doc_smb_host')
+      ? (localDb.getSetting('doc_smb_user') || '')
+      : (localDb.getSetting('smb_user') || '')
+    const password = localDb.getSetting('doc_smb_host')
+      ? (localDb.getSetting('doc_smb_password') || '')
+      : (localDb.getSetting('smb_password') || '')
+    const domain   = localDb.getSetting('doc_smb_host')
+      ? (localDb.getSetting('doc_smb_domain') || 'WORKGROUP')
+      : (localDb.getSetting('smb_domain') || 'WORKGROUP')
+
+    // Pfad für smbclient: Backslashes
+    const smbClientPath = smbPath.replace(/\\/g, '\\')
+    const shareUNC = '//' + docHost + '/' + share
+
+    await new Promise((resolve, reject) => {
+      const cmd = [
+        'smbclient', shareUNC,
+        '-U', domain + '\\' + username + '%' + password,
+        '-c', '"del \"' + smbClientPath.replace(/"/g, '\\"') + '\""'
+      ].join(' ')
+
+      exec(cmd, { timeout: 10000 }, (err, stdout, stderr) => {
+        if (err && !stderr.includes('NT_STATUS_NO_SUCH_FILE')) {
+          reject(new Error(stderr || err.message))
+        } else {
+          resolve()
+        }
+      })
     })
-    console.log('[SMB DELETE] exists:', exists)
-
-    if (!exists) {
-      try { smb2.close() } catch(e) {}
-      return res.status(404).json({ error: 'Datei nicht auf dem Server gefunden: ' + smbPath })
-    }
-
-    // unlink mit Timeout - STATUS_PENDING hängt manchmal
-    const unlinkResult = await Promise.race([
-      new Promise((resolve) => {
-        smb2.unlink(smbPath, (err) => {
-          if (err) {
-            console.log('[SMB DELETE] unlink err:', err.code, err.message)
-            resolve({ err })
-          } else {
-            resolve({ err: null })
-          }
-        })
-      }),
-      new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 5000))
-    ])
-
-    console.log('[SMB DELETE] unlink result:', JSON.stringify(unlinkResult))
-
-    // Nach dem Löschen prüfen ob Datei noch existiert
-    const stillExists = await new Promise(resolve => {
-      smb2.exists(smbPath, (err, ex) => resolve(!err && ex))
-    })
-
-    try { smb2.close() } catch(e) {}
-    console.log('[SMB DELETE] still exists after unlink:', stillExists)
-
-    if (stillExists) {
-      return res.status(500).json({ error: 'Datei konnte nicht gelöscht werden' })
-    }
 
     res.json({ success: true })
   } catch(e) { res.status(500).json({ error: e.message }) }
