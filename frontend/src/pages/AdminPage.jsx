@@ -878,6 +878,9 @@ function DocModeTab() {
   const [userDirs, setUserDirs]   = React.useState(false)
   const [saving, setSaving]       = React.useState(false)
   const [msg, setMsg]             = React.useState('')
+  const [folderLoading, setFolderLoading] = React.useState(false)
+  const [folderMsg, setFolderMsg]         = React.useState('')
+  const [folderResults, setFolderResults] = React.useState([])
 
   React.useEffect(() => {
     api.get('/admin/settings').then(r => {
@@ -959,9 +962,38 @@ function DocModeTab() {
           <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:10 }}>📖 Anleitung: Netzlaufwerk-Modus</div>
           {infoBox('Die Freigabe-Einstellungen (Host, Benutzer, Passwort, Pfad) werden unter Admin → Netzlaufwerk → Mitarbeiter-Dokumente konfiguriert.')}
           {infoBox(
-            'Die Ordnerstruktur ist fest: Freigabe/KUERZEL/KATEGORIE/datei.pdf — Kuerzel = Powerbird-Kuerzel des Mitarbeiters (z.B. LD, AR01). ' +
+            'Die Ordnerstruktur ist fest: Freigabe/NAME/KATEGORIE/datei — Ordnername = vollständiger Name des Mitarbeiters. ' +
             'Dateien die manuell im Netzlaufwerk abgelegt werden erscheinen automatisch im Portal.',
             '#1D4ED8', '#EFF6FF', '#BFDBFE'
+          )}
+          <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8, marginTop:16 }}>Mitarbeiter-Ordner anlegen</div>
+          {infoBox('Legt für jeden aktiven Mitarbeiter automatisch einen Ordner auf dem Netzlaufwerk an. Ordnername = vollständiger Name des Mitarbeiters.')}
+          <button onClick={async () => {
+            setFolderMsg(''); setFolderLoading(true)
+            try {
+              const r = await api.post('/documents/create-folders')
+              const ok  = r.data.results.filter(x => x.ok).length
+              const err = r.data.results.filter(x => !x.ok).length
+              setFolderMsg('✅ ' + ok + ' Ordner angelegt' + (err > 0 ? ', ' + err + ' Fehler' : ''))
+              setFolderResults(r.data.results)
+            } catch(e) { setFolderMsg('❌ ' + (e.response?.data?.error || e.message)) }
+            setFolderLoading(false)
+          }} disabled={folderLoading}
+            style={{ padding:'9px 20px', borderRadius:8, border:'none', background:'#0ea5e9',
+              color:'white', fontWeight:600, fontSize:'0.88rem', cursor:'pointer', fontFamily:'var(--font)' }}>
+            {folderLoading ? '⏳ Erstellt...' : '📁 Ordner für alle Mitarbeiter anlegen'}
+          </button>
+          {folderMsg && <div style={{ marginTop:8, fontSize:'0.85rem',
+            color: folderMsg.startsWith('✅') ? 'var(--success)' : 'var(--error)' }}>{folderMsg}</div>}
+          {folderResults.length > 0 && (
+            <div style={{ marginTop:10, maxHeight:150, overflowY:'auto', fontSize:'0.78rem',
+              background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:10 }}>
+              {folderResults.map((r,i) => (
+                <div key={i} style={{ color: r.ok ? 'var(--success)' : 'var(--error)', marginBottom:2 }}>
+                  {r.ok ? '✓' : '✗'} {r.user} → {r.folder}{!r.ok && r.error ? ' ('+r.error+')' : ''}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

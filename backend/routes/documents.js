@@ -47,9 +47,17 @@ function getUserFeatures(userId) {
 }
 
 function getUserKuerzel(user) {
-  // Powerbird-Kürzel bevorzugen, sonst Name bereinigt, sonst ID
+  // Für lokalen Modus: Powerbird-Kürzel
   if (user.powerbird_id) return user.powerbird_id
   if (user.name) return user.name.replace(/[^a-zA-Z0-9_-]/g, '_').toUpperCase().substring(0, 12)
+  return String(user.id)
+}
+
+function getUserFolderName(user) {
+  // Für SMB-Modus: vollständiger Name des Mitarbeiters
+  // Ungültige Zeichen für Windows-Ordner entfernen: \ / : * ? " < > |
+  if (user.name) return user.name.replace(/[\\/:*?"<>|]/g, '_').trim()
+  if (user.powerbird_id) return user.powerbird_id
   return String(user.id)
 }
 
@@ -106,7 +114,8 @@ const uploadMiddleware = (req, res, next) => {
 }
 
 function saveFile(buffer, originalname, kuerzel, category, baseDir) {
-  const safeCategory = (category || 'Allgemein').replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_')
+  // Nur Windows-ungültige Zeichen entfernen, Umlaute und Sonderzeichen erlauben
+  const safeCategory = (category || 'Allgemein').replace(/[\/:*?"<>|]/g, '_').trim()
   const dir = pathMod.join(baseDir, kuerzel, safeCategory)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   let filename = originalname
@@ -136,7 +145,8 @@ function smbMkdir(smb2, dirPath) {
 }
 
 async function smbSaveFile(smb2, buffer, originalname, kuerzel, category, basePath) {
-  const safeCategory = (category || 'Allgemein').replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '_')
+  // Nur Windows-ungültige Zeichen entfernen
+  const safeCategory = (category || 'Allgemein').replace(/[\/:*?"<>|]/g, '_').trim()
   // Ordner anlegen: basePath\kuerzel und basePath\kuerzel\kategorie
   const kuerzelPath  = basePath ? basePath + '\\' + kuerzel : kuerzel
   const categoryPath = kuerzelPath + '\\' + safeCategory
@@ -167,6 +177,53 @@ function getSmbClient() {
   return { smb2, host, share, basePath }
 }
 
+
+
+// POST /api/documents/create-folders - SMB-Ordner für alle Mitarbeiter anlegen
+router.post('/create-folders', authMiddleware, async (req, res) => {
+  try {
+    const freshFeat = getUserFeatures(req.user.id)
+    if (!freshFeat.docs_manage && req.user.role !== 'admin')
+      return res.status(403).json({ error: 'Keine Berechtigung' })
+
+    const mode = getMode()
+    const users = localDb.db.prepare("SELECT * FROM users WHERE is_active = 1").all()
+    const results = []
+
+    if (mode === 'smb') {
+      const smbInfo = getSmbClient()
+      if (!smbInfo) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
+      const { smb2, basePath } = smbInfo
+      for (const u of users) {
+        const folderName = getUserFolderName(u)
+        const folderPath = basePath ? basePath + '\\' + folderName : folderName
+        try {
+          await smbMkdir(smb2, folderPath)
+          results.push({ user: u.name, folder: folderName, ok: true })
+        } catch(e) {
+          results.push({ user: u.name, folder: folderName, ok: false, error: e.message })
+        }
+      }
+      try { smb2.close() } catch(e) {}
+    } else if (mode === 'local') {
+      const baseDir = getBaseDir()
+      for (const u of users) {
+        const folderName = getUserKuerzel(u)
+        const folderPath = pathMod.join(baseDir, folderName)
+        try {
+          if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true })
+          results.push({ user: u.name, folder: folderName, ok: true })
+        } catch(e) {
+          results.push({ user: u.name, folder: folderName, ok: false, error: e.message })
+        }
+      }
+    } else {
+      return res.status(400).json({ error: 'Nur im SMB- oder Eigenständig-Modus verfügbar' })
+    }
+
+    res.json({ success: true, results })
+  } catch(e) { res.status(500).json({ error: e.message }) }
+})
 
 // GET /api/documents/my-rights - Rechte frisch aus DB ohne Admin-Override
 router.get('/my-rights', authMiddleware, (req, res) => {
@@ -237,7 +294,7 @@ router.get('/', authMiddleware, async (req, res) => {
       const smbInfo = getSmbClient()
       if (!smbInfo) return res.json({ documents: [], categories: {}, mode: 'smb', canUpload: false, canUploadAll: false })
       const { smb2, basePath } = smbInfo
-      const kuerzel = getUserKuerzel(req.user)
+      const kuerzel = getUserFolderName(req.user)
 
       // Hilfsfunktion: Verzeichnis lesen, gibt [] bei Fehler zurück
       const tryReaddir = (p) => new Promise((resolve) => {
@@ -494,7 +551,7 @@ router.get('/manage/:userId', authMiddleware, async (req, res) => {
 
     const mode    = getMode()
     const baseDir = getBaseDir()
-    const kuerzel = getUserKuerzel(targetUser)
+    const kuerzel = mode === 'smb' ? getUserFolderName(targetUser) : getUserKuerzel(targetUser)
 
     if (mode === 'local') {
       const docs = readLocalDocs(baseDir, kuerzel, true)
