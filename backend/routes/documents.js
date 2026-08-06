@@ -602,16 +602,35 @@ router.delete('/smb/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Datei nicht auf dem Server gefunden: ' + smbPath })
     }
 
-    await new Promise((resolve, reject) => {
-      smb2.unlink(smbPath, (err) => {
-        try { smb2.close() } catch(e) {}
-        if (err && err.code !== 'STATUS_PENDING' && !err.message?.includes('0x00000103')) {
-          reject(err)
-        } else {
-          resolve()
-        }
-      })
+    // unlink mit Timeout - STATUS_PENDING hängt manchmal
+    const unlinkResult = await Promise.race([
+      new Promise((resolve) => {
+        smb2.unlink(smbPath, (err) => {
+          if (err) {
+            console.log('[SMB DELETE] unlink err:', err.code, err.message)
+            resolve({ err })
+          } else {
+            resolve({ err: null })
+          }
+        })
+      }),
+      new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 5000))
+    ])
+
+    console.log('[SMB DELETE] unlink result:', JSON.stringify(unlinkResult))
+
+    // Nach dem Löschen prüfen ob Datei noch existiert
+    const stillExists = await new Promise(resolve => {
+      smb2.exists(smbPath, (err, ex) => resolve(!err && ex))
     })
+
+    try { smb2.close() } catch(e) {}
+    console.log('[SMB DELETE] still exists after unlink:', stillExists)
+
+    if (stillExists) {
+      return res.status(500).json({ error: 'Datei konnte nicht gelöscht werden' })
+    }
+
     res.json({ success: true })
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
