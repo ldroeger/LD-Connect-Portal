@@ -517,30 +517,6 @@ function SettingsAdmin() {
           Bildschirm-URL: <strong style={{ color:'var(--primary)', fontFamily:'monospace' }}>http://{form.display_ip||'IP'}:8081/display/...</strong>
         </div>
       </div>
-      {/* Stundenkonto Anzeigeoptionen */}
-      <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:8, marginTop:24, borderTop:'1px solid var(--border)', paddingTop:20 }}>⏱ Stundenkonto</div>
-      <div style={{ fontSize:'0.82rem', color:'var(--text-3)', marginBottom:14 }}>Anzeigeoptionen für alle Mitarbeiter</div>
-      <div style={{ display:'flex', flexDirection:'column', gap:10, background:'var(--surface-2)', borderRadius:10, padding:16, border:'1px solid var(--border)' }}>
-        <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:'0.88rem' }}>
-          <input type="checkbox"
-            checked={hoursSettings.hours_show_kacheln !== 'false'}
-            onChange={e => saveOne('hours_show_kacheln', e.target.checked ? 'true' : 'false')} />
-          <div>
-            <div style={{ fontWeight:600 }}>Statistik-Kacheln anzeigen</div>
-            <div style={{ color:'var(--text-3)', fontSize:'0.78rem' }}>Ist/Soll/Überstunden Kacheln oben auf der Stundenkonto-Seite</div>
-          </div>
-        </label>
-        <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:'0.88rem' }}>
-          <input type="checkbox"
-            checked={hoursSettings.hours_show_soll !== 'false'}
-            onChange={e => saveOne('hours_show_soll', e.target.checked ? 'true' : 'false')} />
-          <div>
-            <div style={{ fontWeight:600 }}>Soll-Stunden Spalte anzeigen</div>
-            <div style={{ color:'var(--text-3)', fontSize:'0.78rem' }}>Soll-Spalte in der Monatsübersicht</div>
-          </div>
-        </label>
-      </div>
-
 
       <button style={{...btn(), width:'100%'}} onClick={save}>Einstellungen speichern</button>
     </div>
