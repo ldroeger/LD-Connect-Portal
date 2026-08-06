@@ -174,18 +174,20 @@ async function smbSaveFile(smb2, buffer, originalname, kuerzel, category, basePa
 
 // ── SMB Client ────────────────────────────────────────────────────────────
 function getSmbClient() {
+  // doc_smb_server hat Format: //host/share/subpath oder //host/share
   const rawServer = localDb.getSetting('doc_smb_server') || ''
   if (!rawServer) return null
   const cleaned = rawServer.replace(/\\/g, '/').replace(/^\/+/, '')
   const parts   = cleaned.split('/').filter(p => p.length > 0)
-  const share   = parts[0]; const basePath = parts.slice(1).join('\\')
-  if (!share) return null
+  // parts[0] = host, parts[1] = share, parts[2..] = basepath
+  const serverHost = parts[0]
+  const share      = parts[1]
+  const basePath   = parts.slice(2).join('\\')
+  if (!serverHost || !share) return null
 
-  // Eigene Doc-Credentials bevorzugen, sonst Werkzeug-Credentials
-  const docHost   = localDb.getSetting('doc_smb_host') || ''
-  const host      = docHost || localDb.getSetting('smb_host') ||
-    (() => { const s = localDb.getSetting('smb_server') || ''; const p = s.replace(/\\/g,'/').replace(/^\/+/,'').split('/'); return p[0] || '' })()
-  if (!host) return null
+  // Eigene Doc-Credentials wenn doc_smb_host gesetzt, sonst Werkzeug-Credentials
+  const docHost  = localDb.getSetting('doc_smb_host') || ''
+  const host     = docHost || serverHost
 
   const domain   = docHost ? (localDb.getSetting('doc_smb_domain')   || 'WORKGROUP')
                             : (localDb.getSetting('smb_domain')       || 'WORKGROUP')
