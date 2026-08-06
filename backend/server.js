@@ -4,7 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
-const app = express();
+const app = express()
+const toolsCache = require('./tools_cache');
 app.set('trust proxy', 1); // Trust reverse proxy (nginx)
 app.use(helmet({
   contentSecurityPolicy: {
@@ -117,6 +118,9 @@ app.use((err, req, res, next) => {
 })
 
 const PORT = process.env.PORT || 3001;
+// Werkzeug-Cache Auto-Sync starten
+toolsCache.startAutoSync()
+
 app.listen(PORT, () => {
   console.log(`LD Connect Backend running on port ${PORT}`)
   // Powerbird Sync-Job starten

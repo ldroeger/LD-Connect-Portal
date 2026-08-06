@@ -323,6 +323,12 @@ function BrandingAdmin() {
     }).catch(()=>{})
   }, [])
 
+  const saveOne = async (key, value) => {
+    const updated = { ...settings, [key]: value }
+    setSettings(updated)
+    try { await api.put('/admin/settings', { [key]: value }) } catch(e) { console.error(e) }
+  }
+
   const save = async () => {
     setErr(''); setMsg('')
     try {

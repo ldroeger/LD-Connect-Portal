@@ -27,9 +27,18 @@ function JahresView({ year, setYear, onMonthClick }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [showSoll, setShowSoll] = useState(true)
+  const [showSoll, setShowSoll]       = useState(true)
   const [showKacheln, setShowKacheln] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // Anzeigeoptionen aus Admin-Einstellungen laden
+  useEffect(() => {
+    api.get('/admin/settings').then(r => {
+      const s = r.data.settings || {}
+      if (s.hours_show_soll     !== undefined) setShowSoll(s.hours_show_soll !== 'false')
+      if (s.hours_show_kacheln  !== undefined) setShowKacheln(s.hours_show_kacheln !== 'false')
+    }).catch(() => {})
+  }, [])
   const years = Array.from({length:5},(_,i)=>new Date().getFullYear()-2+i)
 
   useEffect(() => {

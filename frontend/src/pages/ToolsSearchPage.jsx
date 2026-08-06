@@ -32,6 +32,7 @@ export default function ToolsSearchPage() {
       setAllTools(r.data.tools || [])
     } catch(e) { console.error(e) }
     setLoading(false)
+      if (r.data.cacheAge !== undefined) setCacheAge(r.data.cacheAge)
   }, [])
 
   useEffect(() => { load('') }, [load])

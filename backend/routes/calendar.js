@@ -1,4 +1,5 @@
 ﻿const router = require('express').Router();
+const toolsCache = require('../tools_cache');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const pbDb    = require('../db/powerbirdDb');
 const localDb = require('../db/localDb');
@@ -533,156 +534,43 @@ router.get('/tools/:internNr/events', authMiddleware, async (req, res) => {
 router.get('/tools-search', authMiddleware, async (req, res) => {
   try {
     const q = (req.query.q || '').trim()
-
-    const result = await pbDb.query(
-      `SELECT TOP 500
-         w.RecNo,
-         LTRIM(RTRIM(ISNULL(w.LAN,'')))          AS LAN,
-         LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))     AS InternNr,
-         LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))   AS Bezeichnung,
-         LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))      AS WZNr,
-         LTRIM(RTRIM(ISNULL(w.WZV_WZNr_1,'')))    AS WZNr1,
-         LTRIM(RTRIM(ISNULL(w.WZV_Lagerort,'')))  AS Lagerort,
-         LTRIM(RTRIM(ISNULL(w.WZV_Zustand,'')))   AS Zustand,
-         LTRIM(RTRIM(ISNULL(w.WZV_Bilddatei,''))) AS Bilddatei,
-         w.WZV_Status AS WZVStatus,
-         CONVERT(varchar(10), w.WZV_DefektSeit, 120) AS DefektSeit,
-         CONVERT(varchar(10), w.WZV_AusgemustertAm, 120) AS AusgemustertAm,
-         -- Verleih an Mitarbeiter
-         LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))    AS VerliehAnMitarb,
-         LTRIM(RTRIM(ISNULL(w.MitgenommenVon,'')))       AS MitgenommenVon,
-         ISNULL(
-           (SELECT TOP 1
-              LTRIM(RTRIM(ISNULL(m.Adresse_Vorname,'')))
-              + CASE WHEN LTRIM(RTRIM(ISNULL(m.Adresse_Nachname,''))) != '' THEN ' ' + LTRIM(RTRIM(m.Adresse_Nachname)) ELSE '' END
-            FROM ELMIT m WHERE LTRIM(RTRIM(ISNULL(m.Mitarbeiter_Nr,''))) = LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))),
-           ''
-         ) AS MitarbName,
-         ISNULL(
-           (SELECT TOP 1
-              LTRIM(RTRIM(ISNULL(m.Adresse_Vorname,'')))
-              + CASE WHEN LTRIM(RTRIM(ISNULL(m.Adresse_Nachname,''))) != '' THEN ' ' + LTRIM(RTRIM(m.Adresse_Nachname)) ELSE '' END
-            FROM ELMIT m WHERE LTRIM(RTRIM(ISNULL(m.Mitarbeiter_Nr,''))) = LTRIM(RTRIM(ISNULL(w.MitgenommenVon,'')))),
-           ''
-         ) AS MitgenommenName,
-         CONVERT(varchar(10), w.Verleih_AusgabeAm, 120)  AS AusgabeAm,
-         CONVERT(varchar(10), w.Verleih_RueckgabeAm, 120) AS RueckgabeAm,
-         -- Verleih Typ: 1=Kunde, 2=Mitarbeiter, 3=Lieferant
-         w.WZV_VerliehenAnADR AS VerleihTyp,
-         -- Kundenname wenn Typ=1
-         CASE WHEN w.WZV_VerliehenAnADR = 1 THEN
-           ISNULL((SELECT TOP 1
-             LTRIM(RTRIM(ISNULL(k.Adresse_Name1,'')))
-             + CASE WHEN LTRIM(RTRIM(ISNULL(k.Adresse_Name2,''))) != '' THEN ' ' + LTRIM(RTRIM(k.Adresse_Name2)) ELSE '' END
-           FROM ELKUN k WHERE LTRIM(RTRIM(k.Kunde_KundenNr)) = LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))), '')
-         ELSE '' END AS KundenName,
-         -- Lieferantenname wenn Typ=3
-         CASE WHEN w.WZV_VerliehenAnADR = 3 THEN
-           ISNULL((SELECT TOP 1
-             LTRIM(RTRIM(ISNULL(l.Lieferant_Name1,'')))
-             + CASE WHEN LTRIM(RTRIM(ISNULL(l.Lieferant_Name2,''))) != '' THEN ' ' + LTRIM(RTRIM(l.Lieferant_Name2)) ELSE '' END
-           FROM ELLIF l WHERE LTRIM(RTRIM(l.Lieferant_LiefNr)) = LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))), '')
-         ELSE '' END AS LiefName,
-         -- Nächste Reservierung aus HWTER
-         (SELECT TOP 1 CONVERT(varchar(19), h.Termin_Start, 120)
-          FROM HWTER h
-          WHERE h.Termin_ResourceArt = 'Werkzeuge'
-            AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE CONVERT(varchar,w.Intern_Nr) + '%'
-            AND h.Termin_Start >= GETDATE()
-            AND ISNULL(h.Geloescht,0) = 0
-          ORDER BY h.Termin_Start ASC) AS NaechsteReservierung,
-         -- Aktueller Termin (läuft gerade)
-         (SELECT TOP 1 LTRIM(RTRIM(ISNULL(h.Termin_Label,'')))
-          FROM HWTER h
-          WHERE h.Termin_ResourceArt = 'Werkzeuge'
-            AND LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE CONVERT(varchar,w.Intern_Nr) + '%'
-            AND h.Termin_Start <= GETDATE()
-            AND h.Termin_Ende >= GETDATE()
-            AND ISNULL(h.Geloescht,0) = 0
-          ORDER BY h.Termin_Start ASC) AS AktuellerTerminLabel
-       FROM ELWZV w
-       WHERE
-         -- Ausgemusterte Geräte ausblenden (WZV_Status=4)
-         w.WZV_Status != 4
-         AND ISNULL(w.WZV_AusgemustertAm, '') = ''
-         AND (@q = '' OR
-           LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))    COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
-           OR LTRIM(RTRIM(ISNULL(w.LAN,'')))          COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
-           OR LTRIM(RTRIM(ISNULL(w.WZV_WZNr,'')))     COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
-           OR LTRIM(RTRIM(ISNULL(w.Intern_Nr,'')))     COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
-           OR LTRIM(RTRIM(ISNULL(w.SerienNummer,'')))  COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
-           OR LTRIM(RTRIM(ISNULL(w.WZV_Lagerort,''))) COLLATE Latin1_General_CI_AI LIKE '%' + @q + '%'
-         )
-       ORDER BY w.Bezeichnung ASC`,
-      { q }
-    )
-
-    // Resolve Mieter-Name for items lent to address
-    const tools = await Promise.all(result.recordset.map(async w => {
-      let mieterName = ''
-      const verleihTyp = w.VerleihTyp
-      if (verleihTyp === 2 && w.VerliehAnMitarb) {
-        // Mitarbeiter
-        const portalUser = localDb.db.prepare('SELECT name FROM users WHERE powerbird_id = ? AND is_active = 1').get(w.VerliehAnMitarb)
-        mieterName = portalUser ? portalUser.name : (w.MitarbName || w.VerliehAnMitarb)
-      } else if (verleihTyp === 1) {
-        // Kunde
-        mieterName = w.KundenName || w.VerliehAnMitarb
-      } else if (verleihTyp === 3) {
-        // Lieferant
-        mieterName = w.LiefName || w.VerliehAnMitarb
-      } else if (w.VerliehAnMitarb && !verleihTyp) {
-        // Fallback: Mitarbeiter ohne Typ
-        const portalUser = localDb.db.prepare('SELECT name FROM users WHERE powerbird_id = ? AND is_active = 1').get(w.VerliehAnMitarb)
-        mieterName = portalUser ? portalUser.name : (w.MitarbName || w.VerliehAnMitarb)
-      } else if (w.MitgenommenVon) {
-        const portalUser = localDb.db.prepare('SELECT name FROM users WHERE powerbird_id = ? AND is_active = 1').get(w.MitgenommenVon)
-        mieterName = portalUser ? portalUser.name : (w.MitgenommenName || w.MitgenommenVon)
-      }
-
-      // Determine status
-      const jetzt = new Date()
-      const ausgabe = w.AusgabeAm ? new Date(w.AusgabeAm) : null
-      const rueckgabe = w.RueckgabeAm ? new Date(w.RueckgabeAm) : null
-      const naechste = w.NaechsteReservierung ? new Date(w.NaechsteReservierung) : null
-      const diffDays = naechste ? (naechste - jetzt) / 864e5 : null
-
-      // Status direkt aus WZV_Zustand:
-      // WZV_Status: 0=Lager, 1=Verliehen(Mitarb), 2=Defekt, 3=Verliehen(Kunde/Lief), 4=Ausgemustert
+    // Cache nutzen - falls leer oder veraltet, frisch laden
+    if (toolsCache.getCacheCount() === 0) {
+      await toolsCache.syncTools()
+    }
+    const results = toolsCache.searchCache(q)
+    // Ergebnis in gleiche Struktur wie vorher transformieren
+    const tools = results.slice(0, 500).map(w => {
       let status = 'lager'
-      if (w.WZVStatus === 2) {
-        status = 'defekt'
-      } else if (w.WZVStatus === 1 || w.WZVStatus === 3) {
-        status = 'verliehen'
-      } else if (diffDays !== null && diffDays <= 2) {
-        status = 'reserviert'
-      }
-
+      if (w.WZVStatus === 2) status = 'defekt'
+      else if (w.WZVStatus === 1 || w.WZVStatus === 3) status = 'verliehen'
+      let verliehAn = ''
+      if (w.VerleihTyp === 1) verliehAn = w.KundenName || w.VerliehAnMitarb
+      else if (w.VerleihTyp === 3) verliehAn = w.LiefName || w.VerliehAnMitarb
+      else verliehAn = w.MitarbName || w.VerliehAnMitarb
       return {
-        recno:        w.RecNo,
-        lan:          w.LAN,
-        internNr:     w.InternNr,
-        bezeichnung:  w.Bezeichnung,
-        nr:           w.WZNr,
-        lagerort:     w.Lagerort,
-        zustand:      w.Zustand,
-        defektSeit:   w.DefektSeit || null,
-        bild:         w.Bilddatei || null,
+        recno:       w.recno,
+        internNr:    w.InternNr,
+        bezeichnung: w.Bezeichnung,
+        nr:          w.WZNr,
+        nr1:         w.WZNr1,
+        lagerort:    w.Lagerort,
+        zustand:     w.Zustand,
+        bild:        w.Bilddatei || null,
         status,
-        mieter:       mieterName,
-        ausgabe:      w.AusgabeAm,
-        rueckgabe:    w.RueckgabeAm,
-        naechsteRes:  w.NaechsteReservierung,
-        aktTermin:    w.AktuellerTerminLabel,
+        ausgabe:     w.AusgabeAm,
+        rueckgabe:   w.RueckgabeAm,
+        verliehAn,
+        mitgenommenVon: w.MitgenommenName || w.MitgenommenVon,
       }
-    }))
-
-    res.json({ tools })
-  } catch(e) {
-    console.error('tools-search error:', e.message)
-    res.status(500).json({ error: e.message })
-  }
+    })
+    res.json({
+      tools,
+      cached: true,
+      cacheAge: toolsCache.getCacheAge(),
+      total: results.length
+    })
+  } catch(e) { res.status(500).json({ error: e.message }) }
 })
 
-
-module.exports = router;
+;
