@@ -29,7 +29,6 @@ function JahresView({ year, setYear, onMonthClick }) {
   const [error, setError] = useState("")
   const [showSoll, setShowSoll]       = useState(true)
   const [showKacheln, setShowKacheln] = useState(true)
-  const [settingsOpen, setSettingsOpen] = useState(false)
 
   // Anzeigeoptionen aus Admin-Einstellungen laden
   useEffect(() => {
