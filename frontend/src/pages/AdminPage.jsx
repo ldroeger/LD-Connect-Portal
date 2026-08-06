@@ -323,9 +323,20 @@ function BrandingAdmin() {
     }).catch(()=>{})
   }, [])
 
+  const [hoursSettings, setHoursSettings] = useState({ hours_show_kacheln: 'true', hours_show_soll: 'true' })
+
+  useEffect(() => {
+    api.get('/admin/settings').then(r => {
+      const s = r.data.settings || {}
+      setHoursSettings({
+        hours_show_kacheln: s.hours_show_kacheln ?? 'true',
+        hours_show_soll:    s.hours_show_soll    ?? 'true',
+      })
+    }).catch(() => {})
+  }, [])
+
   const saveOne = async (key, value) => {
-    const updated = { ...settings, [key]: value }
-    setSettings(updated)
+    setHoursSettings(prev => ({ ...prev, [key]: value }))
     try { await api.put('/admin/settings', { [key]: value }) } catch(e) { console.error(e) }
   }
 
@@ -428,7 +439,7 @@ function BrandingAdmin() {
       <div style={{ display:'flex', flexDirection:'column', gap:10, background:'var(--surface-2)', borderRadius:10, padding:16, border:'1px solid var(--border)' }}>
         <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:'0.88rem' }}>
           <input type="checkbox"
-            checked={settings.hours_show_kacheln !== 'false'}
+            checked={hoursSettings.hours_show_kacheln !== 'false'}
             onChange={e => saveOne('hours_show_kacheln', e.target.checked ? 'true' : 'false')} />
           <div>
             <div style={{ fontWeight:600 }}>Statistik-Kacheln anzeigen</div>
@@ -437,7 +448,7 @@ function BrandingAdmin() {
         </label>
         <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:'0.88rem' }}>
           <input type="checkbox"
-            checked={settings.hours_show_soll !== 'false'}
+            checked={hoursSettings.hours_show_soll !== 'false'}
             onChange={e => saveOne('hours_show_soll', e.target.checked ? 'true' : 'false')} />
           <div>
             <div style={{ fontWeight:600 }}>Soll-Stunden Spalte anzeigen</div>
@@ -512,7 +523,7 @@ function SettingsAdmin() {
       <div style={{ display:'flex', flexDirection:'column', gap:10, background:'var(--surface-2)', borderRadius:10, padding:16, border:'1px solid var(--border)' }}>
         <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:'0.88rem' }}>
           <input type="checkbox"
-            checked={settings.hours_show_kacheln !== 'false'}
+            checked={hoursSettings.hours_show_kacheln !== 'false'}
             onChange={e => saveOne('hours_show_kacheln', e.target.checked ? 'true' : 'false')} />
           <div>
             <div style={{ fontWeight:600 }}>Statistik-Kacheln anzeigen</div>
@@ -521,7 +532,7 @@ function SettingsAdmin() {
         </label>
         <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:'0.88rem' }}>
           <input type="checkbox"
-            checked={settings.hours_show_soll !== 'false'}
+            checked={hoursSettings.hours_show_soll !== 'false'}
             onChange={e => saveOne('hours_show_soll', e.target.checked ? 'true' : 'false')} />
           <div>
             <div style={{ fontWeight:600 }}>Soll-Stunden Spalte anzeigen</div>
