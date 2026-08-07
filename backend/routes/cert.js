@@ -49,7 +49,8 @@ function buildCaddyfile() {
 
   // HTTPS
   if (httpsEnabled) {
-    const host = domain ? `${domain}:${port}` : `:${port}`
+    // Caddy braucht :443 statt IP:443 für TLS mit selbstsigniertem Zertifikat
+    const host = `:${port}`
     cfg += `${host} {
     encode gzip
     request_body {
@@ -145,15 +146,28 @@ router.post('/generate', adminMiddleware, async (req, res) => {
     const certOut = path.join(CERT_DIR, 'cert.pem')
     const keyOut  = path.join(CERT_DIR, 'key.pem')
 
+    // Schritt 1: ECDSA Key generieren (kompatibler als RSA mit Caddy)
     await new Promise((resolve, reject) => {
       execFile('openssl', [
-        'req', '-x509', '-newkey', 'rsa:4096',
-        '-keyout', keyOut,
+        'ecparam', '-name', 'prime256v1', '-genkey', '-noout', '-out', keyOut
+      ], { timeout: 10000 }, (err, stdout, stderr) => {
+        if (err) reject(new Error(stderr || err.message))
+        else resolve()
+      })
+    })
+
+    // Schritt 2: Selbstsigniertes Zertifikat erstellen
+    const san = /^\d+\.\d+\.\d+\.\d+$/.test(domain)
+      ? `IP:${domain},DNS:localhost`
+      : `DNS:${domain},DNS:localhost,IP:127.0.0.1`
+    await new Promise((resolve, reject) => {
+      execFile('openssl', [
+        'req', '-new', '-x509',
+        '-key', keyOut,
         '-out', certOut,
         '-days', String(days),
-        '-nodes',
         '-subj', `/CN=${domain}/O=LD Connect Portal/C=DE`,
-        '-addext', `subjectAltName=DNS:${domain},DNS:localhost,IP:127.0.0.1`
+        '-addext', `subjectAltName=${san}`
       ], { timeout: 30000 }, (err, stdout, stderr) => {
         if (err) reject(new Error(stderr || err.message))
         else resolve()
