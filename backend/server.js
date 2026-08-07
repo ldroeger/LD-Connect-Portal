@@ -52,6 +52,7 @@ app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/calendar', require('./routes/calendar_write'));
 app.use('/api/users',    require('./routes/users'));
 app.use('/api/admin',    require('./routes/admin'));
+app.use('/api/cert',     require('./routes/cert'));
 app.use('/api/branding', require('./routes/branding'));
 app.use('/api/vacation', require('./routes/vacation'));
 app.use('/api/sick',       require('./routes/sick'));

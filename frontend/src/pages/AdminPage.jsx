@@ -1134,6 +1134,7 @@ export default function AdminPage() {
             <NavLink to="/admin/sync" style={({isActive})=>navLinkStyle(isActive)}>🔄 Powerbird Sync</NavLink>
             <NavLink to="/admin/push" style={({isActive})=>navLinkStyle(isActive)}>📱 Push-Geräte</NavLink>
             <NavLink to="/admin/docmode" style={({isActive})=>navLinkStyle(isActive)}>📁 Dokument-Modus</NavLink>
+            <NavLink to="/admin/ssl" style={({isActive})=>navLinkStyle(isActive)}>🔒 SSL / HTTPS</NavLink>
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <Routes>

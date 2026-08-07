@@ -1,0 +1,13 @@
+# Diese Datei wird automatisch vom LD-Connect-Portal verwaltet
+# Nicht manuell bearbeiten
+
+{
+    admin off
+    auto_https off
+}
+
+# HTTP → HTTPS Redirect (wenn HTTPS konfiguriert)
+:80 {
+    encode gzip
+    reverse_proxy frontend:80
+}

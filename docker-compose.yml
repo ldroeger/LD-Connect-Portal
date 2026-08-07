@@ -12,12 +12,28 @@ services:
     networks:
       - app-network
 
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    container_name: ld-portal-caddy-1
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile.dynamic:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+      - app-data:/app-data:ro
+    networks:
+      - app-network
+    depends_on:
+      - frontend
+
   frontend:
     build: ./frontend
     restart: unless-stopped
     container_name: ld-portal-frontend-1
     ports:
-      - "80:80"
       - "8081:81"
     depends_on:
       - backend
@@ -30,4 +46,8 @@ networks:
 
 volumes:
   app-data:
+    driver: local
+  caddy-data:
+    driver: local
+  caddy-config:
     driver: local
