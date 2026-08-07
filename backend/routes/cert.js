@@ -34,7 +34,9 @@ function buildCaddyfile() {
   // HTTP
   cfg += `:${httpPort} {
     encode gzip
-    request_body { max_size 200MB }
+    request_body {
+        max_size 200MB
+    }
     reverse_proxy frontend:80
 `
   if (httpsEnabled && domain) {
@@ -50,7 +52,9 @@ function buildCaddyfile() {
     const host = domain ? `${domain}:${port}` : `:${port}`
     cfg += `${host} {
     encode gzip
-    request_body { max_size 200MB }
+    request_body {
+        max_size 200MB
+    }
     tls ${certFile} ${keyFile}
     reverse_proxy frontend:80
     header {
