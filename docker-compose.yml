@@ -16,14 +16,14 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     container_name: ld-portal-caddy-1
+    command: caddy run --config /app-data/caddy/Caddyfile --adapter caddyfile --watch
     ports:
       - "443:443"
       - "80:80"
     volumes:
-      - ./Caddyfile.dynamic:/etc/caddy/Caddyfile
+      - app-data:/app-data
       - caddy-data:/data
       - caddy-config:/config
-      - app-data:/app-data:ro
     networks:
       - app-network
     depends_on:

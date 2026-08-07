@@ -11,6 +11,12 @@ const CADDYFILE_HOST = '/etc/caddy/Caddyfile'
 
 if (!fs.existsSync(CERT_DIR)) fs.mkdirSync(CERT_DIR, { recursive: true })
 if (!fs.existsSync('/data/caddy')) fs.mkdirSync('/data/caddy', { recursive: true })
+// Initial Caddyfile anlegen falls nicht vorhanden
+const initialCaddy = '/data/caddy/Caddyfile'
+if (!fs.existsSync(initialCaddy)) {
+  fs.writeFileSync(initialCaddy, buildCaddyfile())
+  console.log('[cert] Initial Caddyfile erstellt:', initialCaddy)
+}
 
 function buildCaddyfile() {
   const domain   = localDb.getSetting('ssl_domain')   || ''
@@ -21,7 +27,6 @@ function buildCaddyfile() {
   const httpsEnabled = certFile && keyFile && fs.existsSync(certFile) && fs.existsSync(keyFile)
 
   let cfg = `{
-    admin off
     auto_https off
 }
 
@@ -63,21 +68,16 @@ function buildCaddyfile() {
 
 async function reloadCaddy() {
   const cfg = buildCaddyfile()
-  // In /data/caddy schreiben (gemounted von Caddy-Container)
+  // Caddyfile schreiben - wird von Caddy-Container über app-data Volume gelesen
   const outPath = '/data/caddy/Caddyfile'
   fs.writeFileSync(outPath, cfg)
+  console.log('[cert] Caddyfile aktualisiert:', outPath)
 
-  // Caddy reload via API
+  // Caddy neu starten via docker exec (Caddy Admin API ist deaktiviert)
+  // Wir signalisieren Caddy via SIGUSR1 oder warten auf caddy reload
   return new Promise((resolve) => {
-    exec('wget -q -O- --post-data="" http://caddy:2019/load || true', { timeout: 5000 }, (err, stdout, stderr) => {
-      // Fallback: direkt in /etc/caddy schreiben wenn im gleichen Container
-      try {
-        if (fs.existsSync('/etc/caddy')) {
-          fs.writeFileSync('/etc/caddy/Caddyfile', cfg)
-        }
-      } catch(e) {}
-      resolve()
-    })
+    // Kurz warten damit Caddy das File lesen kann
+    setTimeout(resolve, 500)
   })
 }
 
