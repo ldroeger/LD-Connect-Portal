@@ -21,7 +21,7 @@ services:
       - "80:80"
     volumes:
       - app-data:/app-data
-      - caddy-data:/data
+      - app-data:/data
       - caddy-config:/config
     networks:
       - app-network
