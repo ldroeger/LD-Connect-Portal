@@ -138,3 +138,19 @@ LD-Connect-Portal/
 ## Lizenz
 
 Proprietär — Alle Rechte vorbehalten. Nur für den internen Einsatz mit Powerbird ERP.
+
+## Versionsnummer und Releases
+
+Die Version steht in `frontend/package.json` und `backend/package.json`.
+Das Portal zeigt sie unten in der Seitenleiste zusammen mit dem Build-Datum an; das Backend liefert sie unter `/api/health`.
+Weichen Frontend- und Backend-Version ab, erscheint in der Seitenleiste ein Hinweis, dass neu gebaut werden muss.
+
+Bei jedem Update auf `main` erledigt die GitHub Action `.github/workflows/release.yml` den Rest automatisch:
+Version erhöhen, `CHANGELOG.md` ergänzen, Tag `vX.Y.Z` setzen und ein GitHub-Release mit Changelog anlegen.
+
+- Standard ist ein Patch-Update (z. B. 1.1.0 → 1.1.1).
+- `[minor]` bzw. `[major]` im PR-Titel oder in der Commit-Nachricht zählt die zweite bzw. erste Stelle hoch.
+- Unter *Actions → Release → Run workflow* lässt sich ein Release auch von Hand starten.
+
+Die Action legt dafür einen eigenen Commit `chore(release): vX.Y.Z` auf `main` an. Deshalb nach einem Merge kurz warten,
+bis die Action durch ist, und erst dann wie gewohnt deployen (`git reset --hard origin/main && docker compose up -d --build`).
