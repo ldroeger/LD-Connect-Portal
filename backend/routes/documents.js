@@ -151,10 +151,44 @@ function smbWriteFile(smb2, filePath, buffer) {
   })
 }
 
+// Legt einen Ordner an. Resolved mit 'created' oder 'exists', alle anderen
+// Fehler (Anmeldung, Rechte, falscher Pfad) werden weitergereicht.
 function smbMkdir(smb2, dirPath) {
-  return new Promise((resolve) => {
-    smb2.mkdir(dirPath, (err) => { resolve() }) // Fehler ignorieren (existiert bereits)
+  return new Promise((resolve, reject) => {
+    smb2.mkdir(dirPath, (err) => {
+      if (!err) return resolve('created')
+      if (err.code === 'STATUS_OBJECT_NAME_COLLISION') return resolve('exists')
+      reject(new Error(smbErrorText(err)))
+    })
   })
+}
+
+// Basispfad (Unterordner der Freigabe) Ebene für Ebene anlegen
+async function smbMkdirRecursive(smb2, dirPath) {
+  const parts = (dirPath || '').split('\\').filter(Boolean)
+  let current = ''
+  for (const part of parts) {
+    current = current ? current + '\\' + part : part
+    await smbMkdir(smb2, current)
+  }
+}
+
+// Prüft ob ein Ordner auf der Freigabe wirklich existiert
+function smbDirExists(smb2, dirPath) {
+  return new Promise((resolve) => {
+    smb2.readdir(dirPath || '', (err) => resolve(!err))
+  })
+}
+
+function smbErrorText(err) {
+  const map = {
+    STATUS_LOGON_FAILURE:          'Anmeldung fehlgeschlagen (Benutzer/Passwort prüfen)',
+    STATUS_ACCESS_DENIED:          'Zugriff verweigert (keine Schreibrechte auf der Freigabe)',
+    STATUS_BAD_NETWORK_NAME:       'Freigabe nicht gefunden',
+    STATUS_OBJECT_PATH_NOT_FOUND:  'Pfad nicht gefunden',
+    STATUS_OBJECT_NAME_INVALID:    'Ungültiger Ordnername',
+  }
+  return map[err && err.code] || (err && (err.message || err.code)) || 'Unbekannter Fehler'
 }
 
 async function smbSaveFile(smb2, buffer, originalname, kuerzel, category, basePath) {
@@ -221,18 +255,29 @@ router.post('/create-folders', authMiddleware, async (req, res) => {
     if (mode === 'smb') {
       const smbInfo = getSmbClient()
       if (!smbInfo) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
-      const { smb2, basePath } = smbInfo
+      const { smb2, host, share, basePath } = smbInfo
+      const target = '\\\\' + host + '\\' + share + (basePath ? '\\' + basePath : '')
+      try {
+        // Verbindung/Anmeldung prüfen und Basisordner anlegen, bevor Mitarbeiter-Ordner erstellt werden
+        if (basePath) await smbMkdirRecursive(smb2, basePath)
+        if (!(await smbDirExists(smb2, basePath))) throw new Error('Zielordner nicht erreichbar')
+      } catch(e) {
+        try { smb2.disconnect() } catch(e2) {}
+        return res.status(500).json({ error: 'Netzlaufwerk ' + target + ': ' + e.message })
+      }
       for (const u of users) {
         const folderName = getUserFolderName(u)
         const folderPath = basePath ? basePath + '\\' + folderName : folderName
         try {
-          await smbMkdir(smb2, folderPath)
-          results.push({ user: u.name, folder: folderName, ok: true })
+          const status = await smbMkdir(smb2, folderPath)
+          if (!(await smbDirExists(smb2, folderPath))) throw new Error('Ordner nach dem Anlegen nicht gefunden')
+          results.push({ user: u.name, folder: folderName, ok: true, existed: status === 'exists' })
         } catch(e) {
           results.push({ user: u.name, folder: folderName, ok: false, error: e.message })
         }
       }
       try { smb2.disconnect() } catch(e) {}
+      return res.json({ success: results.every(r => r.ok), target, results })
     } else if (mode === 'local') {
       const baseDir = getBaseDir()
       for (const u of users) {
