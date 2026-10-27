@@ -1,0 +1,95 @@
+# Legt bei jedem Update auf main automatisch eine neue Version an:
+# Version in frontend/ und backend/package.json erhöhen, CHANGELOG.md ergänzen,
+# Tag vX.Y.Z setzen und ein GitHub-Release mit Changelog erstellen.
+#
+# Standard ist ein Patch-Update (1.1.0 -> 1.1.1). Steht [minor] oder [major]
+# in einer Commit-Nachricht (bzw. im PR-Titel beim Squash-Merge), wird
+# entsprechend höher gezählt. Manuell startbar unter Actions -> Release.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Art des Updates
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release)') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Version bestimmen
+        id: version
+        env:
+          BUMP_INPUT: ${{ github.event.inputs.bump }}
+        run: |
+          current=$(node -p "require('./frontend/package.json').version")
+          last_tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+          range=${last_tag:+$last_tag..}HEAD
+
+          if git rev-parse -q --verify "refs/tags/v$current" >/dev/null; then
+            bump=${BUMP_INPUT:-patch}
+            msgs=$(git log "$range" --format=%B)
+            if grep -qi '\[major\]' <<<"$msgs"; then bump=major
+            elif grep -qi '\[minor\]' <<<"$msgs" && [ "$bump" = patch ]; then bump=minor
+            fi
+            IFS=. read -r major minor patch <<<"$current"
+            case $bump in
+              major) new="$((major+1)).0.0" ;;
+              minor) new="$major.$((minor+1)).0" ;;
+              *)     new="$major.$minor.$((patch+1))" ;;
+            esac
+          else
+            # Version wurde von Hand gesetzt und ist noch nicht veröffentlicht
+            new=$current
+          fi
+
+          {
+            echo "## v$new ($(date -u +%Y-%m-%d))"
+            echo
+            git log "$range" --no-merges --format='- %s (%h)' \
+              | grep -v 'chore(release)' | head -n 50 || true
+            echo
+          } > notes.md
+
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+          cat notes.md
+
+      - name: Version setzen und committen
+        env:
+          NEW: ${{ steps.version.outputs.new }}
+        run: |
+          sed -i -E "0,/\"version\": \"[^\"]+\"/s//\"version\": \"$NEW\"/" frontend/package.json backend/package.json
+          { cat notes.md; [ -f CHANGELOG.md ] && sed '1{/^# Changelog$/d}' CHANGELOG.md | sed '1{/^$/d}'; } > changelog.tmp
+          { echo '# Changelog'; echo; cat changelog.tmp; } > CHANGELOG.md
+          rm changelog.tmp
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package.json backend/package.json CHANGELOG.md
+          git commit -m "chore(release): v$NEW [skip ci]"
+          git tag "v$NEW"
+          git push origin HEAD:main
+          git push origin "v$NEW"
+
+      - name: GitHub-Release erstellen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEW: ${{ steps.version.outputs.new }}
+        run: gh release create "v$NEW" --title "v$NEW" --notes-file notes.md
