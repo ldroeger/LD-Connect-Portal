@@ -1048,12 +1048,12 @@ function DocModeTab() {
           <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:10 }}>📖 Anleitung: Netzlaufwerk-Modus</div>
           {infoBox('Die Freigabe-Einstellungen (Host, Benutzer, Passwort, Pfad) werden unter Admin → Netzlaufwerk → Mitarbeiter-Dokumente konfiguriert.')}
           {infoBox(
-            'Die Ordnerstruktur ist fest: Freigabe/NAME/KATEGORIE/datei — Ordnername = vollständiger Name des Mitarbeiters. ' +
+            'Die Ordnerstruktur ist fest: Freigabe/NAME/KATEGORIE/JAHR/MM - Monat/datei — Ordnername = vollständiger Name des Mitarbeiters. ' +
             'Dateien die manuell im Netzlaufwerk abgelegt werden erscheinen automatisch im Portal.',
             '#1D4ED8', '#EFF6FF', '#BFDBFE'
           )}
           <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8, marginTop:16 }}>Mitarbeiter-Ordner anlegen</div>
-          {infoBox('Legt für jeden aktiven Mitarbeiter einen Ordner mit allen konfigurierten Kategorien als Unterordner auf dem Netzlaufwerk an. Ordnername = vollständiger Name des Mitarbeiters. Vorhandene Ordner bleiben unverändert, fehlende werden ergänzt.')}
+          {infoBox('Legt für jeden aktiven Mitarbeiter einen Ordner mit allen konfigurierten Kategorien an, darin das aktuelle Jahr mit den Monatsordnern (z.B. 2026/01 - Januar). Ordnername = vollständiger Name des Mitarbeiters. Vorhandene Ordner bleiben unverändert, fehlende werden ergänzt.')}
           <button onClick={async () => {
             setFolderMsg(''); setFolderLoading(true)
             try {
