@@ -88,6 +88,13 @@ function initialize() {
     `ALTER TABLE users ADD COLUMN feature_docs_upload_all INTEGER DEFAULT 0`,
     `ALTER TABLE users ADD COLUMN feature_docs_manage INTEGER DEFAULT 0`,
     `ALTER TABLE vacation_requests ADD COLUMN note TEXT`,
+    // Name/Kürzel als Kopie, damit die Krankmeldung auch nach Löschen des Benutzers lesbar bleibt
+    `ALTER TABLE sick_reports ADD COLUMN employee_name TEXT`,
+    `ALTER TABLE sick_reports ADD COLUMN employee_kuerzel TEXT`,
+    `UPDATE sick_reports SET
+       employee_name    = (SELECT name FROM users WHERE users.id = sick_reports.user_id),
+       employee_kuerzel = (SELECT powerbird_id FROM users WHERE users.id = sick_reports.user_id)
+     WHERE employee_name IS NULL AND user_id IN (SELECT id FROM users)`,
   ];
   migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 

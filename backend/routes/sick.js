@@ -13,14 +13,16 @@ router.get('/', requireAuth, async (req, res) => {
     let rows
     if (isAdmin) {
       rows = localDb.db.prepare(`
-        SELECT s.*, u.name as user_name, u.powerbird_id
+        SELECT s.*, COALESCE(u.name, s.employee_name) as user_name,
+               COALESCE(u.powerbird_id, s.employee_kuerzel) as powerbird_id
         FROM sick_reports s
         LEFT JOIN users u ON s.user_id = u.id
         ORDER BY s.from_date DESC
       `).all()
     } else {
       rows = localDb.db.prepare(`
-        SELECT s.*, u.name as user_name, u.powerbird_id
+        SELECT s.*, COALESCE(u.name, s.employee_name) as user_name,
+               COALESCE(u.powerbird_id, s.employee_kuerzel) as powerbird_id
         FROM sick_reports s
         LEFT JOIN users u ON s.user_id = u.id
         WHERE s.user_id = ?
@@ -42,9 +44,9 @@ router.post('/', requireAuth, async (req, res) => {
 
     // In lokale DB eintragen
     const result = localDb.db.prepare(`
-      INSERT INTO sick_reports (user_id, from_date, to_date, note, created_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
-    `).run(req.user.id, from_date, to_date, note || null)
+      INSERT INTO sick_reports (user_id, employee_name, employee_kuerzel, from_date, to_date, note, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).run(req.user.id, req.user.name, req.user.powerbird_id, from_date, to_date, note || null)
 
     // In Powerbird HWTER eintragen (FehlzeitArt=33)
     if (req.user.powerbird_id) {

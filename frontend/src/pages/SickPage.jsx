@@ -147,7 +147,7 @@ export default function SickPage() {
                   <div>
                     {isAdmin && (
                       <div style={{ fontWeight:700, fontSize:'0.88rem', marginBottom:3 }}>
-                        👤 {r.user_name || r.powerbird_id || `User #${r.user_id}`}
+                        👤 {r.user_name || r.powerbird_id || `Gelöschter Benutzer (ID ${r.user_id})`}
                       </div>
                     )}
                     <div style={{ fontWeight:600, fontSize:'0.9rem' }}>

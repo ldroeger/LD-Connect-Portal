@@ -94,13 +94,26 @@ async function syncKrank(pool) {
   for (const r of rows.recordset) {
     // Prüfe ob bereits in lokaler DB (egal ob durch Portal oder Sync)
     const exists = localDb.db.prepare(
-      'SELECT id FROM sick_reports WHERE hwter_recno = ?'
+      'SELECT s.id, u.id AS uid FROM sick_reports s LEFT JOIN users u ON u.id = s.user_id WHERE s.hwter_recno = ?'
     ).get(r.RecNo)
-    if (exists) continue
+    const user = localDb.db.prepare('SELECT id, name, powerbird_id FROM users WHERE powerbird_id = ?').get(r.Termin_ResourceName)
+    if (exists) {
+      // Benutzer der Krankmeldung existiert nicht mehr (gelöscht/neu angelegt):
+      // über das Kürzel aus Powerbird neu zuordnen bzw. wenigstens das Kürzel merken
+      if (!exists.uid) {
+        if (user) {
+          localDb.db.prepare('UPDATE sick_reports SET user_id=?, employee_name=?, employee_kuerzel=? WHERE id=?')
+            .run(user.id, user.name, user.powerbird_id, exists.id)
+        } else {
+          localDb.db.prepare('UPDATE sick_reports SET employee_kuerzel=COALESCE(employee_kuerzel, ?) WHERE id=?')
+            .run(r.Termin_ResourceName, exists.id)
+        }
+      }
+      continue
+    }
 
     // Prüfe ob es einen lokalen Eintrag ohne hwter_recno gibt der zeitlich passt
     // (eingetragen aber hwter_recno noch nicht gesetzt weil async)
-    const user = localDb.db.prepare('SELECT id FROM users WHERE powerbird_id = ?').get(r.Termin_ResourceName)
     if (!user) continue
 
     const fromDate = new Date(r.Termin_Start).toISOString().split('T')[0]
@@ -119,9 +132,9 @@ async function syncKrank(pool) {
     // Wirklich neu (extern in Powerbird eingetragen)
     try {
       localDb.db.prepare(`
-        INSERT OR IGNORE INTO sick_reports (user_id, hwter_recno, from_date, to_date, created_at)
-        VALUES (?, ?, ?, ?, datetime('now'))
-      `).run(user.id, r.RecNo, fromDate, toDate)
+        INSERT OR IGNORE INTO sick_reports (user_id, employee_name, employee_kuerzel, hwter_recno, from_date, to_date, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+      `).run(user.id, user.name, user.powerbird_id, r.RecNo, fromDate, toDate)
       newCount++
     } catch(e) {
       addLog(`Krankmeldung Insert-Fehler: ${e.message}`, 'warn')

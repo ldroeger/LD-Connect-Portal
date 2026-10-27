@@ -136,6 +136,13 @@ router.put('/:id', adminMiddleware, async (req, res) => {
 // DELETE /api/users/:id
 router.delete('/:id', adminMiddleware, (req, res) => {
   if (parseInt(req.params.id) === req.user.id) return res.status(400).json({ error: 'Sie können sich nicht selbst löschen' });
+  // Name/Kürzel in den Krankmeldungen sichern, sonst zeigt die Liste nur noch die ID
+  localDb.db.prepare(`
+    UPDATE sick_reports SET
+      employee_name    = (SELECT name FROM users WHERE id = ?),
+      employee_kuerzel = (SELECT powerbird_id FROM users WHERE id = ?)
+    WHERE user_id = ?
+  `).run(req.params.id, req.params.id, req.params.id);
   localDb.db.prepare('DELETE FROM users WHERE id=?').run(req.params.id);
   res.json({ success: true });
 });
