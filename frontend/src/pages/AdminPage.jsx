@@ -1053,7 +1053,7 @@ function DocModeTab() {
             '#1D4ED8', '#EFF6FF', '#BFDBFE'
           )}
           <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8, marginTop:16 }}>Mitarbeiter-Ordner anlegen</div>
-          {infoBox('Legt für jeden aktiven Mitarbeiter automatisch einen Ordner auf dem Netzlaufwerk an. Ordnername = vollständiger Name des Mitarbeiters.')}
+          {infoBox('Legt für jeden aktiven Mitarbeiter einen Ordner mit allen konfigurierten Kategorien als Unterordner auf dem Netzlaufwerk an. Ordnername = vollständiger Name des Mitarbeiters. Vorhandene Ordner bleiben unverändert, fehlende werden ergänzt.')}
           <button onClick={async () => {
             setFolderMsg(''); setFolderLoading(true)
             try {

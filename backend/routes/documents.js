@@ -241,7 +241,7 @@ function getSmbClient() {
 
 
 
-// POST /api/documents/create-folders - SMB-Ordner für alle Mitarbeiter anlegen
+// POST /api/documents/create-folders - Ordner + Kategorie-Unterordner für alle Mitarbeiter anlegen
 router.post('/create-folders', authMiddleware, async (req, res) => {
   try {
     const freshFeat = getUserFeatures(req.user.id)
@@ -251,6 +251,10 @@ router.post('/create-folders', authMiddleware, async (req, res) => {
     const mode = getMode()
     const users = localDb.db.prepare("SELECT * FROM users WHERE is_active = 1").all()
     const results = []
+    // Unterordner je Mitarbeiter = konfigurierte Kategorien (gleiche Bereinigung wie beim Upload)
+    const subfolders = [...new Set(getCategories()
+      .map(c => c.replace(/[\\\/:*?"<>|]/g, '_').trim()).filter(Boolean))]
+    console.log('[create-folders] Kategorie-Unterordner: ' + (subfolders.length ? subfolders.join(', ') : '(keine Kategorien konfiguriert)'))
 
     if (mode === 'smb') {
       const smbInfo = getSmbClient()
@@ -271,19 +275,25 @@ router.post('/create-folders', authMiddleware, async (req, res) => {
         console.log('[create-folders] FEHLER ' + target + ': ' + e.message)
         return res.status(500).json({ error: 'Netzlaufwerk ' + target + ': ' + e.message })
       }
-      for (const u of users) {
-        const folderName = getUserFolderName(u)
-        const folderPath = basePath ? basePath + '\\' + folderName : folderName
-        const fullPath   = '\\\\' + host + '\\' + share + '\\' + folderPath
+      const createOne = async (user, folder, folderPath) => {
+        const fullPath = '\\\\' + host + '\\' + share + '\\' + folderPath
         try {
           const status = await smbMkdir(smb2, folderPath)
           if (!(await smbDirExists(smb2, folderPath))) throw new Error('Ordner nach dem Anlegen nicht gefunden')
           console.log('[create-folders] ' + (status === 'exists' ? 'vorhanden' : 'angelegt') + ': ' + fullPath)
-          results.push({ user: u.name, folder: folderName, path: fullPath, ok: true, existed: status === 'exists' })
+          results.push({ user: user.name, folder, path: fullPath, ok: true, existed: status === 'exists' })
+          return true
         } catch(e) {
           console.log('[create-folders] FEHLER ' + fullPath + ': ' + e.message)
-          results.push({ user: u.name, folder: folderName, path: fullPath, ok: false, error: e.message })
+          results.push({ user: user.name, folder, path: fullPath, ok: false, error: e.message })
+          return false
         }
+      }
+      for (const u of users) {
+        const folderName = getUserFolderName(u)
+        const folderPath = basePath ? basePath + '\\' + folderName : folderName
+        if (!(await createOne(u, folderName, folderPath))) continue
+        for (const sub of subfolders) await createOne(u, folderName + '\\' + sub, folderPath + '\\' + sub)
       }
       try { smb2.disconnect() } catch(e) {}
       return res.json({ success: results.every(r => r.ok), target, results })
@@ -292,15 +302,17 @@ router.post('/create-folders', authMiddleware, async (req, res) => {
       console.log('[create-folders] Modus local (Eigenständig, im Container), Ziel ' + baseDir)
       for (const u of users) {
         const folderName = getUserKuerzel(u)
-        const folderPath = pathMod.join(baseDir, folderName)
-        try {
-          const existed = fs.existsSync(folderPath)
-          if (!existed) fs.mkdirSync(folderPath, { recursive: true })
-          console.log('[create-folders] ' + (existed ? 'vorhanden' : 'angelegt') + ': ' + folderPath)
-          results.push({ user: u.name, folder: folderName, path: folderPath, ok: true, existed })
-        } catch(e) {
-          console.log('[create-folders] FEHLER ' + folderPath + ': ' + e.message)
-          results.push({ user: u.name, folder: folderName, path: folderPath, ok: false, error: e.message })
+        for (const folder of [folderName, ...subfolders.map(sub => pathMod.join(folderName, sub))]) {
+          const folderPath = pathMod.join(baseDir, folder)
+          try {
+            const existed = fs.existsSync(folderPath)
+            if (!existed) fs.mkdirSync(folderPath, { recursive: true })
+            console.log('[create-folders] ' + (existed ? 'vorhanden' : 'angelegt') + ': ' + folderPath)
+            results.push({ user: u.name, folder, path: folderPath, ok: true, existed })
+          } catch(e) {
+            console.log('[create-folders] FEHLER ' + folderPath + ': ' + e.message)
+            results.push({ user: u.name, folder, path: folderPath, ok: false, error: e.message })
+          }
         }
       }
     } else {
