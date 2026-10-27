@@ -32,8 +32,9 @@ function JahresView({ year, setYear, onMonthClick }) {
 
   // Anzeigeoptionen aus Admin-Einstellungen laden
   useEffect(() => {
-    api.get('/admin/settings').then(r => {
-      const s = r.data.settings || {}
+    // eigener Endpoint, da /admin/settings nur für Admins erreichbar ist
+    api.get('/admin/display-settings').then(r => {
+      const s = r.data || {}
       if (s.hours_show_soll     !== undefined) setShowSoll(s.hours_show_soll !== 'false')
       if (s.hours_show_kacheln  !== undefined) setShowKacheln(s.hours_show_kacheln !== 'false')
     }).catch(() => {})
@@ -65,7 +66,7 @@ function JahresView({ year, setYear, onMonthClick }) {
         {showKacheln && (
           <div style={S.stats}>
             <div style={S.stat}><div style={S.statNum()}>{fmtH(data.total_ist)}</div><div style={S.statLabel}>Ist {year}</div></div>
-            <div style={S.stat}><div style={S.statNum("var(--text-2)")}>{fmtH(data.total_soll)}</div><div style={S.statLabel}>Soll {year}</div></div>
+            {showSoll && <div style={S.stat}><div style={S.statNum("var(--text-2)")}>{fmtH(data.total_soll)}</div><div style={S.statLabel}>Soll {year}</div></div>}
             {data.total_saldo > 0 && <div style={S.stat}><div style={S.statNum(saldoColor(data.total_saldo))}>+{fmtH(data.total_saldo)}</div><div style={S.statLabel}>Überstunden {year}</div></div>}
           </div>
         )}

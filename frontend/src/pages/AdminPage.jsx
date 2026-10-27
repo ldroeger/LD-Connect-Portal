@@ -2,6 +2,7 @@ import SyncSettingsCard from '../components/SyncSettingsCard.jsx'
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
 import api from '../utils/api.js'
+import { DASHBOARD_TILES } from '../utils/dashboardTiles.js'
 
 const card = { background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', padding:20, boxShadow:'var(--shadow)', marginBottom:16 }
 const lbl = { display:'block', fontSize:'0.82rem', fontWeight:600, color:'var(--text)', marginBottom:5 }
@@ -324,6 +325,7 @@ function BrandingAdmin() {
   }, [])
 
   const [hoursSettings, setHoursSettings] = useState({ hours_show_kacheln: 'true', hours_show_soll: 'true' })
+  const [hiddenTiles, setHiddenTiles] = useState([])
 
   useEffect(() => {
     api.get('/admin/settings').then(r => {
@@ -332,12 +334,19 @@ function BrandingAdmin() {
         hours_show_kacheln: s.hours_show_kacheln ?? 'true',
         hours_show_soll:    s.hours_show_soll    ?? 'true',
       })
+      try { setHiddenTiles(JSON.parse(s.dashboard_hidden_tiles || '[]')) } catch(e) {}
     }).catch(() => {})
   }, [])
 
   const saveOne = async (key, value) => {
     setHoursSettings(prev => ({ ...prev, [key]: value }))
     try { await api.put('/admin/settings', { [key]: value }) } catch(e) { console.error(e) }
+  }
+
+  const toggleTile = async (key, visible) => {
+    const next = visible ? hiddenTiles.filter(k => k !== key) : [...new Set([...hiddenTiles, key])]
+    setHiddenTiles(next)
+    try { await api.put('/admin/settings', { dashboard_hidden_tiles: JSON.stringify(next) }) } catch(e) { console.error(e) }
   }
 
   const save = async () => {
@@ -451,10 +460,31 @@ function BrandingAdmin() {
             checked={hoursSettings.hours_show_soll !== 'false'}
             onChange={e => saveOne('hours_show_soll', e.target.checked ? 'true' : 'false')} />
           <div>
-            <div style={{ fontWeight:600 }}>Soll-Stunden Spalte anzeigen</div>
-            <div style={{ color:'var(--text-3)', fontSize:'0.78rem' }}>Soll-Spalte in der Monatsübersicht</div>
+            <div style={{ fontWeight:600 }}>Soll-Stunden anzeigen</div>
+            <div style={{ color:'var(--text-3)', fontSize:'0.78rem' }}>Soll-Spalte in der Monatsübersicht und Soll-Kachel</div>
           </div>
         </label>
+      </div>
+
+      {/* Dashboard-Kacheln firmenweit ein-/ausblenden */}
+      <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:8, marginTop:24, borderTop:'1px solid var(--border)', paddingTop:20 }}>🏠 Dashboard-Kacheln</div>
+      <div style={{ fontSize:'0.82rem', color:'var(--text-3)', marginBottom:14 }}>Sichtbare Kacheln auf dem Dashboard, gilt für alle Benutzer</div>
+      <div style={{ display:'flex', flexDirection:'column', gap:14, background:'var(--surface-2)', borderRadius:10, padding:16, border:'1px solid var(--border)', marginBottom:20 }}>
+        {['Statistik', 'Navigation', 'Bereiche'].map(group => (
+          <div key={group}>
+            <div style={{ fontSize:'0.75rem', fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>{group}</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px,1fr))', gap:8 }}>
+              {DASHBOARD_TILES.filter(t => t.group === group).map(t => (
+                <label key={t.key} style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', fontSize:'0.88rem' }}>
+                  <input type="checkbox"
+                    checked={!hiddenTiles.includes(t.key)}
+                    onChange={e => toggleTile(t.key, e.target.checked)} />
+                  <span>{t.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
 

@@ -49,10 +49,13 @@ export default function DashboardPage() {
   const [urlaubStats, setUrlaubStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [toolAlerts, setToolAlerts] = useState([])
+  const [hiddenTiles, setHiddenTiles] = useState([])
   const features = { calendar: true, vacation: true, hours: true, ...(user?.features || {}) }
+  const show = key => !hiddenTiles.includes(key)
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
+    api.get('/admin/display-settings').then(r => setHiddenTiles(r.data.dashboard_hidden_tiles || [])).catch(() => {})
     if (user?.features?.tools !== false) {
       api.get('/calendar/tools-alerts').then(r => setToolAlerts(r.data.alerts || [])).catch(() => {})
     }
@@ -88,39 +91,39 @@ export default function DashboardPage() {
       </div>
 
       <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:24 }}>
-        {features.calendar && (
+        {features.calendar && show('stat_appointments') && (
           <StatCard icon="📅" label="Termine heute" value={loading ? '...' : appointments.length}
             color="var(--primary)" onClick={() => navigate('/calendar')} />
         )}
-        {features.hours && saldo !== null && saldo > 0 && (
+        {features.hours && show('stat_overtime') && saldo !== null && saldo > 0 && (
           <StatCard icon="⏱" label="Überstunden" value={loading ? '...' : '+' + fmtH(saldo)}
             color={'var(--success)'}
             onClick={() => navigate('/hours')} />
         )}
-        {features.vacation && urlaubStats?.offen_tage != null && (
+        {features.vacation && show('stat_vacation') && urlaubStats?.offen_tage != null && (
           <StatCard icon="🌴" label="Urlaub offen" value={loading ? '...' : urlaubStats.offen_tage}
             color="var(--warning)" onClick={() => navigate('/vacation')}
             sub={urlaubStats.anspruch ? `von ${urlaubStats.anspruch} Tagen` : null} />
         )}
-        {features.vacation && urlaubStats?.beantragt_anz > 0 && (
+        {features.vacation && show('stat_vacation_req') && urlaubStats?.beantragt_anz > 0 && (
           <StatCard icon="⏳" label="Urlaubsantrag" value={urlaubStats.beantragt_anz}
             color="#6366F1" onClick={() => navigate('/vacation')} sub="ausstehend" />
         )}
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px,1fr))', gap:10, marginBottom:28 }}>
-        {features.calendar && <NavCard icon="📅" title="Kalender" desc="Alle Termine" onClick={() => navigate('/calendar')} color="#3B82F6" />}
-        {features.vacation && <NavCard icon="🌴" title="Urlaub" desc="Beantragen & verwalten" onClick={() => navigate('/vacation')} color="#10B981" />}
-        {features.hours && <NavCard icon="⏱" title="Stunden" desc="Zeiterfassung" onClick={() => navigate('/hours')} color="#F59E0B" />}
-        <NavCard icon="📰" title="News" desc="Neuigkeiten" onClick={() => navigate('/news')} color="#6366F1" />
-        <NavCard icon="✅" title="Aufgaben" desc="Zu erledigen" onClick={() => navigate('/todos')} color="#EC4899" />
-        {(user?.role === 'admin' || user?.role === 'vacation_approver') && (
+        {features.calendar && show('nav_calendar') && <NavCard icon="📅" title="Kalender" desc="Alle Termine" onClick={() => navigate('/calendar')} color="#3B82F6" />}
+        {features.vacation && show('nav_vacation') && <NavCard icon="🌴" title="Urlaub" desc="Beantragen & verwalten" onClick={() => navigate('/vacation')} color="#10B981" />}
+        {features.hours && show('nav_hours') && <NavCard icon="⏱" title="Stunden" desc="Zeiterfassung" onClick={() => navigate('/hours')} color="#F59E0B" />}
+        {show('nav_news') && <NavCard icon="📰" title="News" desc="Neuigkeiten" onClick={() => navigate('/news')} color="#6366F1" />}
+        {show('nav_todos') && <NavCard icon="✅" title="Aufgaben" desc="Zu erledigen" onClick={() => navigate('/todos')} color="#EC4899" />}
+        {show('nav_vacation_approve') && (user?.role === 'admin' || user?.role === 'vacation_approver') && (
           <NavCard icon="✅" title="Urlaubsanträge" desc="Genehmigen" onClick={() => navigate('/vacation-approve')} color="#8B5CF6" />
         )}
         {isAdmin && <NavCard icon="⚙️" title="Einstellungen" desc="Administration" onClick={() => navigate('/admin')} color="#64748B" />}
       </div>
 
-      {toolAlerts.length > 0 && (
+      {show('tool_alerts') && toolAlerts.length > 0 && (
         <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid #f59e0b', padding:20, boxShadow:'var(--shadow)', marginBottom:20 }}>
           <div style={{ fontWeight:700, fontSize:'1rem', marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
             🔧 Bitte folgendes Werkzeug zurückgeben
@@ -146,7 +149,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {features.calendar && (
+      {features.calendar && show('appointments_today') && (
         <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', padding:20, boxShadow:'var(--shadow)' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
             <div style={{ fontWeight:700, fontSize:'1rem' }}>📅 Termine heute</div>
