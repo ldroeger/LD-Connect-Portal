@@ -187,4 +187,48 @@ router.get('/tools-cache/status', adminMiddleware, (req, res) => {
   res.json({ count: toolsCache.getCacheCount(), ageMinutes: toolsCache.getCacheAge() })
 })
 
+// ─── Update-Prüfung gegen das neueste GitHub-Release ─────────────────────────
+const RELEASES_URL = 'https://api.github.com/repos/ldroeger/LD-Connect-Portal/releases/latest';
+const UPDATE_CHECK_TTL = 6 * 60 * 60 * 1000; // 6 Stunden
+let updateCache = { at: 0, data: null };
+
+function parseVersion(v) {
+  return String(v || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+}
+
+function isNewer(latest, current) {
+  const a = parseVersion(latest), b = parseVersion(current);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0);
+  }
+  return false;
+}
+
+router.get('/update-check', adminMiddleware, async (req, res) => {
+  const current = require('../package.json').version;
+  if (Date.now() - updateCache.at > UPDATE_CHECK_TTL) {
+    try {
+      const r = await fetch(RELEASES_URL, {
+        headers: { 'Accept': 'application/vnd.github+json', 'User-Agent': 'LD-Connect-Portal' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!r.ok) throw new Error('GitHub antwortet mit ' + r.status);
+      const rel = await r.json();
+      updateCache = { at: Date.now(), data: {
+        latest: String(rel.tag_name || '').replace(/^v/, ''),
+        url: rel.html_url,
+        publishedAt: rel.published_at,
+        notes: String(rel.body || '').slice(0, 4000),
+      } };
+    } catch (e) {
+      // Bei Fehlern nicht bei jedem Seitenaufruf erneut anfragen
+      updateCache = { at: Date.now() - UPDATE_CHECK_TTL + 15 * 60 * 1000, data: updateCache.data };
+      console.warn('[update-check] ' + e.message);
+    }
+  }
+  const d = updateCache.data;
+  if (!d) return res.json({ current, updateAvailable: false });
+  res.json({ current, ...d, updateAvailable: isNewer(d.latest, current) });
+});
+
 module.exports = router;

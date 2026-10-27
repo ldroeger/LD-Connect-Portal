@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useBranding } from '../contexts/BrandingContext.jsx'
 import { useTheme } from '../contexts/ThemeContext.jsx'
+import UpdateBanner from './UpdateBanner.jsx'
 
 const navLink = (active) => ({
   display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8,
@@ -185,6 +186,7 @@ export default function Layout() {
           </div>
         </header>
         <div style={{ flex:1, overflow:'auto', padding:'20px 28px' }}>
+          {isAdmin && <UpdateBanner />}
           <Outlet />
         </div>
       </main>
