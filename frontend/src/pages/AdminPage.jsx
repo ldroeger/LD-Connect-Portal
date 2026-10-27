@@ -666,7 +666,8 @@ function SmbTab() {
         // Eigene Doc-Credentials wenn aktiviert, sonst leer (= Werkzeug-Creds verwenden)
         doc_smb_host:     docOwnCreds ? docHost   : '',
         doc_smb_user:     docOwnCreds ? docUser   : '',
-        doc_smb_password: docOwnCreds ? docPass   : '',
+        // Passwort wird nicht vorausgefüllt: leer lassen = bisheriges Passwort behalten
+        ...(docOwnCreds ? (docPass ? { doc_smb_password: docPass } : {}) : { doc_smb_password: '' }),
         doc_smb_domain:   docOwnCreds ? docDomain : '',
       })
       setMsg('✅ Gespeichert')
@@ -680,8 +681,12 @@ function SmbTab() {
     if (!host || !share) return setter('❌ Host und Freigabe erforderlich')
     setter('⏳ Verbinde...')
     try {
-      const server = '//' + host + '/' + share
-      const r = await api.post('/admin/smb-test', { server, user, password: pass, domain })
+      // Dokumente mit eigenen Zugangsdaten: genau diese testen, nicht die Werkzeug-Zugangsdaten
+      const useDocCreds = type === 'doc' && docOwnCreds
+      const server = '//' + (useDocCreds && docHost ? docHost : host) + '/' + share
+      const r = await api.post('/admin/smb-test', useDocCreds
+        ? { server, user: docUser, password: docPass, domain: docDomain, use_saved_doc_password: !docPass }
+        : { server, user, password: pass, domain })
       setter(r.data.success ? '✅ Verbindung erfolgreich (' + (r.data.files || 0) + ' Dateien)' : '❌ ' + r.data.error)
     } catch(e) { setter('❌ ' + (e.response?.data?.error || e.message)) }
   }
@@ -1053,9 +1058,13 @@ function DocModeTab() {
             setFolderMsg(''); setFolderLoading(true)
             try {
               const r = await api.post('/documents/create-folders')
-              const ok  = r.data.results.filter(x => x.ok).length
-              const err = r.data.results.filter(x => !x.ok).length
-              setFolderMsg('✅ ' + ok + ' Ordner angelegt' + (err > 0 ? ', ' + err + ' Fehler' : ''))
+              const created = r.data.results.filter(x => x.ok && !x.existed).length
+              const existed = r.data.results.filter(x => x.ok && x.existed).length
+              const err     = r.data.results.filter(x => !x.ok).length
+              setFolderMsg((err > 0 ? '❌ ' : '✅ ') + created + ' Ordner angelegt'
+                + (existed > 0 ? ', ' + existed + ' bereits vorhanden' : '')
+                + (err > 0 ? ', ' + err + ' Fehler' : '')
+                + (r.data.target ? ' in ' + r.data.target : ''))
               setFolderResults(r.data.results)
             } catch(e) { setFolderMsg('❌ ' + (e.response?.data?.error || e.message)) }
             setFolderLoading(false)
@@ -1071,7 +1080,7 @@ function DocModeTab() {
               background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:10 }}>
               {folderResults.map((r,i) => (
                 <div key={i} style={{ color: r.ok ? 'var(--success)' : 'var(--error)', marginBottom:2 }}>
-                  {r.ok ? '✓' : '✗'} {r.user} → {r.folder}{!r.ok && r.error ? ' ('+r.error+')' : ''}
+                  {r.ok ? '✓' : '✗'} {r.user} → {r.path || r.folder}{r.existed ? ' (bereits vorhanden)' : ''}{!r.ok && r.error ? ' ('+r.error+')' : ''}
                 </div>
               ))}
             </div>

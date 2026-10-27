@@ -38,7 +38,7 @@ router.get('/display-settings', authMiddleware, (req, res) => {
 router.put('/settings', adminMiddleware, (req, res) => {
   try {
     const allowed = ['calendar_range_days', 'app_url', 'display_ip', 'company_name', 'primary_color', 'logo_url',
-    'doc_smb_server', 'doc_smb_user', 'doc_smb_password', 'doc_smb_domain',
+    'doc_smb_server', 'doc_smb_host', 'doc_smb_user', 'doc_smb_password', 'doc_smb_domain',
       'smb_host', 'smb_user', 'smb_password', 'smb_mount', 'smb_domain', 'smb_server',
       'doc_mode', 'doc_local_basedir', 'hours_show_soll', 'hours_show_kacheln', 'dashboard_hidden_tiles', 'ssl_domain', 'ssl_port', 'ssl_http_port', 'ssl_cert_file', 'ssl_key_file', 'doc_smb_subpath', 'doc_categories', 'doc_user_rights', 'doc_smb_user_dirs', 'smb_tool_subpath',
       'db_host', 'db_port', 'db_name', 'db_user', 'db_encrypt', 'db_trust_cert',
@@ -67,7 +67,9 @@ router.put('/settings', adminMiddleware, (req, res) => {
 // POST /api/admin/smb-test - Verbindung testen ohne mounten
 router.post('/smb-test', adminMiddleware, async (req, res) => {
   try {
-    const { server, user, password, domain } = req.body
+    const { server, user, domain } = req.body
+    // Passwortfeld der Dokument-Zugangsdaten ist leer, wenn es nicht neu eingegeben wurde
+    const password = req.body.use_saved_doc_password ? (localDb.getSetting('doc_smb_password') || '') : req.body.password
     const cleaned = (server || '').replace(/\\/g, '/').replace(/^\/+/, '')
     const parts   = cleaned.split('/').filter(Boolean)
     const host    = parts[0]; const share = parts[1] || ''
