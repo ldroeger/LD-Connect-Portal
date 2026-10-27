@@ -25,6 +25,24 @@ function ManageDocLink({ onNavigate, navLink }) {
   return <NavLink to="/documents-manage" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🗂</span><span>Dok. verwalten</span></NavLink>
 }
 
+function VersionInfo() {
+  const [backendVersion, setBackendVersion] = React.useState(null)
+  React.useEffect(() => {
+    import('../utils/api.js').then(({ default: api }) => {
+      api.get('/health').then(r => setBackendVersion(r.data.version || null)).catch(() => {})
+    })
+  }, [])
+  const buildDate = new Date(__BUILD_DATE__).toLocaleDateString('de-DE')
+  const mismatch = backendVersion && backendVersion !== __APP_VERSION__
+  return (
+    <div style={{ padding:'8px 12px 4px', fontSize:'0.7rem', color:'var(--text-3)' }}
+      title={`Frontend ${__APP_VERSION__} (Build ${buildDate})${backendVersion ? ` · Backend ${backendVersion}` : ''}`}>
+      Version {__APP_VERSION__} · {buildDate}
+      {mismatch && <div style={{ color:'var(--error)' }}>Backend {backendVersion} – bitte neu bauen</div>}
+    </div>
+  )
+}
+
 export default function Layout() {
   const { user, logout, isAdmin } = useAuth()
   const { branding } = useBranding()
@@ -75,6 +93,7 @@ export default function Layout() {
         <div style={{ ...navLink(false), cursor:'pointer' }} onClick={() => { logout(); navigate('/login') }}>
           <span>🚪</span><span>Abmelden</span>
         </div>
+        <VersionInfo />
       </div>
     </>
   )

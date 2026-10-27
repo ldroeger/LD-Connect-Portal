@@ -62,7 +62,8 @@ app.use('/api/push',    require('./routes/push').router);
 app.use('/api/display',  require('./routes/display'));
 app.use('/api/upload',   require('./routes/upload'));
 app.use('/api/tools',    require('./routes/smb-image'));
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+const { version } = require('./package.json');
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', version }));
 
 // ─── Appointment Reminder Cron ───────────────────────────────────────────────
 const { sendPush } = require('./routes/push');

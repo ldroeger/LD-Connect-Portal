@@ -138,3 +138,10 @@ LD-Connect-Portal/
 ## Lizenz
 
 Proprietär — Alle Rechte vorbehalten. Nur für den internen Einsatz mit Powerbird ERP.
+
+## Versionsnummer
+
+Die Version steht in `frontend/package.json` und `backend/package.json` (beide gleich halten, z. B. `1.1.0`).
+Das Portal zeigt sie unten in der Seitenleiste zusammen mit dem Build-Datum an; das Backend liefert sie unter `/api/health`.
+Weichen Frontend- und Backend-Version ab, erscheint in der Seitenleiste ein Hinweis, dass neu gebaut werden muss.
+Für ein neues Release beide Versionen erhöhen und wie gewohnt mit `docker compose up -d --build` deployen.
