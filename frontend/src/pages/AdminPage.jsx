@@ -1050,7 +1050,7 @@ function DocModeTab() {
               background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:10 }}>
               {folderResults.map((r,i) => (
                 <div key={i} style={{ color: r.ok ? 'var(--success)' : 'var(--error)', marginBottom:2 }}>
-                  {r.ok ? '✓' : '✗'} {r.user} → {r.folder}{r.existed ? ' (bereits vorhanden)' : ''}{!r.ok && r.error ? ' ('+r.error+')' : ''}
+                  {r.ok ? '✓' : '✗'} {r.user} → {r.path || r.folder}{r.existed ? ' (bereits vorhanden)' : ''}{!r.ok && r.error ? ' ('+r.error+')' : ''}
                 </div>
               ))}
             </div>

@@ -236,7 +236,7 @@ function getSmbClient() {
     domain, username, password,
     autoCloseTimeout: 0,
   })
-  return { smb2, host, share, basePath }
+  return { smb2, host, share, basePath, username, domain, credSource: docHost ? 'Dokument-Zugangsdaten' : 'Werkzeug-Zugangsdaten' }
 }
 
 
@@ -254,47 +254,60 @@ router.post('/create-folders', authMiddleware, async (req, res) => {
 
     if (mode === 'smb') {
       const smbInfo = getSmbClient()
-      if (!smbInfo) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
-      const { smb2, host, share, basePath } = smbInfo
+      if (!smbInfo) {
+        console.log('[create-folders] FEHLER: doc_smb_server leer oder ungültig (' + (localDb.getSetting('doc_smb_server') || '') + ')')
+        return res.status(500).json({ error: 'SMB nicht konfiguriert (Admin → Netzlaufwerk → Freigabe für Mitarbeiter-Dokumente)' })
+      }
+      const { smb2, host, share, basePath, username, domain, credSource } = smbInfo
       const target = '\\\\' + host + '\\' + share + (basePath ? '\\' + basePath : '')
+      console.log('[create-folders] Modus smb, Ziel ' + target + ', Benutzer ' + (domain ? domain + '\\' : '') + (username || '(leer)')
+        + ' (' + credSource + '), ' + users.length + ' aktive Mitarbeiter')
       try {
         // Verbindung/Anmeldung prüfen und Basisordner anlegen, bevor Mitarbeiter-Ordner erstellt werden
         if (basePath) await smbMkdirRecursive(smb2, basePath)
         if (!(await smbDirExists(smb2, basePath))) throw new Error('Zielordner nicht erreichbar')
       } catch(e) {
         try { smb2.disconnect() } catch(e2) {}
+        console.log('[create-folders] FEHLER ' + target + ': ' + e.message)
         return res.status(500).json({ error: 'Netzlaufwerk ' + target + ': ' + e.message })
       }
       for (const u of users) {
         const folderName = getUserFolderName(u)
         const folderPath = basePath ? basePath + '\\' + folderName : folderName
+        const fullPath   = '\\\\' + host + '\\' + share + '\\' + folderPath
         try {
           const status = await smbMkdir(smb2, folderPath)
           if (!(await smbDirExists(smb2, folderPath))) throw new Error('Ordner nach dem Anlegen nicht gefunden')
-          results.push({ user: u.name, folder: folderName, ok: true, existed: status === 'exists' })
+          console.log('[create-folders] ' + (status === 'exists' ? 'vorhanden' : 'angelegt') + ': ' + fullPath)
+          results.push({ user: u.name, folder: folderName, path: fullPath, ok: true, existed: status === 'exists' })
         } catch(e) {
-          results.push({ user: u.name, folder: folderName, ok: false, error: e.message })
+          console.log('[create-folders] FEHLER ' + fullPath + ': ' + e.message)
+          results.push({ user: u.name, folder: folderName, path: fullPath, ok: false, error: e.message })
         }
       }
       try { smb2.disconnect() } catch(e) {}
       return res.json({ success: results.every(r => r.ok), target, results })
     } else if (mode === 'local') {
       const baseDir = getBaseDir()
+      console.log('[create-folders] Modus local (Eigenständig, im Container), Ziel ' + baseDir)
       for (const u of users) {
         const folderName = getUserKuerzel(u)
         const folderPath = pathMod.join(baseDir, folderName)
         try {
-          if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true })
-          results.push({ user: u.name, folder: folderName, ok: true })
+          const existed = fs.existsSync(folderPath)
+          if (!existed) fs.mkdirSync(folderPath, { recursive: true })
+          console.log('[create-folders] ' + (existed ? 'vorhanden' : 'angelegt') + ': ' + folderPath)
+          results.push({ user: u.name, folder: folderName, path: folderPath, ok: true, existed })
         } catch(e) {
-          results.push({ user: u.name, folder: folderName, ok: false, error: e.message })
+          console.log('[create-folders] FEHLER ' + folderPath + ': ' + e.message)
+          results.push({ user: u.name, folder: folderName, path: folderPath, ok: false, error: e.message })
         }
       }
     } else {
       return res.status(400).json({ error: 'Nur im SMB- oder Eigenständig-Modus verfügbar' })
     }
 
-    res.json({ success: true, results })
+    res.json({ success: results.every(r => r.ok), target: getBaseDir() + ' (lokal im Container, nicht Netzlaufwerk)', results })
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
 
