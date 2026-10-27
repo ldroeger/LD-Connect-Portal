@@ -13,7 +13,7 @@ function calcDays(from, to) {
 }
 
 export default function SickPage() {
-  const { user, isAdmin } = useAuth()
+  const { isAdmin } = useAuth()
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -162,7 +162,7 @@ export default function SickPage() {
                       {r.hwter_recno && <span style={{ marginLeft:8, color:'var(--success)' }}>✓ Powerbird</span>}
                     </div>
                   </div>
-                  {(isAdmin || r.user_id === user?.id) && (
+                  {isAdmin && (
                     <button onClick={() => del(r.id)}
                       style={{ padding:'5px 12px', borderRadius:8, border:'1px solid var(--border)',
                         background:'var(--surface)', color:'var(--error)', cursor:'pointer',

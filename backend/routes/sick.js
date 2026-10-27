@@ -74,14 +74,14 @@ router.post('/', requireAuth, async (req, res) => {
   }
 })
 
-// DELETE /api/sick/:id - Krankmeldung löschen
+// DELETE /api/sick/:id - Krankmeldung löschen (nur Admin)
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
+    // Nur Admins dürfen Krankmeldungen löschen, auch die eigenen nicht
+    if (req.user.role !== 'admin')
+      return res.status(403).json({ error: 'Nur Administratoren dürfen Krankmeldungen löschen' })
     const row = localDb.db.prepare('SELECT * FROM sick_reports WHERE id=?').get(req.params.id)
     if (!row) return res.status(404).json({ error: 'Nicht gefunden' })
-    const isAdmin = req.user.role === 'admin'
-    if (!isAdmin && row.user_id !== req.user.id)
-      return res.status(403).json({ error: 'Kein Zugriff' })
 
     // In HWTER löschen
     if (row.hwter_recno) {
