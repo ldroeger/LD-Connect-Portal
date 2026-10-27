@@ -962,6 +962,8 @@ function DocModeTab() {
   const [categories, setCategories] = React.useState('')
   const [baseDir, setBaseDir]         = React.useState('/data/documents')
   const [userDirs, setUserDirs]   = React.useState(false)
+  const [startYear, setStartYear] = React.useState('')
+  const [yearsAhead, setYearsAhead] = React.useState('0')
   const [saving, setSaving]       = React.useState(false)
   const [msg, setMsg]             = React.useState('')
   const [folderLoading, setFolderLoading] = React.useState(false)
@@ -976,6 +978,8 @@ function DocModeTab() {
       setCategories(s.doc_categories || '')
       setBaseDir(s.doc_local_basedir || '/data/documents')
       setUserDirs(s.doc_smb_user_dirs === 'true')
+      setStartYear(s.doc_folder_start_year || '')
+      setYearsAhead(s.doc_folder_years_ahead || '0')
     }).catch(() => {})
   }, [])
 
@@ -988,6 +992,8 @@ function DocModeTab() {
         doc_categories: categories,
         doc_smb_user_dirs: userDirs ? 'true' : 'false',
         doc_local_basedir: baseDir,
+        doc_folder_start_year: startYear,
+        doc_folder_years_ahead: yearsAhead,
       })
       setMsg('Gespeichert')
     } catch(e) { setMsg('Fehler: ' + e.message) }
@@ -1048,12 +1054,12 @@ function DocModeTab() {
           <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:10 }}>📖 Anleitung: Netzlaufwerk-Modus</div>
           {infoBox('Die Freigabe-Einstellungen (Host, Benutzer, Passwort, Pfad) werden unter Admin → Netzlaufwerk → Mitarbeiter-Dokumente konfiguriert.')}
           {infoBox(
-            'Die Ordnerstruktur ist fest: Freigabe/NAME/KATEGORIE/datei — Ordnername = vollständiger Name des Mitarbeiters. ' +
+            'Die Ordnerstruktur ist fest: Freigabe/NAME/KATEGORIE/JAHR/MM - Monat/datei — Ordnername = vollständiger Name des Mitarbeiters. ' +
             'Dateien die manuell im Netzlaufwerk abgelegt werden erscheinen automatisch im Portal.',
             '#1D4ED8', '#EFF6FF', '#BFDBFE'
           )}
           <div style={{ fontWeight:600, fontSize:'0.85rem', marginBottom:8, marginTop:16 }}>Mitarbeiter-Ordner anlegen</div>
-          {infoBox('Legt für jeden aktiven Mitarbeiter automatisch einen Ordner auf dem Netzlaufwerk an. Ordnername = vollständiger Name des Mitarbeiters.')}
+          {infoBox('Legt für jeden aktiven Mitarbeiter einen Ordner mit allen konfigurierten Kategorien an, darin die Jahresordner laut Einstellung unten mit den Monatsordnern (z.B. 2026/01 - Januar). Ordnername = vollständiger Name des Mitarbeiters. Vorhandene Ordner bleiben unverändert, fehlende werden ergänzt.')}
           <button onClick={async () => {
             setFolderMsg(''); setFolderLoading(true)
             try {
@@ -1100,6 +1106,33 @@ function DocModeTab() {
             style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--border)',
               background:'var(--surface)', color:'var(--text)', fontFamily:'var(--font)',
               fontSize:'0.88rem', resize:'vertical', boxSizing:'border-box' }} />
+        </div>
+      )}
+
+      {/* Jahresordner für "Ordner anlegen" */}
+      {(mode === 'smb' || mode === 'local') && (
+        <div style={{ background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:12, padding:16, marginBottom:20 }}>
+          <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:10 }}>📅 Jahres- und Monatsordner</div>
+          {infoBox('Bereich der Jahresordner, die „Ordner anlegen“ je Kategorie erstellt (jeweils mit 01 - Januar bis 12 - Dezember). Startjahr leer = aktuelles Jahr. Vorher speichern.')}
+          <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
+            <label style={{ fontSize:'0.82rem', fontWeight:600 }}>Ab Jahr<br/>
+              <input type="number" min="2000" max="2100" value={startYear} onChange={e => setStartYear(e.target.value)}
+                placeholder={String(new Date().getFullYear())}
+                style={{ width:120, padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface)', color:'var(--text)', marginTop:4 }} />
+            </label>
+            <label style={{ fontSize:'0.82rem', fontWeight:600 }}>Jahre im Voraus<br/>
+              <input type="number" min="0" max="10" value={yearsAhead} onChange={e => setYearsAhead(e.target.value)}
+                style={{ width:120, padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface)', color:'var(--text)', marginTop:4 }} />
+            </label>
+          </div>
+          <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:6 }}>
+            {(() => {
+              const cur = new Date().getFullYear()
+              const from = parseInt(startYear) || cur
+              const to = cur + (parseInt(yearsAhead) || 0)
+              return from <= to ? 'Es werden die Jahre ' + from + (to > from ? ' bis ' + to : '') + ' angelegt.' : 'Startjahr liegt nach dem letzten Jahr, es wird nur ' + from + ' angelegt.'
+            })()}
+          </div>
         </div>
       )}
 

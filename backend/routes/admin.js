@@ -40,7 +40,7 @@ router.put('/settings', adminMiddleware, (req, res) => {
     const allowed = ['calendar_range_days', 'app_url', 'display_ip', 'company_name', 'primary_color', 'logo_url',
     'doc_smb_server', 'doc_smb_host', 'doc_smb_user', 'doc_smb_password', 'doc_smb_domain',
       'smb_host', 'smb_user', 'smb_password', 'smb_mount', 'smb_domain', 'smb_server',
-      'doc_mode', 'doc_local_basedir', 'hours_show_soll', 'hours_show_kacheln', 'dashboard_hidden_tiles', 'ssl_domain', 'ssl_port', 'ssl_http_port', 'ssl_cert_file', 'ssl_key_file', 'doc_smb_subpath', 'doc_categories', 'doc_user_rights', 'doc_smb_user_dirs', 'smb_tool_subpath',
+      'doc_mode', 'doc_local_basedir', 'hours_show_soll', 'hours_show_kacheln', 'dashboard_hidden_tiles', 'ssl_domain', 'ssl_port', 'ssl_http_port', 'ssl_cert_file', 'ssl_key_file', 'doc_smb_subpath', 'doc_categories', 'doc_user_rights', 'doc_smb_user_dirs', 'smb_tool_subpath', 'doc_folder_start_year', 'doc_folder_years_ahead',
       'db_host', 'db_port', 'db_name', 'db_user', 'db_encrypt', 'db_trust_cert',
       'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from'];
     

@@ -61,8 +61,38 @@ function getUserFolderName(user) {
   return String(user.id)
 }
 
+// ── Jahr-/Monatsordner: KATEGORIE/2026/01 - Januar/datei ──────────────────
+const MONTH_NAMES = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+const monthFolderName = (m) => String(m).padStart(2, '0') + ' - ' + MONTH_NAMES[m - 1]
+const YEAR_RE  = /^\d{4}$/
+const MONTH_RE = /^(\d{2})\s*-/
+
+// Ablageordner (relativ zur Kategorie) für ein Datum, z.B. ['2026', '01 - Januar']
+function datedSubfolders(date) {
+  return [String(date.getFullYear()), monthFolderName(date.getMonth() + 1)]
+}
+
+// Jahre, für die "Ordner anlegen" Jahresordner erstellt: ab Startjahr (leer = aktuelles Jahr)
+// bis aktuelles Jahr + Jahre im Voraus
+function getFolderYears() {
+  const current = new Date().getFullYear()
+  const start   = parseInt(localDb.getSetting('doc_folder_start_year')) || current
+  const ahead   = Math.min(Math.max(parseInt(localDb.getSetting('doc_folder_years_ahead')) || 0, 0), 10)
+  const from    = Math.min(Math.max(start, current - 50), current + 10)
+  const to      = Math.max(current + ahead, from)
+  const years   = []
+  for (let y = from; y <= to; y++) years.push(String(y))
+  return years
+}
+
+// Datum aus Jahr-/Monatsordner ableiten (Monatsmitte UTC, damit die Zeitzone den Monat nicht verschiebt)
+function folderDate(year, month) {
+  return new Date(Date.UTC(parseInt(year), month ? parseInt(month) - 1 : 0, 15, 12)).toISOString()
+}
+
 // ── Lokales Dateisystem: Verzeichnis lesen ────────────────────────────────
-// Struktur: BASEDIR/KUERZEL/KATEGORIE/datei.xxx
+// Struktur: BASEDIR/KUERZEL/KATEGORIE/[JAHR/[MM - Monat/]]datei.xxx
 function readLocalDocs(baseDir, kuerzel, isAdmin) {
   const docs = []
   const userDir = pathMod.join(baseDir, kuerzel)
@@ -72,27 +102,72 @@ function readLocalDocs(baseDir, kuerzel, isAdmin) {
   const categories = fs.readdirSync(userDir, { withFileTypes: true })
     .filter(d => d.isDirectory())
 
-  for (const catDir of categories) {
-    const catPath = pathMod.join(userDir, catDir.name)
-    const files   = fs.readdirSync(catPath, { withFileTypes: true })
-      .filter(f => f.isFile() && !f.name.startsWith('.'))
-
-    for (const file of files) {
-      const filePath  = pathMod.join(catPath, file.name)
-      const stat      = fs.statSync(filePath)
+  const readDir = (dirPath, catName, datum, depth) => {
+    for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+      if (entry.name.startsWith('.')) continue
+      const entryPath = pathMod.join(dirPath, entry.name)
+      if (entry.isDirectory()) {
+        // Jahr-Ordner in der Kategorie, Monats-Ordner im Jahr
+        if (depth === 0 && YEAR_RE.test(entry.name))
+          readDir(entryPath, catName, { year: entry.name }, 1)
+        else if (depth === 1 && MONTH_RE.test(entry.name))
+          readDir(entryPath, catName, { year: datum.year, month: entry.name.match(MONTH_RE)[1] }, 2)
+        continue
+      }
+      if (!entry.isFile()) continue
+      const stat = fs.statSync(entryPath)
       docs.push({
-        id:           'local_fs_' + Buffer.from(filePath).toString('base64'),
-        dateiname:    file.name,
-        mimeType:     getMimeType(file.name),
+        id:           'local_fs_' + Buffer.from(entryPath).toString('base64'),
+        dateiname:    entry.name,
+        mimeType:     getMimeType(entry.name),
         fileSize:     stat.size,
-        kategorieKey: catDir.name,
-        datum:        stat.mtime.toISOString(),
-        fsPath:       filePath,
+        kategorieKey: catName,
+        datum:        datum ? folderDate(datum.year, datum.month) : stat.mtime.toISOString(),
+        fsPath:       entryPath,
         kuerzel:      kuerzel,
       })
     }
   }
+
+  for (const catDir of categories) readDir(pathMod.join(userDir, catDir.name), catDir.name, null, 0)
   return docs
+}
+
+// ── SMB: Dokumente eines Mitarbeiters lesen ───────────────────────────────
+// Struktur: userPath\KATEGORIE\[JAHR\[MM - Monat\]]datei
+async function readSmbUserDocs(tryReaddir, userPath, catEntries, allCats) {
+  const documents = []
+  const readDir = async (dirPath, entries, catName, datum, depth) => {
+    for (const name of entries) {
+      const entryPath = dirPath + '\\' + name
+      const inner     = await tryReaddir(entryPath)
+      if (inner !== null) {
+        // Jahr-Ordner in der Kategorie, Monats-Ordner im Jahr; andere Unterordner ignorieren
+        if (depth === 0 && YEAR_RE.test(name))
+          await readDir(entryPath, inner, catName, { year: name }, 1)
+        else if (depth === 1 && MONTH_RE.test(name))
+          await readDir(entryPath, inner, catName, { year: datum.year, month: name.match(MONTH_RE)[1] }, 2)
+        continue
+      }
+      documents.push({
+        id:           'smb_' + Buffer.from(entryPath).toString('base64'),
+        dateiname:    name,
+        mimeType:     getMimeType(name),
+        kategorieKey: catName,
+        datum:        datum ? folderDate(datum.year, datum.month) : new Date().toISOString(),
+        smbPath:      entryPath,
+      })
+    }
+  }
+  for (const catName of catEntries) {
+    const catPath  = userPath + '\\' + catName
+    const catFiles = await tryReaddir(catPath)
+    // Dateien direkt im Mitarbeiter-Ordner werden ignoriert
+    if (catFiles === null) continue
+    allCats[catName] = catName
+    await readDir(catPath, catFiles, catName, null, 0)
+  }
+  return documents
 }
 
 // ── Upload Storage: BASEDIR/KUERZEL/KATEGORIE/ ────────────────────────────
@@ -129,7 +204,7 @@ function saveFile(buffer, originalname, kuerzel, category, baseDir) {
   originalname = fixFilename(originalname)
   // Nur Windows-ungültige Zeichen entfernen, Umlaute und Sonderzeichen erlauben
   const safeCategory = (category || 'Allgemein').replace(/[\/:*?"<>|]/g, '_').trim()
-  const dir = pathMod.join(baseDir, kuerzel, safeCategory)
+  const dir = pathMod.join(baseDir, kuerzel, safeCategory, ...datedSubfolders(new Date()))
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   let filename = originalname
   if (fs.existsSync(pathMod.join(dir, filename))) {
@@ -195,13 +270,17 @@ async function smbSaveFile(smb2, buffer, originalname, kuerzel, category, basePa
   originalname = fixFilename(originalname)
   // Nur Windows-ungültige Zeichen entfernen
   const safeCategory = (category || 'Allgemein').replace(/[\/:*?"<>|]/g, '_').trim()
-  // Ordner anlegen: basePath\kuerzel und basePath\kuerzel\kategorie
+  // Ordner anlegen: basePath\kuerzel\kategorie\JAHR\MM - Monat
   const kuerzelPath  = basePath ? basePath + '\\' + kuerzel : kuerzel
   const categoryPath = kuerzelPath + '\\' + safeCategory
+  const [year, month] = datedSubfolders(new Date())
+  const targetPath   = categoryPath + '\\' + year + '\\' + month
   await smbMkdir(smb2, kuerzelPath)
   await smbMkdir(smb2, categoryPath)
+  await smbMkdir(smb2, categoryPath + '\\' + year)
+  await smbMkdir(smb2, targetPath)
   // Dateiname: Original behalten
-  const filePath = categoryPath + '\\' + originalname
+  const filePath = targetPath + '\\' + originalname
   await smbWriteFile(smb2, filePath, buffer)
   return filePath
 }
@@ -241,7 +320,7 @@ function getSmbClient() {
 
 
 
-// POST /api/documents/create-folders - SMB-Ordner für alle Mitarbeiter anlegen
+// POST /api/documents/create-folders - Ordner + Kategorie-Unterordner für alle Mitarbeiter anlegen
 router.post('/create-folders', authMiddleware, async (req, res) => {
   try {
     const freshFeat = getUserFeatures(req.user.id)
@@ -251,6 +330,16 @@ router.post('/create-folders', authMiddleware, async (req, res) => {
     const mode = getMode()
     const users = localDb.db.prepare("SELECT * FROM users WHERE is_active = 1").all()
     const results = []
+    // Unterordner je Mitarbeiter = konfigurierte Kategorien (gleiche Bereinigung wie beim Upload)
+    const categories = [...new Set(getCategories()
+      .map(c => c.replace(/[\\\/:*?"<>|]/g, '_').trim()).filter(Boolean))]
+    // Je Kategorie: KATEGORIE, KATEGORIE/JAHR, KATEGORIE/JAHR/01 - Januar … 12 - Dezember
+    const years = getFolderYears()
+    const subfolders = categories.flatMap(c => [[c], ...years.flatMap(year => [[c, year],
+      ...MONTH_NAMES.map((_, i) => [c, year, monthFolderName(i + 1)])])])
+    console.log('[create-folders] Kategorie-Unterordner: ' + (categories.length
+      ? categories.join(', ') + ', je mit Jahren ' + years[0] + (years.length > 1 ? '–' + years[years.length - 1] : '') + ' und 01 - Januar … 12 - Dezember'
+      : '(keine Kategorien konfiguriert)'))
 
     if (mode === 'smb') {
       const smbInfo = getSmbClient()
@@ -271,19 +360,25 @@ router.post('/create-folders', authMiddleware, async (req, res) => {
         console.log('[create-folders] FEHLER ' + target + ': ' + e.message)
         return res.status(500).json({ error: 'Netzlaufwerk ' + target + ': ' + e.message })
       }
-      for (const u of users) {
-        const folderName = getUserFolderName(u)
-        const folderPath = basePath ? basePath + '\\' + folderName : folderName
-        const fullPath   = '\\\\' + host + '\\' + share + '\\' + folderPath
+      const createOne = async (user, folder, folderPath) => {
+        const fullPath = '\\\\' + host + '\\' + share + '\\' + folderPath
         try {
           const status = await smbMkdir(smb2, folderPath)
           if (!(await smbDirExists(smb2, folderPath))) throw new Error('Ordner nach dem Anlegen nicht gefunden')
           console.log('[create-folders] ' + (status === 'exists' ? 'vorhanden' : 'angelegt') + ': ' + fullPath)
-          results.push({ user: u.name, folder: folderName, path: fullPath, ok: true, existed: status === 'exists' })
+          results.push({ user: user.name, folder, path: fullPath, ok: true, existed: status === 'exists' })
+          return true
         } catch(e) {
           console.log('[create-folders] FEHLER ' + fullPath + ': ' + e.message)
-          results.push({ user: u.name, folder: folderName, path: fullPath, ok: false, error: e.message })
+          results.push({ user: user.name, folder, path: fullPath, ok: false, error: e.message })
+          return false
         }
+      }
+      for (const u of users) {
+        const folderName = getUserFolderName(u)
+        const folderPath = basePath ? basePath + '\\' + folderName : folderName
+        if (!(await createOne(u, folderName, folderPath))) continue
+        for (const sub of subfolders) await createOne(u, [folderName, ...sub].join('\\'), [folderPath, ...sub].join('\\'))
       }
       try { smb2.disconnect() } catch(e) {}
       return res.json({ success: results.every(r => r.ok), target, results })
@@ -292,15 +387,17 @@ router.post('/create-folders', authMiddleware, async (req, res) => {
       console.log('[create-folders] Modus local (Eigenständig, im Container), Ziel ' + baseDir)
       for (const u of users) {
         const folderName = getUserKuerzel(u)
-        const folderPath = pathMod.join(baseDir, folderName)
-        try {
-          const existed = fs.existsSync(folderPath)
-          if (!existed) fs.mkdirSync(folderPath, { recursive: true })
-          console.log('[create-folders] ' + (existed ? 'vorhanden' : 'angelegt') + ': ' + folderPath)
-          results.push({ user: u.name, folder: folderName, path: folderPath, ok: true, existed })
-        } catch(e) {
-          console.log('[create-folders] FEHLER ' + folderPath + ': ' + e.message)
-          results.push({ user: u.name, folder: folderName, path: folderPath, ok: false, error: e.message })
+        for (const folder of [folderName, ...subfolders.map(sub => pathMod.join(folderName, ...sub))]) {
+          const folderPath = pathMod.join(baseDir, folder)
+          try {
+            const existed = fs.existsSync(folderPath)
+            if (!existed) fs.mkdirSync(folderPath, { recursive: true })
+            console.log('[create-folders] ' + (existed ? 'vorhanden' : 'angelegt') + ': ' + folderPath)
+            results.push({ user: u.name, folder, path: folderPath, ok: true, existed })
+          } catch(e) {
+            console.log('[create-folders] FEHLER ' + folderPath + ': ' + e.message)
+            results.push({ user: u.name, folder, path: folderPath, ok: false, error: e.message })
+          }
         }
       }
     } else {
@@ -396,33 +493,7 @@ router.get('/', authMiddleware, async (req, res) => {
         const catEntries = await tryReaddir(userPath)
 
         if (catEntries !== null) {
-          // Eigenes Verzeichnis vorhanden → Kategorie-Ebene lesen
-          for (const catName of catEntries) {
-            const catPath  = userPath + '\\' + catName
-            const catFiles = await tryReaddir(catPath)
-
-            if (catFiles !== null) {
-              // catName ist ein Ordner (Kategorie)
-              allCats[catName] = catName
-              for (const file of catFiles) {
-                // Nur Dateien (nicht Unterordner)
-                const filePath   = catPath + '\\' + file
-                const innerCheck = await tryReaddir(filePath)
-                if (innerCheck === null) {
-                  // ist eine Datei
-                  documents.push({
-                    id:           'smb_' + Buffer.from(filePath).toString('base64'),
-                    dateiname:    file,
-                    mimeType:     getMimeType(file),
-                    kategorieKey: catName,
-                    datum:        new Date().toISOString(),
-                    smbPath:      filePath,
-                  })
-                }
-              }
-            }
-            // catName ist eine Datei direkt im KUERZEL-Ordner → ignorieren oder als Sonstiges
-          }
+          documents.push(...await readSmbUserDocs(tryReaddir, userPath, catEntries, allCats))
         } else {
           // Kein eigenes Verzeichnis → Basispfad flach lesen als Fallback
           const rootFiles = await tryReaddir(basePath || '')
@@ -737,27 +808,7 @@ router.get('/manage/:userId', authMiddleware, async (req, res) => {
         const catEntries = await tryReaddir(userPath)
 
         if (catEntries !== null) {
-          for (const catName of catEntries) {
-            const catPath  = userPath + '\\' + catName
-            const catFiles = await tryReaddir(catPath)
-            if (catFiles !== null) {
-              allCats[catName] = catName
-              for (const file of catFiles) {
-                const filePath   = catPath + '\\' + file
-                const innerCheck = await tryReaddir(filePath)
-                if (innerCheck === null) {
-                  documents.push({
-                    id:           'smb_' + Buffer.from(filePath).toString('base64'),
-                    dateiname:    file,
-                    mimeType:     getMimeType(file),
-                    kategorieKey: catName,
-                    datum:        new Date().toISOString(),
-                    smbPath:      filePath,
-                  })
-                }
-              }
-            }
-          }
+          documents.push(...await readSmbUserDocs(tryReaddir, userPath, catEntries, allCats))
         }
       } catch(e) { console.log('SMB manage readdir error:', e.message) }
       try { smb2.disconnect() } catch(e) {}
