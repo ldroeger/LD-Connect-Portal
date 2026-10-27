@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.1 (2026-10-27)
+
+- Update-Banner für Admins bei neuer Version (#10) (bbd296d)
+
 ## v1.1.0 (2026-10-27)
 
 - Versionsnummer im Portal anzeigen und automatische Releases (#8) (b7f32f8)
