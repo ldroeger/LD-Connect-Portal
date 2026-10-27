@@ -73,6 +73,19 @@ function datedSubfolders(date) {
   return [String(date.getFullYear()), monthFolderName(date.getMonth() + 1)]
 }
 
+// Jahre, für die "Ordner anlegen" Jahresordner erstellt: ab Startjahr (leer = aktuelles Jahr)
+// bis aktuelles Jahr + Jahre im Voraus
+function getFolderYears() {
+  const current = new Date().getFullYear()
+  const start   = parseInt(localDb.getSetting('doc_folder_start_year')) || current
+  const ahead   = Math.min(Math.max(parseInt(localDb.getSetting('doc_folder_years_ahead')) || 0, 0), 10)
+  const from    = Math.min(Math.max(start, current - 50), current + 10)
+  const to      = Math.max(current + ahead, from)
+  const years   = []
+  for (let y = from; y <= to; y++) years.push(String(y))
+  return years
+}
+
 // Datum aus Jahr-/Monatsordner ableiten (Monatsmitte UTC, damit die Zeitzone den Monat nicht verschiebt)
 function folderDate(year, month) {
   return new Date(Date.UTC(parseInt(year), month ? parseInt(month) - 1 : 0, 15, 12)).toISOString()
@@ -320,11 +333,13 @@ router.post('/create-folders', authMiddleware, async (req, res) => {
     // Unterordner je Mitarbeiter = konfigurierte Kategorien (gleiche Bereinigung wie beim Upload)
     const categories = [...new Set(getCategories()
       .map(c => c.replace(/[\\\/:*?"<>|]/g, '_').trim()).filter(Boolean))]
-    // Je Kategorie: KATEGORIE, KATEGORIE/JAHR, KATEGORIE/JAHR/01 - Januar … 12 - Dezember (aktuelles Jahr)
-    const year = String(new Date().getFullYear())
-    const subfolders = categories.flatMap(c => [[c], [c, year],
-      ...MONTH_NAMES.map((_, i) => [c, year, monthFolderName(i + 1)])])
-    console.log('[create-folders] Kategorie-Unterordner: ' + (categories.length ? categories.join(', ') + ', je mit ' + year + '/01 - Januar … 12 - Dezember' : '(keine Kategorien konfiguriert)'))
+    // Je Kategorie: KATEGORIE, KATEGORIE/JAHR, KATEGORIE/JAHR/01 - Januar … 12 - Dezember
+    const years = getFolderYears()
+    const subfolders = categories.flatMap(c => [[c], ...years.flatMap(year => [[c, year],
+      ...MONTH_NAMES.map((_, i) => [c, year, monthFolderName(i + 1)])])])
+    console.log('[create-folders] Kategorie-Unterordner: ' + (categories.length
+      ? categories.join(', ') + ', je mit Jahren ' + years[0] + (years.length > 1 ? '–' + years[years.length - 1] : '') + ' und 01 - Januar … 12 - Dezember'
+      : '(keine Kategorien konfiguriert)'))
 
     if (mode === 'smb') {
       const smbInfo = getSmbClient()
