@@ -9,7 +9,7 @@ const requireAuth = authMiddleware
 // GET /api/sick - eigene Krankmeldungen (oder alle für Admin)
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'vacation_approver'
+    const isAdmin = req.user.role === 'admin'
     let rows
     if (isAdmin) {
       rows = localDb.db.prepare(`
@@ -70,6 +70,24 @@ router.post('/', requireAuth, async (req, res) => {
     res.json({ ok: true, id: result.lastInsertRowid })
   } catch(e) {
     console.error('sick POST error:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// PUT /api/sick/:id/read - als gelesen/ungelesen markieren (nur Admin)
+router.put('/:id/read', requireAuth, (req, res) => {
+  try {
+    if (req.user.role !== 'admin')
+      return res.status(403).json({ error: 'Kein Zugriff' })
+    const read = req.body?.read !== false
+    const result = read
+      ? localDb.db.prepare("UPDATE sick_reports SET read_at=strftime('%Y-%m-%dT%H:%M:%SZ','now'), read_by=? WHERE id=?")
+          .run(req.user.id, req.params.id)
+      : localDb.db.prepare('UPDATE sick_reports SET read_at=NULL, read_by=NULL WHERE id=?')
+          .run(req.params.id)
+    if (!result.changes) return res.status(404).json({ error: 'Nicht gefunden' })
+    res.json({ ok: true })
+  } catch(e) {
     res.status(500).json({ error: e.message })
   }
 })
