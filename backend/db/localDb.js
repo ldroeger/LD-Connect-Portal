@@ -95,6 +95,9 @@ function initialize() {
        employee_name    = (SELECT name FROM users WHERE users.id = sick_reports.user_id),
        employee_kuerzel = (SELECT powerbird_id FROM users WHERE users.id = sick_reports.user_id)
      WHERE employee_name IS NULL AND user_id IN (SELECT id FROM users)`,
+    // Admin markiert Krankmeldungen als gelesen
+    `ALTER TABLE sick_reports ADD COLUMN read_at TEXT`,
+    `ALTER TABLE sick_reports ADD COLUMN read_by INTEGER`,
   ];
   migrations.forEach(sql => { try { db.exec(sql); } catch(e) {} });
 

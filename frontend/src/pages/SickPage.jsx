@@ -52,6 +52,71 @@ export default function SickPage() {
     load()
   }
 
+  const markRead = async (id, read) => {
+    await api.put(`/sick/${id}/read`, { read }).catch(() => {})
+    load()
+  }
+
+  const btnStyle = { padding:'5px 12px', borderRadius:8, border:'1px solid var(--border)',
+    background:'var(--surface)', cursor:'pointer', fontFamily:'var(--font)', fontSize:'0.8rem' }
+
+  const renderReport = r => (
+    <div key={r.id} style={{ display:'flex', gap:0, alignItems:'stretch', borderRadius:10,
+      overflow:'hidden', border:'1px solid var(--border)' }}>
+      <div style={{ width:4, flexShrink:0,
+        background: isAdmin && r.read_at ? 'var(--border)' : 'rgb(135,18,69)' }} />
+      <div style={{ flex:1, padding:'12px 14px', background:'var(--surface-2)',
+        display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
+        <div>
+          {isAdmin && (
+            <div style={{ fontWeight:700, fontSize:'0.88rem', marginBottom:3 }}>
+              👤 {r.user_name || r.powerbird_id || `Gelöschter Benutzer (ID ${r.user_id})`}
+            </div>
+          )}
+          <div style={{ fontWeight:600, fontSize:'0.9rem' }}>
+            🤒 Krank · {fmtDate(r.from_date)} – {fmtDate(r.to_date)}
+            <span style={{ fontWeight:400, color:'var(--text-3)', marginLeft:8, fontSize:'0.82rem' }}>
+              ({calcDays(r.from_date, r.to_date)} Tag{calcDays(r.from_date, r.to_date) !== 1 ? 'e' : ''})
+            </span>
+          </div>
+          {r.note && <div style={{ fontSize:'0.8rem', color:'var(--text-3)', marginTop:2 }}>{r.note}</div>}
+          <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:3 }}>
+            Eingetragen: {fmtDate(r.created_at)}
+            {r.hwter_recno && <span style={{ marginLeft:8, color:'var(--success)' }}>✓ Powerbird</span>}
+            {isAdmin && r.read_at && <span style={{ marginLeft:8 }}>Gelesen: {fmtDate(r.read_at)}</span>}
+          </div>
+        </div>
+        {isAdmin && (
+          <div style={{ display:'flex', gap:6 }}>
+            {r.read_at ? (
+              <button onClick={() => markRead(r.id, false)} style={{ ...btnStyle, color:'var(--text-3)' }}>
+                Als ungelesen markieren
+              </button>
+            ) : (
+              <button onClick={() => markRead(r.id, true)} style={{ ...btnStyle, color:'var(--success)' }}>
+                ✓ Als gelesen markieren
+              </button>
+            )}
+            <button onClick={() => del(r.id)} style={{ ...btnStyle, color:'var(--error)' }}>
+              Löschen
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  const renderList = (items, emptyText) => items.length === 0 ? (
+    <div style={{ color:'var(--text-3)', textAlign:'center', padding:20 }}>{emptyText}</div>
+  ) : (
+    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>{items.map(renderReport)}</div>
+  )
+
+  const boxStyle = { background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)',
+    padding:20, boxShadow:'var(--shadow)' }
+  const unread = reports.filter(r => !r.read_at)
+  const read   = reports.filter(r => r.read_at)
+
 
   return (
     <div style={{ maxWidth:'100%' }}>
@@ -130,52 +195,26 @@ export default function SickPage() {
       )}
 
       {/* Liste */}
-      <div style={{ background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)', padding:20, boxShadow:'var(--shadow)' }}>
-        {loading ? (
+      {loading ? (
+        <div style={boxStyle}>
           <div style={{ color:'var(--text-3)', textAlign:'center', padding:20 }}>Lädt...</div>
-        ) : reports.length === 0 ? (
-          <div style={{ color:'var(--text-3)', textAlign:'center', padding:20 }}>Keine Krankmeldungen vorhanden</div>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {reports.map(r => (
-              <div key={r.id} style={{ display:'flex', gap:0, alignItems:'stretch', borderRadius:10,
-                overflow:'hidden', border:'1px solid var(--border)' }}>
-                <div style={{ width:4, background:'#8712441'.replace('#','#'), flexShrink:0,
-                  background: 'rgb(135,18,69)' }} />
-                <div style={{ flex:1, padding:'12px 14px', background:'var(--surface-2)',
-                  display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
-                  <div>
-                    {isAdmin && (
-                      <div style={{ fontWeight:700, fontSize:'0.88rem', marginBottom:3 }}>
-                        👤 {r.user_name || r.powerbird_id || `Gelöschter Benutzer (ID ${r.user_id})`}
-                      </div>
-                    )}
-                    <div style={{ fontWeight:600, fontSize:'0.9rem' }}>
-                      🤒 Krank · {fmtDate(r.from_date)} – {fmtDate(r.to_date)}
-                      <span style={{ fontWeight:400, color:'var(--text-3)', marginLeft:8, fontSize:'0.82rem' }}>
-                        ({calcDays(r.from_date, r.to_date)} Tag{calcDays(r.from_date, r.to_date) !== 1 ? 'e' : ''})
-                      </span>
-                    </div>
-                    {r.note && <div style={{ fontSize:'0.8rem', color:'var(--text-3)', marginTop:2 }}>{r.note}</div>}
-                    <div style={{ fontSize:'0.75rem', color:'var(--text-3)', marginTop:3 }}>
-                      Eingetragen: {fmtDate(r.created_at)}
-                      {r.hwter_recno && <span style={{ marginLeft:8, color:'var(--success)' }}>✓ Powerbird</span>}
-                    </div>
-                  </div>
-                  {isAdmin && (
-                    <button onClick={() => del(r.id)}
-                      style={{ padding:'5px 12px', borderRadius:8, border:'1px solid var(--border)',
-                        background:'var(--surface)', color:'var(--error)', cursor:'pointer',
-                        fontFamily:'var(--font)', fontSize:'0.8rem' }}>
-                      Löschen
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+        </div>
+      ) : isAdmin ? (
+        <>
+          <div style={{ ...boxStyle, marginBottom:16 }}>
+            <div style={{ fontWeight:700, marginBottom:12 }}>Ungelesen ({unread.length})</div>
+            {renderList(unread, 'Keine ungelesenen Krankmeldungen')}
           </div>
-        )}
-      </div>
+          <div style={boxStyle}>
+            <div style={{ fontWeight:700, marginBottom:12 }}>Gelesen ({read.length})</div>
+            {renderList(read, 'Keine gelesenen Krankmeldungen')}
+          </div>
+        </>
+      ) : (
+        <div style={boxStyle}>
+          {renderList(reports, 'Keine Krankmeldungen vorhanden')}
+        </div>
+      )}
     </div>
   )
 }
