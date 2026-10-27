@@ -354,6 +354,32 @@ router.put('/appt-settings', adminMiddleware, (req, res) => {
   res.json({ success: true })
 })
 
+// Werkzeug gilt als "meins", wenn es aktuell an diesen Mitarbeiter verliehen ist:
+// - Verleih_AnMitarb = Kürzel (getrimmt, Groß/Klein egal)
+// - nicht an Kunde (1) oder Lieferant (3) verliehen, sonst kann eine gleichlautende
+//   Kunden-/Lieferantennummer fälschlich einem Mitarbeiter zugeordnet werden
+// - nicht im Lager (0) und nicht ausgemustert (4): nach der Rückgabe bleibt
+//   Verleih_AnMitarb in Powerbird stehen
+// Verleih_RueckgabeAm ist das geplante Rückgabedatum; überfällige Werkzeuge hat der
+// Mitarbeiter weiterhin, sie dürfen daher nicht herausgefiltert werden.
+const MY_TOOLS_WHERE = `UPPER(LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,'')))) = @uid
+         AND ISNULL(w.WZV_VerliehenAnADR, 0) NOT IN (1, 3)
+         AND ISNULL(w.WZV_Status, 0) NOT IN (0, 4)
+         AND ISNULL(w.WZV_AusgemustertAm, '') = ''`
+
+function normUid(uid) {
+  return String(uid || '').trim().toUpperCase()
+}
+
+function escapeLike(v) {
+  return String(v).replace(/[[%_]/g, '[$&]')
+}
+
+// Termin_ResourceName: '100000-LSP500A' oder nur '100000'
+function matchesInternNr(resourceName, internNr) {
+  return resourceName === internNr || resourceName.startsWith(internNr + '-')
+}
+
 // GET /api/calendar/tools - Mein Werkzeug
 router.get('/tools', authMiddleware, async (req, res) => {
   try {
@@ -371,12 +397,9 @@ router.get('/tools', authMiddleware, async (req, res) => {
          LTRIM(RTRIM(ISNULL(CAST(w.Info AS NVARCHAR(MAX)),''))) AS Info,
          LTRIM(RTRIM(ISNULL(w.WZV_Bilddatei,''))) AS Bilddatei
        FROM ELWZV w
-       WHERE LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,''))) = @uid
-         AND (w.Verleih_RueckgabeAm IS NULL OR w.Verleih_RueckgabeAm >= GETDATE())
-         AND w.WZV_Status != 4
-         AND ISNULL(w.WZV_AusgemustertAm, '') = ''
+       WHERE ${MY_TOOLS_WHERE}
        ORDER BY w.Bezeichnung ASC`,
-      { uid: req.user.powerbird_id }
+      { uid: normUid(req.user.powerbird_id) }
     )
     res.json({ tools: r.recordset.map(w => {
       // WZV_Status: 0=Lager, 1=Verliehen(Mitarb), 2=Defekt, 3=Verliehen(Kunde/Lief), 4=Ausgemustert
@@ -410,9 +433,8 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
          LTRIM(RTRIM(ISNULL(w.Bezeichnung,'')))  AS Bezeichnung,
          LTRIM(RTRIM(ISNULL(w.LAN,'')))          AS LAN
        FROM ELWZV w
-       WHERE LTRIM(RTRIM(ISNULL(w.Verleih_AnMitarb,''))) = @uid
-         AND (w.Verleih_RueckgabeAm IS NULL OR w.Verleih_RueckgabeAm >= GETDATE())`,
-      { uid: req.user.powerbird_id }
+       WHERE ${MY_TOOLS_WHERE}`,
+      { uid: normUid(req.user.powerbird_id) }
     )
 
     if (!toolsResult.recordset.length) return res.json({ alerts: [] })
@@ -423,14 +445,15 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
     if (!tools.length) return res.json({ alerts: [] })
 
     // Use LIKE conditions for each tool
+    // Genau 'InternNr' oder 'InternNr-...', sonst trifft '1000' auch '100000-...'
     const likeConditions = tools.map((_, i) =>
-      `LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE @nr${i}`
+      `(LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) = @nr${i} OR LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE @nrl${i})`
     ).join(' OR ')
 
-    const params = { uid: req.user.powerbird_id }
+    const params = { uid: normUid(req.user.powerbird_id) }
     tools.forEach((w, i) => {
-      // Match '100000-LSP500A' - starts with InternNr
-      params[`nr${i}`] = w.InternNr + '%'
+      params[`nr${i}`]  = w.InternNr
+      params[`nrl${i}`] = escapeLike(w.InternNr) + '-%'
     })
 
     const alertsResult = await pbDb.query(
@@ -459,7 +482,7 @@ router.get('/tools-alerts', authMiddleware, async (req, res) => {
     )
 
     const alerts = alertsResult.recordset.map(h => {
-      const tool = tools.find(w => h.ResourceName.startsWith(w.InternNr))
+      const tool = tools.find(w => matchesInternNr(h.ResourceName, w.InternNr))
       return {
         bezeichnung: tool ? tool.Bezeichnung : h.ResourceName,
         nr:          tool ? tool.WZNr : h.ResourceName1,
@@ -499,14 +522,14 @@ router.get('/tools/:internNr/events', authMiddleware, async (req, res) => {
        FROM HWTER h
        WHERE h.Termin_ResourceArt = 'Werkzeuge'
          AND (
-           LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE @nr + '%'
-           OR LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE '%' + @nr + '%'
+           LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) = @nr
+           OR LTRIM(RTRIM(ISNULL(h.Termin_ResourceName,''))) LIKE @nrl
          )
          AND h.Termin_Start >= @from
          AND h.Termin_Start <= @to
          AND ISNULL(h.Geloescht, 0) = 0
        ORDER BY h.Termin_Start ASC`,
-      { nr: String(internNr), from: from.toISOString(), to: to.toISOString() }
+      { nr: String(internNr).trim(), nrl: escapeLike(String(internNr).trim()) + '-%', from: from.toISOString(), to: to.toISOString() }
     )
     console.log('tools-events query for internNr:', internNr, 'found:', result.recordset.length, 'events')
     if (result.recordset.length > 0) {
