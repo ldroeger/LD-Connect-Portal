@@ -4,7 +4,7 @@ import ToolDetailPopup from '../components/ToolDetailPopup.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
 function ToolCard({ t, onClick, showImage, canSeeVerleih }) {
-  const imgUrl = t.bild ? `/api/tools/image?path=${encodeURIComponent(t.bild)}` : null
+  const imgUrl = t.bild ? `/api/tools/image?path=${encodeURIComponent(t.bild)}&token=${encodeURIComponent(localStorage.getItem('token') || '')}` : null
   return (
     <div onClick={() => onClick && onClick(t)}
       style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, overflow:'hidden', cursor:onClick?'pointer':'default', display:'flex', flexDirection:'column', transition:'box-shadow 0.15s, transform 0.15s' }}

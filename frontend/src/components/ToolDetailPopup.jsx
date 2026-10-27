@@ -112,7 +112,7 @@ export default function ToolDetailPopup({ tool, onClose }) {
   if (!tool) return null
 
   const cfg = STATUS_CFG[tool.status] || STATUS_CFG.lager
-  const imgUrl = tool.bild ? `/api/tools/image?path=${encodeURIComponent(tool.bild)}` : null
+  const imgUrl = tool.bild ? `/api/tools/image?path=${encodeURIComponent(tool.bild)}&token=${encodeURIComponent(localStorage.getItem('token') || '')}` : null
   const hasEvents = events && events.length > 0
 
   return (

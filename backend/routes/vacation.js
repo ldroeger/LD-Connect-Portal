@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { sendPush, getTokensForUser, getApproverTokens } = require('./push');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, authMiddlewareWithQueryToken } = require('../middleware/auth');
 const localDb = require('../db/localDb');
 const pbDb = require('../db/powerbirdDb');
 const mailer = require('../utils/mailer');
@@ -347,8 +347,11 @@ router.post('/approve/:id', authMiddleware, async (req, res) => {
 });
 
 // POST /api/vacation/reject/:id
-router.post('/reject/:id', authMiddleware, upload.single('file'), async (req, res) => {
+router.post('/reject/:id', authMiddleware, (req, res, next) => {
+  // Rechte vor dem Speichern der Datei prüfen
   if (!canApprove(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' });
+  next();
+}, upload.single('file'), async (req, res) => {
   try {
     const { reason } = req.body;
     if (!reason || !reason.trim()) return res.status(400).json({ error: 'Ablehnungsgrund erforderlich' });
@@ -395,31 +398,15 @@ router.post('/reject/:id', authMiddleware, upload.single('file'), async (req, re
 
 // GET /api/vacation/file/:filename
 // Supports token as query param for direct browser download
-router.get('/file/:filename', (req, res) => {
-  // Auth: check Bearer header OR token query param
-  const { authMiddleware } = require('../middleware/auth');
-  const token = req.query.token;
-  if (token) {
-    const jwt = require('jsonwebtoken');
-    const localDb = require('../db/localDb');
-    const SECRET = process.env.JWT_SECRET || 'powerbird-secret-change-in-production';
-    try {
-      const { userId } = jwt.verify(token, SECRET);
-      const user = localDb.db.prepare('SELECT * FROM users WHERE id=? AND is_active=1').get(userId);
-      if (!user) return res.status(401).json({ error: 'Nicht authentifiziert' });
-      const filePath = path.join(UPLOAD_DIR, req.params.filename);
-      if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Datei nicht gefunden' });
-      return res.download(filePath);
-    } catch(e) {
-      return res.status(401).json({ error: 'Token ungültig' });
-    }
-  }
-  // Fall back to normal auth middleware
-  authMiddleware(req, res, () => {
-    const filePath = path.join(UPLOAD_DIR, req.params.filename);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Datei nicht gefunden' });
-    res.download(filePath);
-  });
+router.get('/file/:filename', authMiddlewareWithQueryToken, (req, res) => {
+  // Nur Dateiname ohne Pfad zulassen (sonst ../ bis ins Datenverzeichnis)
+  const filename = path.basename(req.params.filename);
+  // Nur Antragsteller und Genehmiger dürfen den Anhang sehen
+  const vr = localDb.db.prepare('SELECT user_id FROM vacation_requests WHERE rejection_file=?').get(filename);
+  if (!vr || (vr.user_id !== req.user.id && !canApprove(req.user))) return res.status(404).json({ error: 'Datei nicht gefunden' });
+  const filePath = path.join(UPLOAD_DIR, filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Datei nicht gefunden' });
+  res.download(filePath);
 });
 
 module.exports = router;
