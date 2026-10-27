@@ -200,10 +200,16 @@ const uploadMiddleware = (req, res, next) => {
   })
 }
 
+// Kategorie als einzelner Ordnername: keine Pfadtrenner, kein "." / ".."
+function safeCategoryName(category) {
+  const name = String(category || 'Allgemein').replace(/[\\\/:*?"<>|\0]/g, '_').trim()
+  return (!name || /^\.+$/.test(name)) ? 'Allgemein' : name
+}
+
 function saveFile(buffer, originalname, kuerzel, category, baseDir) {
   originalname = fixFilename(originalname)
   // Nur Windows-ungültige Zeichen entfernen, Umlaute und Sonderzeichen erlauben
-  const safeCategory = (category || 'Allgemein').replace(/[\/:*?"<>|]/g, '_').trim()
+  const safeCategory = safeCategoryName(category)
   const dir = pathMod.join(baseDir, kuerzel, safeCategory, ...datedSubfolders(new Date()))
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   let filename = originalname
@@ -269,7 +275,7 @@ function smbErrorText(err) {
 async function smbSaveFile(smb2, buffer, originalname, kuerzel, category, basePath) {
   originalname = fixFilename(originalname)
   // Nur Windows-ungültige Zeichen entfernen
-  const safeCategory = (category || 'Allgemein').replace(/[\/:*?"<>|]/g, '_').trim()
+  const safeCategory = safeCategoryName(category)
   // Ordner anlegen: basePath\kuerzel\kategorie\JAHR\MM - Monat
   const kuerzelPath  = basePath ? basePath + '\\' + kuerzel : kuerzel
   const categoryPath = kuerzelPath + '\\' + safeCategory
@@ -319,6 +325,36 @@ function getSmbClient() {
 }
 
 
+
+
+// ── Zugriffsprüfung für Dokument-IDs ──────────────────────────────────────
+// Die Dokument-ID enthält den Pfad (Base64) und kommt vom Client. Deshalb wird
+// hier geprüft, dass der Pfad im eigenen Ordner liegt (oder der Benutzer
+// Dokumente verwalten darf) und die Ablage nicht per ".." verlassen wird.
+function canManageDocs(user) {
+  return user.role === 'admin' || getUserFeatures(user.id).docs_manage
+}
+
+function checkLocalDocPath(fsPath, user, canManage) {
+  const baseDir  = pathMod.resolve(getBaseDir())
+  const resolved = pathMod.resolve(fsPath)
+  const root     = canManage ? baseDir : pathMod.join(baseDir, getUserKuerzel(user))
+  return resolved.startsWith(root + pathMod.sep) ? resolved : null
+}
+
+function checkSmbDocPath(smbPath, user, canManage, basePath, allowBaseFiles) {
+  if (!smbPath || /[\0\r\n"]/.test(smbPath)) return null
+  const parts = smbPath.split(/[\\/]/).filter(Boolean)
+  if (parts.some(p => p === '.' || p === '..')) return null
+  const baseParts = (basePath || '').split('\\').filter(Boolean)
+  const lower = (arr) => arr.map(p => p.toLowerCase())
+  const startsWith = (prefix) => parts.length > prefix.length &&
+    lower(prefix).every((p, i) => p === parts[i].toLowerCase())
+  const ownRoot = [...baseParts, getUserFolderName(user)]
+  const ok = canManage ? startsWith(baseParts)
+    : startsWith(ownRoot) || (allowBaseFiles && parts.length === baseParts.length + 1 && startsWith(baseParts))
+  return ok ? parts.join('\\') : null
+}
 
 // POST /api/documents/create-folders - Ordner + Kategorie-Unterordner für alle Mitarbeiter anlegen
 router.post('/create-folders', authMiddleware, async (req, res) => {
@@ -563,11 +599,10 @@ router.get('/download/:id', authMiddleware, async (req, res) => {
 
     // Lokales Dateisystem
     if (id.startsWith('local_fs_')) {
-      const fsPath = Buffer.from(id.replace('local_fs_', ''), 'base64').toString()
+      // Sicherheitscheck: Datei muss im eigenen Ordner liegen (Verwalter: im Basis-Verzeichnis)
+      const fsPath = checkLocalDocPath(Buffer.from(id.replace('local_fs_', ''), 'base64').toString(), req.user, canManageDocs(req.user))
+      if (!fsPath) return res.status(403).json({ error: 'Zugriff verweigert' })
       if (!fs.existsSync(fsPath)) return res.status(404).json({ error: 'Datei nicht gefunden' })
-      // Sicherheitscheck: Datei muss im Basis-Verzeichnis liegen
-      const baseDir = getBaseDir()
-      if (!fsPath.startsWith(baseDir)) return res.status(403).json({ error: 'Zugriff verweigert' })
       const fname = pathMod.basename(fsPath)
       const safeName = encodeURIComponent(fname)
       res.setHeader('Content-Type', getMimeType(fsPath))
@@ -577,10 +612,15 @@ router.get('/download/:id', authMiddleware, async (req, res) => {
 
     // SMB
     if (id.startsWith('smb_')) {
-      const smbPath = Buffer.from(id.replace('smb_', ''), 'base64').toString()
       const smbInfo = getSmbClient()
       if (!smbInfo) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
-      const { smb2 } = smbInfo
+      const { smb2, basePath } = smbInfo
+      // Sicherheitscheck: Datei muss im eigenen Ordner liegen (Verwalter: in der ganzen Ablage)
+      const smbPath = checkSmbDocPath(Buffer.from(id.replace('smb_', ''), 'base64').toString(), req.user, canManageDocs(req.user), basePath, true)
+      if (!smbPath) {
+        try { smb2.close() } catch(e2) {}
+        return res.status(403).json({ error: 'Zugriff verweigert' })
+      }
       smb2.readFile(smbPath, (err, data) => {
         try { smb2.close() } catch(e2) {}
         if (err) return res.status(500).json({ error: err.message })
@@ -689,20 +729,14 @@ router.delete('/local/:id', authMiddleware, (req, res) => {
     const freshFeatDel = getUserFeatures(req.user.id)
     const canDel = freshFeatDel.docs_manage || freshFeatDel.docs_upload || freshFeatDel.docs_upload_all
 
-    const fsPath  = Buffer.from(req.params.id, 'base64').toString()
-    const baseDir = getBaseDir()
+    if (!canDel && req.user.role !== 'admin') return res.status(403).json({ error: 'Keine Berechtigung' })
 
-    // Lokale Datei
-    if (fsPath.startsWith(baseDir)) {
-      if (!fs.existsSync(fsPath)) return res.status(404).json({ error: 'Nicht gefunden' })
-      const kuerzel = getUserKuerzel(req.user)
-      const isOwner = fsPath.includes(pathMod.sep + kuerzel + pathMod.sep)
-      if (!isOwner && !freshFeatDel.docs_manage) return res.status(403).json({ error: 'Kein Zugriff' })
-      fs.unlinkSync(fsPath)
-      return res.json({ success: true })
-    }
-
-    return res.status(404).json({ error: 'Nicht gefunden' })
+    // Eigene Dateien darf löschen, wer hochladen darf; fremde nur mit Verwalten-Recht
+    const fsPath = checkLocalDocPath(Buffer.from(req.params.id, 'base64').toString(), req.user, canManageDocs(req.user))
+    if (!fsPath) return res.status(403).json({ error: 'Kein Zugriff' })
+    if (!fs.existsSync(fsPath) || !fs.statSync(fsPath).isFile()) return res.status(404).json({ error: 'Nicht gefunden' })
+    fs.unlinkSync(fsPath)
+    return res.json({ success: true })
   } catch(e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -714,11 +748,15 @@ router.delete('/smb/:id', authMiddleware, async (req, res) => {
     if (!freshFeat.docs_manage && !freshFeat.docs_upload && !freshFeat.docs_upload_all)
       return res.status(403).json({ error: 'Keine Berechtigung' })
 
-    const smbPath = Buffer.from(req.params.id, 'base64').toString()
     const smbInfo = getSmbClient()
     if (!smbInfo) return res.status(500).json({ error: 'SMB nicht konfiguriert' })
 
-    const { host, share } = smbInfo
+    const { host, share, basePath } = smbInfo
+    // Eigene Dateien darf löschen, wer hochladen darf; fremde nur mit Verwalten-Recht.
+    // Die Prüfung verhindert auch Anführungszeichen im Pfad, die sonst weitere smbclient-Befehle einschleusen könnten.
+    const smbPath = checkSmbDocPath(Buffer.from(req.params.id, 'base64').toString(), req.user, canManageDocs(req.user), basePath, false)
+    if (!smbPath) return res.status(403).json({ error: 'Kein Zugriff' })
+    if (smbPath.includes(';')) return res.status(400).json({ error: 'Dateiname mit ";" kann nicht gelöscht werden' })
 
     // smbclient nutzen statt smb2.unlink (umgeht STATUS_PENDING Bug)
     const { exec } = require('child_process')

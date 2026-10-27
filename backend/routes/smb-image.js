@@ -1,11 +1,17 @@
 const router = require('express').Router()
 const localDb = require('../db/localDb')
+const { authMiddlewareWithQueryToken } = require('../middleware/auth')
 
-// GET /api/tools/image?path=\\server\share\file.jpg
-router.get('/image', async (req, res) => {
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|bmp)$/i
+
+// GET /api/tools/image?path=\\server\share\file.jpg&token=...
+router.get('/image', authMiddlewareWithQueryToken, async (req, res) => {
   try {
     const imgPath = req.query.path
-    if (!imgPath) return res.status(400).json({ error: 'Kein Pfad' })
+    if (!imgPath || typeof imgPath !== 'string') return res.status(400).json({ error: 'Kein Pfad' })
+    // Nur Bilddateien, kein Verlassen der Freigabe
+    if (!IMAGE_EXT.test(imgPath) || imgPath.split(/[\\/]/).some(p => p === '..'))
+      return res.status(400).json({ error: 'Ungültiger Pfad' })
 
     const smbUser   = localDb.getSetting('smb_user') || ''
     const smbPass   = localDb.getSetting('smb_password') || ''
@@ -64,9 +70,9 @@ router.get('/image', async (req, res) => {
         return res.status(404).json({ error: 'Bild nicht gefunden', detail: err.message })
       }
       const ext  = (filePath.split('.').pop() || '').toLowerCase()
-      const mime = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp' }[ext] || 'image/jpeg'
+      const mime = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', bmp:'image/bmp' }[ext] || 'image/jpeg'
       res.setHeader('Content-Type', mime)
-      res.setHeader('Cache-Control', 'public, max-age=3600')
+      res.setHeader('Cache-Control', 'private, max-age=3600')
       res.send(data)
     })
   } catch(e) {

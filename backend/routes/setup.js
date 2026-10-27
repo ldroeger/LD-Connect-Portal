@@ -4,6 +4,13 @@ const bcrypt = require('bcryptjs');
 const localDb = require('../db/localDb');
 const powerbirdDb = require('../db/powerbirdDb');
 
+// Nach abgeschlossenem Setup dürfen die Setup-Endpunkte (ohne Anmeldung!) nichts mehr ändern
+function requireSetupOpen(req, res, next) {
+  if (localDb.getSetting('setup_complete') === 'true')
+    return res.status(403).json({ error: 'Setup bereits abgeschlossen' });
+  next();
+}
+
 // Get setup status
 router.get('/status', (req, res) => {
   const complete = localDb.getSetting('setup_complete') === 'true';
@@ -42,7 +49,7 @@ router.post('/admin', async (req, res) => {
 });
 
 // Step 2: Test and save DB connection
-router.post('/database', async (req, res) => {
+router.post('/database', requireSetupOpen, async (req, res) => {
   try {
     const { host, port, database, user, password, encrypt, trust_cert } = req.body;
     if (!host || !database || !user) {
@@ -77,7 +84,7 @@ router.post('/database', async (req, res) => {
 });
 
 // Step 2: Just test DB connection without saving
-router.post('/test-database', async (req, res) => {
+router.post('/test-database', requireSetupOpen, async (req, res) => {
   try {
     const { host, port, database, user, password, encrypt, trust_cert } = req.body;
     await powerbirdDb.testConnection({
@@ -96,7 +103,7 @@ router.post('/test-database', async (req, res) => {
 });
 
 // Step 3: Save branding
-router.post('/branding', (req, res) => {
+router.post('/branding', requireSetupOpen, (req, res) => {
   try {
     const { company_name, primary_color, logo_url, calendar_range_days, smtp_host, smtp_port, smtp_user, smtp_password, smtp_from } = req.body;
 

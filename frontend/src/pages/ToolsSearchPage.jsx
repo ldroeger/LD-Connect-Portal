@@ -132,7 +132,7 @@ export default function ToolsSearchPage() {
           {displayed.map((item, i) => {
             const cfg = STATUS_CFG[item.status] || STATUS_CFG.lager
             const statusLabel = STATUS_LABELS[item.status] || item.status
-            const imgUrl = item.bild ? `/api/tools/image?path=${encodeURIComponent(item.bild)}` : null
+            const imgUrl = item.bild ? `/api/tools/image?path=${encodeURIComponent(item.bild)}&token=${encodeURIComponent(localStorage.getItem('token') || '')}` : null
             return (
               <div key={i} onClick={() => setSelected(item)} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', display: 'flex', alignItems: 'stretch', cursor:'pointer', transition:'box-shadow 0.15s' }} onMouseEnter={e=>e.currentTarget.style.boxShadow='var(--shadow-lg)'} onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
                 <div style={{ width: 4, flexShrink: 0, background: cfg.dot }} />

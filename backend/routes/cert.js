@@ -97,8 +97,9 @@ router.get('/status', adminMiddleware, (req, res) => {
   let certInfo = null
   if (certFile && fs.existsSync(certFile)) {
     try {
-      const out = require('child_process').execSync(
-        `openssl x509 -in ${certFile} -noout -subject -enddate 2>/dev/null`
+      // execFileSync statt Shell-String: der Pfad kommt aus den Einstellungen
+      const out = require('child_process').execFileSync(
+        'openssl', ['x509', '-in', certFile, '-noout', '-subject', '-enddate'], { stdio: ['ignore', 'pipe', 'ignore'] }
       ).toString()
       const expLine = out.match(/notAfter=(.+)/)
       const subjLine = out.match(/subject=(.+)/)

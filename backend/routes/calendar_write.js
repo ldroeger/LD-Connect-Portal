@@ -12,6 +12,10 @@ const express = require('express')
 const router  = express.Router()
 const { authMiddleware: requireAuth } = require('../middleware/auth')
 
+// users hat keine Spalte is_admin, Admins erkennt man an der Rolle
+const isAdmin    = (user) => user.role === 'admin'
+const canApprove = (user) => user.role === 'admin' || user.role === 'vacation_approver'
+
 // ─── Powerbird Pool Helper ────────────────────────────────────────────────────
 async function getPbPool() {
   const pbDb = require('../db/powerbirdDb')
@@ -169,7 +173,9 @@ router.put('/termin/:recno', requireAuth, async (req, res) => {
     if (!check.recordset.length) return res.status(404).json({ error: 'Termin nicht gefunden' })
     const t = check.recordset[0]
     if (t.TER_Locked) return res.status(403).json({ error: 'Termin ist gesperrt' })
-    if (!user.is_admin && t.Termin_ResourceName !== user.powerbird_id) return res.status(403).json({ error: 'Keine Berechtigung' })
+    if (!isAdmin(user) && t.Termin_ResourceName !== user.powerbird_id) return res.status(403).json({ error: 'Keine Berechtigung' })
+    // Urlaub/Krank nicht am Genehmigungsweg vorbei verschieben
+    if (t.TER_FehlzeitArt > 0 && !isAdmin(user)) return res.status(403).json({ error: 'Fehlzeit-Termine können nur von Admins bearbeitet werden' })
     const length = ganzerTag ? 480 : calcLength(start, end||start)
     await pool.request()
       .input('recno',   req.params.recno)
@@ -200,8 +206,8 @@ router.delete('/termin/:recno', requireAuth, async (req, res) => {
     if (!check.recordset.length) return res.status(404).json({ error: 'Termin nicht gefunden' })
     const t = check.recordset[0]
     if (t.TER_Locked) return res.status(403).json({ error: 'Termin ist gesperrt' })
-    if (!user.is_admin && t.Termin_ResourceName !== user.powerbird_id) return res.status(403).json({ error: 'Keine Berechtigung' })
-    if (t.TER_FehlzeitArt > 0 && !user.is_admin) return res.status(403).json({ error: 'Fehlzeit-Termine können nur von Admins gelöscht werden' })
+    if (!isAdmin(user) && t.Termin_ResourceName !== user.powerbird_id) return res.status(403).json({ error: 'Keine Berechtigung' })
+    if (t.TER_FehlzeitArt > 0 && !isAdmin(user)) return res.status(403).json({ error: 'Fehlzeit-Termine können nur von Admins gelöscht werden' })
     await pool.request()
       .input('recno', req.params.recno).input('modDate', new Date()).input('modUser', user.mitarbeiter_nr||0)
       .query('UPDATE HWTER SET Geloescht=1, TER_ModifyDate=@modDate, TER_ModifyUser=@modUser WHERE RecNo=@recno')
@@ -218,7 +224,7 @@ router.delete('/termin/:recno', requireAuth, async (req, res) => {
 router.post('/urlaub-beantragen', requireAuth, async (req, res) => {
   const { urlaubLfdNr, start, end, mitarbeiterKuerzel, mitarbeiterNr } = req.body
   if (!start || !end || !mitarbeiterKuerzel) return res.status(400).json({ error: 'start, end, mitarbeiterKuerzel erforderlich' })
-  if (!req.user.is_admin && req.user.powerbird_id !== mitarbeiterKuerzel) return res.status(403).json({ error: 'Keine Berechtigung' })
+  if (!isAdmin(req.user) && req.user.powerbird_id !== mitarbeiterKuerzel) return res.status(403).json({ error: 'Keine Berechtigung' })
   try {
     const pool = await getPbPool()
     // Prüfen ob bereits ein Termin existiert
@@ -254,7 +260,8 @@ router.post('/urlaub-beantragen', requireAuth, async (req, res) => {
 router.post('/urlaub-termin', requireAuth, async (req, res) => {
   const { urlaubLfdNr, start, end, mitarbeiterKuerzel, mitarbeiterNr, fehlzeitArt } = req.body
   if (!start || !end || !mitarbeiterKuerzel) return res.status(400).json({ error: 'start, end, mitarbeiterKuerzel erforderlich' })
-  if (!req.user.is_admin && req.user.powerbird_id !== mitarbeiterKuerzel) return res.status(403).json({ error: 'Keine Berechtigung' })
+  // Genehmigen dürfen nur Admins und Urlaubsgenehmiger, nicht der Mitarbeiter selbst
+  if (!canApprove(req.user)) return res.status(403).json({ error: 'Keine Berechtigung' })
   try {
     const pool = await getPbPool()
 
@@ -302,7 +309,7 @@ router.post('/urlaub-termin', requireAuth, async (req, res) => {
 // ─── URLAUB ABLEHNEN → Termin löschen ────────────────────────────────────────
 
 router.delete('/urlaub-termin/:urlaubLfdNr', requireAuth, async (req, res) => {
-  if (!req.user.is_admin) return res.status(403).json({ error: 'Nur Admins' })
+  if (!isAdmin(req.user)) return res.status(403).json({ error: 'Nur Admins' })
   try {
     const pool = await getPbPool()
     await pool.request()
@@ -359,7 +366,7 @@ router.delete('/krankmeldung/:recno', requireAuth, async (req, res) => {
     if (!check.recordset.length) return res.status(404).json({ error: 'Termin nicht gefunden' })
     const t = check.recordset[0]
     if (t.TER_FehlzeitArt !== 33) return res.status(400).json({ error: 'Kein Krankheitstermin' })
-    if (!user.is_admin && t.Termin_ResourceName !== user.powerbird_id) return res.status(403).json({ error: 'Keine Berechtigung' })
+    if (!isAdmin(user) && t.Termin_ResourceName !== user.powerbird_id) return res.status(403).json({ error: 'Keine Berechtigung' })
     await pool.request()
       .input('recno',   req.params.recno)
       .input('modDate', new Date())
