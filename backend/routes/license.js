@@ -8,13 +8,16 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { version } = require('../package.json');
 
 const PRODUCT_CODE = 'ld-connect';
+// Fest für jede Installation; die Umgebungsvariablen überschreiben sie nur (z. B. für Tests)
+const LICENSE_SERVER = 'https://lizenzen.lukasdroeger.de';
+const LICENSE_PUBLIC_KEY = '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAWtLCXvhBUKDXiqIfw2e4CmmX7hu6ECNGl/XwhPGYrXg=\n-----END PUBLIC KEY-----\n';
 const enforce = () => process.env.LICENSE_ENFORCE === 'true';
 
 const license = new LicenseClient({
   product: PRODUCT_CODE,
-  serverUrl: process.env.LICENSE_SERVER_URL || 'http://127.0.0.1:9',
+  serverUrl: process.env.LICENSE_SERVER_URL || LICENSE_SERVER,
   stateFile: process.env.LICENSE_STATE_FILE || path.join(process.env.DATA_DIR || '/data', 'license.json'),
-  publicKey: process.env.LICENSE_PUBLIC_KEY || undefined,
+  publicKey: process.env.LICENSE_PUBLIC_KEY || LICENSE_PUBLIC_KEY,
   version,
   logger: { info: console.log, warn: console.warn },
 });
@@ -40,7 +43,7 @@ const requireFeature = feature => (req, res, next) =>
 function statusDto(s = license.status()) {
   const l = s.license;
   return {
-    configured: !!process.env.LICENSE_SERVER_URL || !!l,
+    server: process.env.LICENSE_SERVER_URL || LICENSE_SERVER,
     enforce: enforce(),
     state: s.state,
     reason: s.reason || null,

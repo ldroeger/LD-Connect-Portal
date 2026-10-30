@@ -4,6 +4,8 @@ LD Connect meldet sich beim **Lizenzportal** (Projekt `C:\Projekte\Lizenzen`) an
 **Solange `LICENSE_ENFORCE` nicht `true` ist, wird nichts gesperrt** – bestehende Installationen laufen unverändert weiter,
 der Status ist nur sichtbar.
 
+Die Software fragt **ausgehend per HTTPS** bei `https://lizenzen.lukasdroeger.de` an – beim Kunden muss kein Port geöffnet werden.
+
 | | |
 |---|---|
 | Produktcode | `ld-connect` |
@@ -15,8 +17,8 @@ der Status ist nur sichtbar.
 
 | Variable | Bedeutung |
 |---|---|
-| `LICENSE_SERVER_URL` | Adresse des Lizenzportals, z. B. `https://lizenzen.example.de`. Leer = keine Online-Prüfung (Offline-Lizenz möglich). |
-| `LICENSE_PUBLIC_KEY` | Öffentlicher Schlüssel aus dem Admin-Portal (Einstellungen). Ohne Angabe wird er beim ersten Kontakt übernommen – für Produktion fest eintragen. |
+| `LICENSE_SERVER_URL` | Nur zum Überschreiben (Tests). Fest eingebaut: `https://lizenzen.lukasdroeger.de` |
+| `LICENSE_PUBLIC_KEY` | Nur zum Überschreiben (Tests). Der öffentliche Schlüssel des Lizenzportals (Schlüssel-ID `9784df7659343692`) ist fest eingebaut. |
 | `LICENSE_ENFORCE` | `true` = Funktionen ohne gültige Lizenz sperren. Standard `false`. |
 
 ## Ablauf
