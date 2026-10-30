@@ -52,7 +52,7 @@ function statusDto(s = license.status()) {
     lastCheck: s.lastCheck || null,
     instanceId: s.instanceId,
     license: l ? {
-      key: l.key, plan: l.plan, licensee: l.licensee, features: l.features, limits: l.limits,
+      key: l.key, plan: l.plan, planName: l.planName || l.plan, licensee: l.licensee, features: l.features, limits: l.limits,
       addons: l.addons || [], trial: l.trial, validUntil: l.validUntil, leaseUntil: l.leaseUntil,
     } : null,
   };

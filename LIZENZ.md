@@ -21,6 +21,15 @@ Die Software fragt **ausgehend per HTTPS** bei `https://lizenzen.lukasdroeger.de
 | `LICENSE_PUBLIC_KEY` | Nur zum Überschreiben (Tests). Der öffentliche Schlüssel des Lizenzportals (Schlüssel-ID `9784df7659343692`) ist fest eingebaut. |
 | `LICENSE_ENFORCE` | `true` = Funktionen ohne gültige Lizenz sperren. Standard `false`. |
 
+## Lizenz-Assistent
+
+Die Lizenz wird in der Oberfläche über einen Assistenten eingetragen: Menü **Administration → Lizenz** (`/license`, nur Administratoren).
+1. **Willkommen** – Status und Hinweise (ausgehende HTTPS-Verbindung, 14 Tage Offline-Toleranz)
+2. **Lizenz eintragen** – Lizenzschlüssel (wird beim Tippen formatiert) oder Offline-Lizenz (Text oder Datei)
+3. **Ergebnis** – Tarif, Lizenznehmer, Laufzeit, freigeschaltete Funktionen, Grenzen, Zusatzmodule; erneut prüfen oder Installation abmelden
+
+Solange keine gültige Lizenz eingetragen ist, sehen Administratoren einen Hinweis mit Link zum Assistenten.
+
 ## Ablauf
 
 1. Kunde kauft im Shop oder bekommt im Admin-Portal eine Lizenz – Schlüssel z. B. `LDCN-XXXXX-XXXXX-XXXXX-XXXXX`.
@@ -31,7 +40,7 @@ Die Software fragt **ausgehend per HTTPS** bei `https://lizenzen.lukasdroeger.de
 
 | Endpunkt | Wirkung |
 |---|---|
-| `GET /api/license` | Status: `state` (`valid` / `unlicensed` / `invalid`), `reason`, Tarif, Funktionen, Grenzen, Zusatzmodule, Laufzeit |
+| `GET /api/license` | Status (JSON): `state` (`valid` / `unlicensed` / `invalid`), `reason`, Tarif, Funktionen, Grenzen, Zusatzmodule, Laufzeit |
 | `POST /api/license/activate` | Lizenzschlüssel eintragen (`key`) |
 | `POST /api/license/refresh` | Sofort beim Lizenzportal prüfen (z. B. nach Kauf eines Zusatzmoduls) |
 | `POST /api/license/offline` | Offline-Lizenz aus dem Admin-Portal einspielen (`token`) – für Server ohne Internet |
