@@ -62,6 +62,7 @@ app.use('/api/push',    require('./routes/push').router);
 app.use('/api/display',  require('./routes/display'));
 app.use('/api/upload',   require('./routes/upload'));
 app.use('/api/tools',    require('./routes/smb-image'));
+app.use('/api/license',  require('./routes/license').router);
 const { version } = require('./package.json');
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', version }));
 
@@ -131,4 +132,6 @@ app.listen(PORT, () => {
   } catch(e) {
     console.error('Sync-Job Startfehler:', e.message)
   }
+  // Lizenz im Hintergrund prüfen – der Start wartet nicht auf das Lizenzportal
+  require('./routes/license').startLicense()
 });
