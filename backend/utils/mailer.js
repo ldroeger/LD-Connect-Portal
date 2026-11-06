@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const localDb    = require('../db/localDb');
+const mailTemplates = require('./mailTemplates');
 
 function getTransporter() {
   const host = localDb.getSetting('smtp_host');
@@ -33,7 +34,7 @@ async function sendMail(to, subject, html) {
 }
 
 function getBaseConfig() {
-  let appUrl = localDb.getSetting('app_url') || '';
+  let appUrl = localDb.getSetting('app_url') || process.env.APP_URL || '';
   if (appUrl && !appUrl.startsWith('http')) appUrl = 'https://' + appUrl;
   if (appUrl.endsWith('/')) appUrl = appUrl.slice(0, -1);
   const logoUrl = localDb.getSetting('logo_url') || '';
@@ -110,7 +111,7 @@ function buildEmail(opts) {
     + '</td></tr>'
     + '<tr><td style="background:#ffffff;padding:36px 36px 28px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">'
     + '<h2 style="margin:0 0 20px;font-size:20px;font-weight:700;color:#111827;">' + title + '</h2>'
-    + '<p style="margin:0 0 16px;color:#374151;font-size:15px;">Hallo ' + greeting + ',</p>'
+    + '<p style="margin:0 0 16px;color:#374151;font-size:15px;">' + greeting + '</p>'
     + linesHtml
     + buttonHtml
     + '</td></tr>'
@@ -122,100 +123,45 @@ function buildEmail(opts) {
     + '</body></html>';
 }
 
-async function sendPasswordReset(email, name, link) {
+// Baut Betreff und HTML aus einer Vorlage. opts: rawVars (fertiges HTML), buttonLink, template (ungespeicherte Texte für die Vorschau)
+function renderTemplate(key, vars, opts) {
+  const options = opts || {};
   const cfg = getBaseConfig();
+  const tpl = options.template || mailTemplates.getTemplate(key);
+  const allVars = Object.assign({ firma: cfg.company }, vars);
+  const fill = text => mailTemplates.fillPlaceholders(text, allVars, options.rawVars);
+  const toLines = text => fill(text).split('\n').map(l => l.trim()).filter(Boolean);
+
+  const lines = toLines(tpl.body);
+  const extraLines = toLines(tpl.extra);
+  if (extraLines.length) lines.push('__hr', ...extraLines);
+
+  let buttonLink = options.buttonLink || '';
+  if (buttonLink.startsWith('/')) buttonLink = cfg.appUrl ? cfg.appUrl + buttonLink : '';
+
   const html = buildEmail({
     company: cfg.company, primary: cfg.primary, logoUrl: cfg.logoUrl, appUrl: cfg.appUrl,
-    title: 'Passwort zur\u00fccksetzen',
-    greeting: name,
-    lines: [
-      'Sie haben eine Anfrage zum Zur\u00fccksetzen Ihres Passworts gestellt.',
-      'Klicken Sie auf den Button, um ein neues Passwort zu vergeben:',
-    ],
-    buttonText: 'Passwort zur\u00fccksetzen',
-    buttonLink: link,
-    footerNote: 'Dieser Link ist <strong>2 Stunden</strong> g\u00fcltig. Falls Sie diese Anfrage nicht gestellt haben, k\u00f6nnen Sie diese E-Mail ignorieren.',
+    title: fill(tpl.title),
+    greeting: fill(tpl.greeting),
+    lines,
+    buttonText: fill(tpl.buttonText).replace(/&(?!\w+;|#\d+;)/g, '&amp;'),
+    buttonLink,
+    footerNote: fill(tpl.footer),
   });
-  await sendMail(email, 'Passwort zur\u00fccksetzen \u2013 ' + cfg.company, html);
+  return { subject: mailTemplates.fillPlain(tpl.subject, allVars), html };
+}
+
+async function sendTemplate(key, to, vars, opts) {
+  const { subject, html } = renderTemplate(key, vars, opts);
+  await sendMail(to, subject, html);
+}
+
+async function sendPasswordReset(email, name, link) {
+  await sendTemplate('password_reset', email, { name }, { buttonLink: link });
 }
 
 async function sendInvitation(email, name, link) {
-  const cfg = getBaseConfig();
-  const html = buildEmail({
-    company: cfg.company, primary: cfg.primary, logoUrl: cfg.logoUrl, appUrl: cfg.appUrl,
-    title: 'Willkommen bei ' + cfg.company,
-    greeting: name,
-    lines: [
-      'Sie wurden eingeladen, das <strong>' + cfg.company + ' Mitarbeiter-Portal</strong> zu nutzen.',
-      'Bitte legen Sie jetzt Ihr pers\u00f6nliches Passwort fest:',
-    ],
-    buttonText: 'Passwort festlegen &amp; anmelden',
-    buttonLink: link,
-    footerNote: 'Dieser Link ist <strong>7 Tage</strong> g\u00fcltig. Falls Sie diese Einladung nicht erwartet haben, k\u00f6nnen Sie diese E-Mail ignorieren.',
-  });
-  await sendMail(email, 'Einladung zum Mitarbeiter-Portal \u2013 ' + cfg.company, html);
+  await sendTemplate('invitation', email, { name }, { buttonLink: link });
 }
 
-async function sendVacationRequest(approverEmail, applicantName, from, to, days, appUrl) {
-  const cfg = getBaseConfig();
-  const url = appUrl || cfg.appUrl;
-  const html = buildEmail({
-    company: cfg.company, primary: cfg.primary, logoUrl: cfg.logoUrl, appUrl: url,
-    title: 'Neuer Urlaubsantrag',
-    greeting: 'Administrator',
-    lines: [
-      '<strong>' + applicantName + '</strong> hat einen Urlaubsantrag gestellt:',
-      '&#128197; <strong>Zeitraum:</strong> ' + from + ' \u2013 ' + to + ' (' + days + ' Tag' + (days !== 1 ? 'e' : '') + ')',
-      '__hr',
-      'Bitte melden Sie sich im Portal an, um den Antrag zu genehmigen oder abzulehnen.',
-    ],
-    buttonText: 'Antrag pr\u00fcfen',
-    buttonLink: url + '/vacation-approve',
-    footerNote: 'Diese E-Mail wurde automatisch vom Mitarbeiter-Portal versendet.',
-  });
-  await sendMail(approverEmail, 'Urlaubsantrag von ' + applicantName + ' \u2013 ' + cfg.company, html);
-}
-
-async function sendVacationApproved(email, name, from, to, days, appUrl) {
-  const cfg = getBaseConfig();
-  const url = appUrl || cfg.appUrl;
-  const html = buildEmail({
-    company: cfg.company, primary: cfg.primary, logoUrl: cfg.logoUrl, appUrl: url,
-    title: 'Urlaub genehmigt \u2713',
-    greeting: name,
-    lines: [
-      'Ihr Urlaubsantrag wurde <strong>genehmigt</strong>.',
-      '&#128197; <strong>Zeitraum:</strong> ' + from + ' \u2013 ' + to + ' (' + days + ' Tag' + (days !== 1 ? 'e' : '') + ')',
-      '__hr',
-      'Sch\u00f6nen Urlaub! &#127804;',
-    ],
-    buttonText: 'Zum Portal',
-    buttonLink: url + '/vacation',
-    footerNote: 'Diese E-Mail wurde automatisch vom Mitarbeiter-Portal versendet.',
-  });
-  await sendMail(email, 'Urlaub genehmigt \u2013 ' + cfg.company, html);
-}
-
-async function sendVacationRejected(email, name, from, to, reason, appUrl) {
-  const cfg = getBaseConfig();
-  const url = appUrl || cfg.appUrl;
-  const lines = [
-    'Ihr Urlaubsantrag wurde leider <strong>abgelehnt</strong>.',
-    '&#128197; <strong>Zeitraum:</strong> ' + from + ' \u2013 ' + to,
-  ];
-  if (reason) lines.push('&#128172; <strong>Begr\u00fcndung:</strong> ' + reason);
-  lines.push('__hr');
-  lines.push('Bei Fragen wenden Sie sich bitte direkt an Ihren Vorgesetzten.');
-  const html = buildEmail({
-    company: cfg.company, primary: cfg.primary, logoUrl: cfg.logoUrl, appUrl: url,
-    title: 'Urlaubsantrag abgelehnt',
-    greeting: name,
-    lines: lines,
-    buttonText: 'Zum Portal',
-    buttonLink: url + '/vacation',
-    footerNote: 'Diese E-Mail wurde automatisch vom Mitarbeiter-Portal versendet.',
-  });
-  await sendMail(email, 'Urlaubsantrag abgelehnt \u2013 ' + cfg.company, html);
-}
-
-module.exports = { sendMail, sendInvitation, sendPasswordReset, sendVacationRequest, sendVacationApproved, sendVacationRejected, buildEmail, getBaseConfig };
+module.exports = { escapeHtml: mailTemplates.escapeHtml, sendMail, sendTemplate, renderTemplate, sendInvitation, sendPasswordReset, buildEmail, getBaseConfig };

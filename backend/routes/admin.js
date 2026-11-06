@@ -4,6 +4,8 @@ const { adminMiddleware, authMiddleware } = require('../middleware/auth');
 const requireAuth = authMiddleware;
 const requireAdmin = adminMiddleware;
 const localDb = require('../db/localDb');
+const mailer = require('../utils/mailer');
+const mailTemplates = require('../utils/mailTemplates');
 
 // Get all settings (admin only)
 router.get('/settings-all', adminMiddleware, (req, res) => {
@@ -229,6 +231,39 @@ router.get('/update-check', adminMiddleware, async (req, res) => {
   const d = updateCache.data;
   if (!d) return res.json({ current, updateAvailable: false });
   res.json({ current, ...d, updateAvailable: isNewer(d.latest, current) });
+});
+
+// E-Mail-Vorlagen
+router.get('/mail-templates', adminMiddleware, (req, res) => {
+  res.json({ templates: mailTemplates.listTemplates() });
+});
+
+router.put('/mail-templates/:key', adminMiddleware, (req, res) => {
+  if (!mailTemplates.TEMPLATES[req.params.key]) return res.status(404).json({ error: 'Vorlage nicht gefunden' });
+  mailTemplates.saveTemplate(req.params.key, req.body || {});
+  res.json({ success: true });
+});
+
+router.delete('/mail-templates/:key', adminMiddleware, (req, res) => {
+  if (!mailTemplates.TEMPLATES[req.params.key]) return res.status(404).json({ error: 'Vorlage nicht gefunden' });
+  mailTemplates.resetTemplate(req.params.key);
+  res.json({ success: true });
+});
+
+// Vorschau mit Beispieldaten, auch für noch nicht gespeicherte Texte
+router.post('/mail-templates/:key/preview', adminMiddleware, (req, res) => {
+  if (!mailTemplates.TEMPLATES[req.params.key]) return res.status(404).json({ error: 'Vorlage nicht gefunden' });
+  const sample = {
+    name: 'Max Mustermann', mitarbeiter: 'Max Mustermann', von: '01.08.2026', bis: '14.08.2026', tage: 10,
+    grund: 'Personalengpass im Zeitraum', alte_email: 'alt@beispiel.de', neue_email: 'neu@beispiel.de',
+  };
+  const rawVars = {
+    begruendung: '<strong>Begründung:</strong> Familienurlaub',
+    termine: 'Keine bestehenden Termine im Zeitraum.',
+    anhang: '',
+  };
+  const template = Object.assign(mailTemplates.getTemplate(req.params.key), req.body || {});
+  res.json(mailer.renderTemplate(req.params.key, sample, { rawVars, template, buttonLink: 'https://portal.beispiel.de' }));
 });
 
 module.exports = router;

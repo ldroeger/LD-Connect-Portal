@@ -102,27 +102,12 @@ router.put('/:id', adminMiddleware, async (req, res) => {
     // E-Mail-Änderung: Info an alte und neue Adresse
     if (emailChanged) {
       const displayName = name || existing.name;
-      const cfg = mailer.getBaseConfig ? mailer.getBaseConfig() : {}
-      const company = cfg.company || 'LD Connect'
-
-      const buildInfo = (toEmail, headline) => mailer.buildEmail({
-        ...cfg,
-        title: 'E-Mail-Adresse geändert',
-        greeting: `Hallo ${displayName}`,
-        lines: [
-          headline,
-          `Alte E-Mail-Adresse: <strong>${existing.email}</strong>`,
-          `Neue E-Mail-Adresse: <strong>${email.toLowerCase().trim()}</strong>`,
-          'Falls Sie diese Änderung nicht veranlasst haben, wenden Sie sich bitte sofort an Ihren Administrator.',
-        ],
-        footerNote: company,
-      });
+      const newEmail = email.toLowerCase().trim();
+      const vars = { name: displayName, alte_email: existing.email, neue_email: newEmail };
 
       try {
-        await mailer.sendMail(existing.email, 'Ihre E-Mail-Adresse wurde geändert', buildInfo(existing.email,
-          'Ihre E-Mail-Adresse im ' + company + ' Portal wurde geändert.'));
-        await mailer.sendMail(email.toLowerCase().trim(), 'E-Mail-Adresse bestätigt', buildInfo(email,
-          'Ihre E-Mail-Adresse im ' + company + ' Portal wurde auf diese Adresse geändert.'));
+        await mailer.sendTemplate('email_changed_old', existing.email, vars);
+        await mailer.sendTemplate('email_changed_new', newEmail, vars);
       } catch(mailErr) {
         console.log('E-Mail Benachrichtigung Fehler:', mailErr.message);
         // Fehler beim Mailversand soll das Speichern nicht blockieren
