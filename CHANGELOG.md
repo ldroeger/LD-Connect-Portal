@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.2 (2026-11-08)
+
+- Lizenz-Schnittstelle zum Lizenzportal (#11) (47eda73)
+
 ## v1.1.1 (2026-10-27)
 
 - Update-Banner für Admins bei neuer Version (#10) (bbd296d)
