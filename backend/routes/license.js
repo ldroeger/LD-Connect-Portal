@@ -69,8 +69,16 @@ const handle = fn => async (req, res) => {
   }
 };
 
-// Status für alle angemeldeten Benutzer (z. B. um Module im Frontend auszublenden), Änderungen nur für Admins
-router.get('/', authMiddleware, (_req, res) => res.json(statusDto()));
+// Status für alle angemeldeten Benutzer (z. B. um Module im Frontend auszublenden), Änderungen nur für Admins.
+// Den Lizenzschlüssel und die Installations-ID sehen nur Admins.
+router.get('/', authMiddleware, (req, res) => {
+  const dto = statusDto();
+  if (req.user.role !== 'admin') {
+    delete dto.instanceId;
+    if (dto.license) delete dto.license.key;
+  }
+  res.json(dto);
+});
 router.post('/activate', adminMiddleware, handle(req => license.activate(String(req.body?.key || ''))));
 router.post('/refresh', adminMiddleware, handle(() => license.refresh()));
 router.post('/offline', adminMiddleware, handle(async req => license.importOfflineToken(String(req.body?.token || ''))));
