@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.3 (2026-11-08)
+
+- Lizenzschlüssel nur für Admins ausgeben (#12) (e6d767b)
+
 ## v1.1.2 (2026-11-08)
 
 - Lizenz-Schnittstelle zum Lizenzportal (#11) (47eda73)
