@@ -1,4 +1,5 @@
 import SyncSettingsCard from '../components/SyncSettingsCard.jsx'
+import MailTemplatesCard from '../components/MailTemplatesCard.jsx'
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
 import api from '../utils/api.js'
@@ -1201,6 +1202,7 @@ export default function AdminPage() {
             <NavLink to="/admin" end style={({isActive})=>navLinkStyle(isActive)}>👥 Benutzer</NavLink>
             <NavLink to="/admin/branding" style={({isActive})=>navLinkStyle(isActive)}>🎨 Branding</NavLink>
             <NavLink to="/admin/settings" style={({isActive})=>navLinkStyle(isActive)}>🔧 Verbindung & SMTP</NavLink>
+            <NavLink to="/admin/mail" style={({isActive})=>navLinkStyle(isActive)}>✉️ E-Mail-Texte</NavLink>
             <NavLink to="/admin/termine" style={({isActive})=>navLinkStyle(isActive)}>📅 Termine</NavLink>
             <NavLink to="/admin/smb" style={({isActive})=>navLinkStyle(isActive)}>📁 Netzlaufwerk</NavLink>
             <NavLink to="/admin/sync" style={({isActive})=>navLinkStyle(isActive)}>🔄 Powerbird Sync</NavLink>
@@ -1213,6 +1215,7 @@ export default function AdminPage() {
               <Route index element={<UserAdmin />} />
               <Route path="branding" element={<BrandingAdmin />} />
               <Route path="settings" element={<SettingsAdmin />} />
+              <Route path="mail" element={<MailTemplatesCard />} />
               <Route path="termine" element={<TermineTab />} />
               <Route path="smb" element={<SmbTab />} />
               <Route path="sync" element={<SyncTab />} />

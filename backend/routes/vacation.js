@@ -88,17 +88,12 @@ async function autoApprovePendingRequests(powerbird_id, user_id) {
         // Notify user
         try {
           const user = localDb.db.prepare('SELECT * FROM users WHERE id=?').get(user_id);
-          const company = localDb.getSetting('company_name') || 'Powerbird';
-          await mailer.sendMail(user.email, `Urlaubsantrag automatisch genehmigt – ${company}`,
-            `<body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
-            <div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;padding:40px">
-              <h2 style="color:#10B981">Urlaubsantrag genehmigt</h2>
-              <p>Hallo ${user.name},</p>
-              <p>Ihr Urlaubsantrag wurde automatisch genehmigt, da der Urlaub in Powerbird eingetragen wurde.</p>
-              <p><strong>Zeitraum:</strong> ${new Date(req.from_date).toLocaleDateString('de-DE')} – ${new Date(req.to_date).toLocaleDateString('de-DE')}</p>
-              <p><strong>Arbeitstage:</strong> ${req.days}</p>
-            </div></body>`
-          );
+          await mailer.sendTemplate('vacation_auto_approved', user.email, {
+            name: user.name,
+            von: new Date(req.from_date).toLocaleDateString('de-DE'),
+            bis: new Date(req.to_date).toLocaleDateString('de-DE'),
+            tage: req.days,
+          }, { buttonLink: '/vacation' });
           // Send push notification
           try {
             const tokens = getTokensForUser(user_id);
@@ -244,26 +239,25 @@ router.post('/request', authMiddleware, async (req, res) => {
       `SELECT * FROM users WHERE (role='admin' OR role='vacation_approver') AND is_active=1`
     ).all();
 
-    const appUrl = localDb.getSetting('app_url') || process.env.APP_URL || 'http://localhost';
-    const company = localDb.getSetting('company_name') || 'Powerbird';
-    const color = localDb.getSetting('primary_color') || '#2563EB';
+    const esc = mailer.escapeHtml;
     const termineHtml = termine.length > 0
-      ? `<p><strong>Bestehende Termine:</strong></p><ul>${termine.map(t => `<li>${new Date(t.von).toLocaleDateString('de-DE')} – ${t.titel}</li>`).join('')}</ul>`
-      : '<p>Keine bestehenden Termine im Zeitraum.</p>';
+      ? '<strong>Bestehende Termine:</strong><br>' + termine.map(t => `${new Date(t.von).toLocaleDateString('de-DE')} – ${esc(t.titel)}`).join('<br>')
+      : 'Keine bestehenden Termine im Zeitraum.';
 
     for (const approver of approvers) {
-      await mailer.sendMail(approver.email, `Urlaubsantrag von ${req.user.name} – ${company}`,
-        `<body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
-        <div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;padding:40px">
-          <h2 style="color:${color}">Neuer Urlaubsantrag</h2>
-          <p><strong>Mitarbeiter:</strong> ${req.user.name}</p>
-          <p><strong>Zeitraum:</strong> ${new Date(from_date).toLocaleDateString('de-DE')} – ${new Date(to_date).toLocaleDateString('de-DE')}</p>
-          <p><strong>Arbeitstage:</strong> ${days}</p>
-          ${reason ? `<p><strong>Begründung:</strong> ${reason}</p>` : ''}
-          ${termineHtml}
-          <a href="${appUrl}/vacation-approve" style="display:inline-block;background:${color};color:white;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0">Antrag bearbeiten</a>
-        </div></body>`
-      ).catch(() => {});
+      await mailer.sendTemplate('vacation_request', approver.email, {
+        name: approver.name,
+        mitarbeiter: req.user.name,
+        von: new Date(from_date).toLocaleDateString('de-DE'),
+        bis: new Date(to_date).toLocaleDateString('de-DE'),
+        tage: days,
+      }, {
+        rawVars: {
+          begruendung: reason ? `<strong>Begründung:</strong> ${esc(reason)}` : '',
+          termine: termineHtml,
+        },
+        buttonLink: '/vacation-approve',
+      }).catch(() => {});
     }
 
     // Termin in Powerbird HWTER anlegen (FehlzeitArt=17 = beantragt)
@@ -308,16 +302,12 @@ router.post('/approve/:id', authMiddleware, async (req, res) => {
       `UPDATE vacation_requests SET status='approved', reviewed_by=?, reviewed_at=unixepoch(), updated_at=unixepoch() WHERE id=?`
     ).run(req.user.id, vr.id);
     const applicant = localDb.db.prepare('SELECT * FROM users WHERE id=?').get(vr.user_id);
-    const company = localDb.getSetting('company_name') || 'Powerbird';
-    mailer.sendMail(applicant.email, `Urlaubsantrag genehmigt – ${company}`,
-      `<body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
-      <div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;padding:40px">
-        <h2 style="color:#10B981">Urlaubsantrag genehmigt</h2>
-        <p>Hallo ${applicant.name},</p>
-        <p><strong>Zeitraum:</strong> ${new Date(vr.from_date).toLocaleDateString('de-DE')} – ${new Date(vr.to_date).toLocaleDateString('de-DE')}</p>
-        <p><strong>Arbeitstage:</strong> ${vr.days}</p>
-      </div></body>`
-    ).catch(() => {});
+    mailer.sendTemplate('vacation_approved', applicant.email, {
+      name: applicant.name,
+      von: new Date(vr.from_date).toLocaleDateString('de-DE'),
+      bis: new Date(vr.to_date).toLocaleDateString('de-DE'),
+      tage: vr.days,
+    }, { buttonLink: '/vacation' }).catch(() => {});
     // HWTER: 17→18 (beantragt→genehmigt)
     if (applicant.powerbird_id) {
       try {
@@ -362,18 +352,15 @@ router.post('/reject/:id', authMiddleware, (req, res, next) => {
       `UPDATE vacation_requests SET status='rejected', rejection_reason=?, rejection_file=?, reviewed_by=?, reviewed_at=unixepoch(), updated_at=unixepoch() WHERE id=?`
     ).run(reason, filePath, req.user.id, vr.id);
     const applicant = localDb.db.prepare('SELECT * FROM users WHERE id=?').get(vr.user_id);
-    const company = localDb.getSetting('company_name') || 'Powerbird';
-    const appUrl = localDb.getSetting('app_url') || process.env.APP_URL || 'http://localhost';
-    await mailer.sendMail(applicant.email, `Urlaubsantrag abgelehnt – ${company}`,
-      `<body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
-      <div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;padding:40px">
-        <h2 style="color:#EF4444">Urlaubsantrag abgelehnt</h2>
-        <p>Hallo ${applicant.name},</p>
-        <p><strong>Zeitraum:</strong> ${new Date(vr.from_date).toLocaleDateString('de-DE')} – ${new Date(vr.to_date).toLocaleDateString('de-DE')}</p>
-        <p><strong>Grund:</strong> ${reason}</p>
-        ${filePath ? `<p>Anhang verfügbar unter: <a href="${appUrl}/vacation">Urlaubsplanung</a></p>` : ''}
-      </div></body>`
-    ).catch(() => {});
+    await mailer.sendTemplate('vacation_rejected', applicant.email, {
+      name: applicant.name,
+      von: new Date(vr.from_date).toLocaleDateString('de-DE'),
+      bis: new Date(vr.to_date).toLocaleDateString('de-DE'),
+      grund: reason,
+    }, {
+      rawVars: { anhang: filePath ? 'Der Ablehnung liegt ein Anhang bei, den Sie in der Urlaubsplanung abrufen können.' : '' },
+      buttonLink: '/vacation',
+    }).catch(() => {});
     // HWTER: Urlaubsantrag-Termin löschen
     if (applicant?.powerbird_id) {
       try {

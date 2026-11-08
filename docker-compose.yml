@@ -7,6 +7,10 @@ services:
       - NODE_ENV=production
       - DATA_DIR=/data
       - JWT_SECRET=${JWT_SECRET:-bitte-aendern-openssl-rand-hex-32}
+      # Lizenz (LIZENZ.md) – ohne LICENSE_ENFORCE=true wird nichts gesperrt
+      - LICENSE_SERVER_URL=${LICENSE_SERVER_URL:-}
+      - LICENSE_PUBLIC_KEY=${LICENSE_PUBLIC_KEY:-}
+      - LICENSE_ENFORCE=${LICENSE_ENFORCE:-false}
     volumes:
       - app-data:/data
     networks:

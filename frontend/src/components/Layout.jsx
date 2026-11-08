@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext.jsx'
 import { useBranding } from '../contexts/BrandingContext.jsx'
 import { useTheme } from '../contexts/ThemeContext.jsx'
 import UpdateBanner from './UpdateBanner.jsx'
+import { LicenseBanner } from '../pages/LicensePage.jsx'
 
 const navLink = (active) => ({
   display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8,
@@ -88,6 +89,7 @@ export default function Layout() {
         </div>
         <NavLink to="/admin" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>⚙️</span><span>Einstellungen</span></NavLink>
         <NavLink to="/display-manage" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🖥</span><span>Mitarbeiterbildschirm</span></NavLink>
+        <NavLink to="/license" style={({isActive})=>navLink(isActive)} onClick={onNavigate}><span>🔑</span><span>Lizenz</span></NavLink>
       </>}
 
       <div style={{ borderTop:'1px solid var(--border)', marginTop:8, paddingTop:8 }}>
@@ -187,6 +189,7 @@ export default function Layout() {
         </header>
         <div style={{ flex:1, overflow:'auto', padding:'20px 28px' }}>
           {isAdmin && <UpdateBanner />}
+          {isAdmin && <LicenseBanner />}
           <Outlet />
         </div>
       </main>

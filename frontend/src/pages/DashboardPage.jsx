@@ -96,7 +96,7 @@ export default function DashboardPage() {
             color="var(--primary)" onClick={() => navigate('/calendar')} />
         )}
         {features.hours && show('stat_overtime') && saldo !== null && saldo > 0 && (
-          <StatCard icon="⏱" label="Überstunden" value={loading ? '...' : '+' + fmtH(saldo)}
+          <StatCard icon="⏱" label="Überstunden" value={loading ? '...' : fmtH(saldo)}
             color={'var(--success)'}
             onClick={() => navigate('/hours')} />
         )}

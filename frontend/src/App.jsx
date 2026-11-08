@@ -27,6 +27,7 @@ import ToolsPage from './pages/ToolsPage.jsx'
 import ToolsSearchPage from './pages/ToolsSearchPage.jsx'
 import Layout from './components/Layout.jsx'
 import ManagerDashboard from './pages/ManagerDashboard.jsx'
+import LicensePage from './pages/LicensePage.jsx'
 
 function AppRoutes() {
   const { user, loading } = useAuth()
@@ -65,6 +66,7 @@ function AppRoutes() {
           {user.role === 'admin' && <Route path="/admin/*" element={<AdminPage />} />}
           {(user.role === 'admin' || user.role === 'vacation_approver' || user.role === 'manager') && <Route path="/manager/*" element={<ManagerDashboard />} />}
           {user.role === 'admin' && <Route path="/display-manage" element={<DisplayManagePage />} />}
+          {user.role === 'admin' && <Route path="/license" element={<LicensePage />} />}
           <Route path="/news" element={<FeatureGate feature="news_read"><NewsPage /></FeatureGate>} />
           <Route path="/tools" element={<FeatureGate feature="tools"><ToolsPage /></FeatureGate>} />
               <Route path="/tools-search" element={<FeatureGate feature="tools_search"><ToolsSearchPage /></FeatureGate>} />
