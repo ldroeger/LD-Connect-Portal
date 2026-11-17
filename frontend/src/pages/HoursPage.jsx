@@ -6,7 +6,9 @@ const MONTHS_SHORT = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Ok
 const fmtH = h => `${Math.round(h*100)/100}h`
 const fmtTime = d => { if (!d) return ""; const t = new Date(d); return `${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}` }
 const fmtDate = d => { const t = new Date(d); return `${String(t.getDate()).padStart(2,"0")}.${String(t.getMonth()+1).padStart(2,"0")}.${t.getFullYear()}` }
-const dayName = d => ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(d).getDay()]
+const dayName = d => ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(d).getUTCDay()]
+// ISO-Kalenderwoche (Mo–So), damit Sa/So in derselben Woche wie Mo–Fr stehen
+const isoWeek = d => { const t = new Date(d); t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7)); const jan1 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((t - jan1) / 86400000 + 1) / 7) }
 const saldoColor = s => s >= 0 ? "var(--success)" : "var(--error)"
 const artLabel = a => a === "P" ? "Projekt" : a === "K" ? "KDI" : ""
 const artColor = a => a === "P" ? "#6366F1" : "#F59E0B"
@@ -139,14 +141,14 @@ function MonatsView({ year, month, onBack }) {
       .catch(e => { setError(e.response?.data?.error||"Fehler"); setLoading(false) })
   }, [year, month])
 
-  const byWeek = {}
+  // Als Liste in Tagesreihenfolge, damit KW 52/53 Anfang Januar nicht ans Ende sortiert wird
+  const weeks = []
   if (data && data.tage) {
     data.tage.forEach(d => {
-      const dt = new Date(d.tag)
-      const jan1 = new Date(dt.getFullYear(), 0, 1)
-      const kw = Math.ceil(((dt - jan1) / 86400000 + jan1.getDay() + 1) / 7)
-      if (!byWeek[kw]) byWeek[kw] = []
-      byWeek[kw].push(d)
+      const kw = isoWeek(d.tag)
+      const last = weeks[weeks.length - 1]
+      if (last && last[0] === kw) last[1].push(d)
+      else weeks.push([kw, [d]])
     })
   }
 
@@ -165,9 +167,7 @@ function MonatsView({ year, month, onBack }) {
 
         {!data?.tage?.length
           ? <div style={S.card}><div style={{ color:"var(--text-3)", textAlign:"center", padding:"20px 0" }}>Keine Arbeitstage in {MONTHS[month-1]} {year}.</div></div>
-          : Object.keys(byWeek).length === 0
-          ? <div style={S.card}><div style={{ color:"var(--text-3)", textAlign:"center", padding:"20px 0" }}>Keine Arbeitstage in {MONTHS[month-1]} {year}.</div></div>
-          : Object.entries(byWeek).map(([kw, tage]) => (
+          : weeks.map(([kw, tage]) => (
             <div key={kw} style={S.card}>
               <div style={{ fontWeight:700, fontSize:"0.95rem", marginBottom:12, color:"var(--text-2)", display:"flex", justifyContent:"space-between" }}>
                 <span>KW {kw}</span>
@@ -190,6 +190,7 @@ function MonatsView({ year, month, onBack }) {
                         <td style={{ ...S.td, fontWeight:600 }}>
                           <span style={{ color:"var(--text-3)", marginRight:8, fontSize:"0.82rem" }}>{dayName(d.tag)}</span>
                           {fmtDate(d.tag)}
+                          {d.wochenende && <span style={{ ...S.badge("#8B5CF6"), marginLeft:8 }}>Wochenende</span>}
                         </td>
                         <td style={{ ...S.td, textAlign:"right", fontFamily:"monospace", fontWeight:700, color: d.gesamt > 0 ? "var(--primary)" : "var(--text-3)" }}>
                           {d.gesamt > 0 ? fmtH(d.gesamt) : "–"}
