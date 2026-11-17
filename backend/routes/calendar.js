@@ -167,21 +167,18 @@ router.get('/hours/detail', authMiddleware, async (req, res) => {
       });
     });
 
-    // Alle Werktage des Monats generieren (Mo-Fr)
+    // Alle Werktage des Monats (Mo-Fr) plus Wochenendtage, an denen gebucht wurde
     const alleTage = [];
-    const cursor = new Date(parseInt(year), parseInt(month) - 1, 1);
-    const endOfMonth = new Date(parseInt(year), parseInt(month), 0);
-    while (cursor <= endOfMonth) {
-      const dow = cursor.getDay();
-      if (dow !== 0 && dow !== 6) { // kein Sa/So
-        const tagStr = cursor.toISOString().split('T')[0];
-        if (byDay[tagStr]) {
-          alleTage.push({ ...byDay[tagStr], gesamt: Math.round(byDay[tagStr].gesamt * 100) / 100 });
-        } else {
-          alleTage.push({ tag: tagStr, eintraege: [], gesamt: 0 });
-        }
+    for (let d = 1; d <= lastDay; d++) {
+      const dow = new Date(parseInt(year), parseInt(month) - 1, d).getDay();
+      const wochenende = dow === 0 || dow === 6;
+      // Datum ohne toISOString bilden, sonst verschiebt die Zeitzone den Tag
+      const tagStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      if (byDay[tagStr]) {
+        alleTage.push({ ...byDay[tagStr], gesamt: Math.round(byDay[tagStr].gesamt * 100) / 100, wochenende });
+      } else if (!wochenende) {
+        alleTage.push({ tag: tagStr, eintraege: [], gesamt: 0, wochenende });
       }
-      cursor.setDate(cursor.getDate() + 1);
     }
 
     // Saldo aus LOZKT holen
