@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.4 (2026-11-23)
+
+- Wochenend-Buchungen im Stundenkonto anzeigen (#13) (d878440)
+
 ## v1.1.3 (2026-11-08)
 
 - Lizenzschlüssel nur für Admins ausgeben (#12) (e6d767b)
